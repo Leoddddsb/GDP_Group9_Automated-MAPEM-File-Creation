@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/mapem/site_model.schema.json",
+  "title": "SiteModel",
+  "type": "object",
+  "required": ["site_id", "ref_point", "lanes", "signal_groups"],
+  "properties": {
+    "site_id": { "type": "string" },
+    "name": { "type": "string" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "ref_point": {
+      "type": "object",
+      "required": ["lat", "lon"],
+      "properties": {
+        "lat": { "type": "number" },
+        "lon": { "type": "number" }
+      }
+    },
+    "lane_width_m": { "type": "number", "exclusiveMinimum": 0 },
+    "source_notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "lanes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lane_id", "approach_id", "centerline"],
+        "properties": {
+          "lane_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "lane_type": { "type": "string" },
+          "approach_id": { "type": "integer" },
+          "direction": { "type": "string" },
+          "centerline": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [{ "type": "number" }, { "type": "number" }],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "maneuvers": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "connects_to": {
+            "type": "array",
+            "items": { "type": "integer" }
+          },
+          "signal_group": {
+            "type": ["integer", "null"]
+          }
+        }
+      }
+    },
+    "signal_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal_group_id"],
+        "properties": {
+          "signal_group_id": { "type": "integer" },
+          "phase_label": { "type": "string" },
+          "description": { "type": "string" },
+          "controlled_lanes": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}
+

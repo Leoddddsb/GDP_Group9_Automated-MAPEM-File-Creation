@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mapemgen"
+version = "0.1.0"
+description = "Automated MAPEM file creation prototype for GDP Group 9"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+geo = ["pyproj", "shapely", "geopandas", "folium"]
+cad = ["ezdxf", "shapely"]
+pdf = ["pandas", "pdfplumber", "camelot-py"]
+cv = ["opencv-python", "pytesseract", "pymupdf"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

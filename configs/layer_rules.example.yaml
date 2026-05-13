@@ -1,0 +1,17 @@
+# Draft CAD layer interpretation rules.
+# These names are placeholders until the six Leeds DWGs are triaged.
+lane_centerline:
+  include:
+    - "LANE"
+    - "CENTRE"
+stop_line:
+  include:
+    - "STOP"
+signal_pole:
+  include:
+    - "SIGNAL"
+    - "POLE"
+kerb:
+  include:
+    - "KERB"
+

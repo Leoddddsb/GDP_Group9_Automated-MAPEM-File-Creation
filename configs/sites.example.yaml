@@ -1,0 +1,16 @@
+# Copy this file to configs/sites.local.yaml and fill in local confidential paths.
+# Do not commit real Leeds raw data paths if they reveal confidential storage.
+sites:
+  - site_id: "397L"
+    name: "Example Leeds site"
+    tier: 1
+    coordinate_system: "EPSG:27700"
+    files:
+      cad_dwg: "data/raw/397L/site.dwg"
+      cad_dxf: "data/processed/397L/site.dxf"
+      pdf_spec: "data/raw/397L/spec.pdf"
+    outputs:
+      directory: "outputs/397L"
+    notes:
+      - "Replace with real local paths after data triage."
+

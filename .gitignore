@@ -1,0 +1,32 @@
+# Confidential/raw project data
+*.dwg
+*.dxf
+*.pdf
+*.docx
+*.pptx
+Leeds City Council cite data/
+
+# Generated outputs and local data
+data/raw/
+data/processed/
+outputs/*
+!outputs/README.md
+!outputs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
