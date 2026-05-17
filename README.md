@@ -8,6 +8,8 @@ The project investigates how far existing local authority site records can be co
 
 This repository is structured as one engineering project, not one folder per person.
 
+For a fuller explanation of every folder and where team members should add work, see [`docs/repository_structure_notes.md`](docs/repository_structure_notes.md).
+
 - `src/mapemgen/`: Core Python package. Shared code for data models, pipeline orchestration, file IO, and command line entry points should live here.
 - `src/mapemgen/ingestion/`: Input extraction modules. Put CAD/DXF extraction, PDF table parsing, PDF computer vision, and GIS/georeferencing code here.
 - `src/mapemgen/generators/`: MAPEM output modules. Put `mapem.json` and `mapem.asn1` generation logic here.
