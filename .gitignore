@@ -9,9 +9,7 @@ Leeds City Council cite data/
 # Generated outputs and local data
 data/raw/
 data/processed/
-outputs/*
-!outputs/README.md
-!outputs/.gitkeep
+outputs/
 
 # Python
 __pycache__/
@@ -29,4 +27,3 @@ venv/
 Thumbs.db
 .idea/
 .vscode/
-
