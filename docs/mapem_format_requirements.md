@@ -499,33 +499,7 @@ Simplified JSON view:
 }
 ```
 
-## 12. Current SiteModel Coverage
-
-| MAPEM content | Current field |
-| --- | --- |
-| MAPEM top level | `mapData` |
-| MAPEM revision | `mapData.msgIssueRevision` |
-| Junction list | `mapData.intersections` |
-| Junction object | `IntersectionGeometry` |
-| Junction ID | `IntersectionGeometry.id` |
-| Junction revision | `IntersectionGeometry.revision` |
-| Junction reference point | `IntersectionGeometry.refPoint` |
-| Generic lane width | `IntersectionGeometry.laneWidth` |
-| Lane collection | `IntersectionGeometry.laneSet` |
-| Single lane | `GenericLane` |
-| Lane attributes | `GenericLane.laneAttributes` |
-| Lane geometry | `GenericLane.nodeList.nodes` |
-| Lane movement | `GenericLane.maneuvers` |
-| Lane connection | `GenericLane.connectsTo` |
-| Connection target lane | `connectsTo.connectingLane.lane` |
-| Connection movement | `connectsTo.connectingLane.maneuver` |
-| Connection signal group | `connectsTo.signalGroup` |
-| Signal head location | `IntersectionGeometry.signalHeadLocations` |
-| Speed limits | `IntersectionGeometry.speedLimits` |
-| Restrictions | `mapData.restrictionList` |
-| Generation metadata | `mapData.dataParameters` |
-
-## 13. Remaining Gaps Before Production-Grade MAPEM
+## 12. Remaining Gaps Before Production-Grade MAPEM
 
 The current `SiteModel` hierarchy is MAPEM-style, but it is still not a production-grade MAPEM encoder.
 
