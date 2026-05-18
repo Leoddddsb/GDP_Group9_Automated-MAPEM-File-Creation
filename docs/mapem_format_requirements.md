@@ -499,18 +499,6 @@ Simplified JSON view:
 }
 ```
 
-This example follows the core MAPEM line:
-
-```text
-MapData
-  -> IntersectionGeometry
-      -> laneSet
-          -> GenericLane
-              -> nodeList
-              -> connectsTo
-                  -> signalGroup
-```
-
 ## 12. Current SiteModel Coverage
 
 | MAPEM content | Current field |
