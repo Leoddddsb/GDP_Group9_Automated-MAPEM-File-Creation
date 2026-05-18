@@ -62,3 +62,7 @@ python -m mapemgen.cli generate --input examples/site_model.example.json --out-d
 - `mapem.json`: MAPEM-like JSON representation for inspection and schema checks.
 - `mapem.asn1`: ASN.1-style MAPEM output for the project brief requirement.
 - `validation_report.json`: Evidence of completeness, consistency, geometry checks, warnings, and manual intervention.
+
+## Format Notes
+
+- [`docs/mapem_format_requirements.md`](docs/mapem_format_requirements.md): Summary of the MAPEM data structure and project-specific format requirements.
