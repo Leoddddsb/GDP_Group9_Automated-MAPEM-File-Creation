@@ -226,39 +226,40 @@ A minimum useful MAPEM output should include:
 | Restrictions | PDF notes, road markings, site specification |
 | Speed limits | PDF notes, public GIS/OSM, manual entry |
 
-## Current SiteModel Gap Analysis
+## Current SiteModel Coverage
 
-The current repository `SiteModel` covers the first MVP shape, but it is not yet a complete MAPEM model.
+The current repository `SiteModel` is now structured around `mapData`, `IntersectionGeometry`, `laneSet`, `GenericLane`, `nodeList`, and connection-level `connectsTo.signalGroup`.
 
-Already covered:
+Covered:
 
-- site ID
-- site name
-- revision
-- reference point
-- generic lane width
-- lane ID
-- lane type
-- approach ID
-- lane direction
-- lane centreline
+- `MapData.msgIssueRevision`
+- `MapData.intersections`
+- `IntersectionGeometry.id`
+- `IntersectionGeometry.revision`
+- `IntersectionGeometry.refPoint`
+- `IntersectionGeometry.laneWidth`
+- `IntersectionGeometry.laneSet`
+- `GenericLane.laneID`
+- `GenericLane.ingressApproach`
+- `GenericLane.egressApproach`
+- `GenericLane.laneAttributes`
+- `GenericLane.nodeList`
 - maneuvers
-- lane-to-lane connections
-- signal group ID and phase label
+- connection objects
+- connection-level signal groups
+- optional signal head locations
+- optional speed limits
+- optional restriction list
+- optional data parameters
 
 Still missing or simplified:
 
-- explicit `ingressApproach` vs `egressApproach`
-- full `laneAttributes`
 - per-node MAPEM delta type and coordinate encoding
 - lane width deltas
-- elevation
-- connection-level signal groups and maneuvers
-- signal head locations
-- restriction list
-- speed limits
-- data parameters
-- ASN.1 field names and encoding details beyond the current placeholder generator
+- detailed lane attribute bit strings from the ASN.1 specification
+- full regional extension support
+- source provenance fields for extracted CAD/PDF/GIS values
+- production ASN.1 encoding; the current generator is still a readable ASN.1-style representation
 
 ## Validation Requirements
 
@@ -280,13 +281,8 @@ The validator should eventually check:
 The next `SiteModel` version should add:
 
 - `approaches`
-- explicit `ingress_approach` and `egress_approach`
-- `lane_attributes`
-- connection objects instead of bare target lane IDs
-- `signal_head_locations`
-- optional `speed_limits`
-- optional `restrictions`
 - source provenance fields for each extracted element
+- stricter MAPEM ASN.1 type names and enumerations
+- richer validation for coordinate scale, lane geometry quality, and connection semantics
 
 This will make the intermediate JSON closer to real MAPEM while still staying practical for CAD/PDF/GIS extraction.
-

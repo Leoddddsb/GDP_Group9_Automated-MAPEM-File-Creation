@@ -1,46 +1,82 @@
 {
-  "site_id": "SYNTH-001",
-  "name": "Synthetic three-arm signal junction",
-  "revision": 1,
-  "ref_point": {
-    "lat": 53.800755,
-    "lon": -1.549077
+  "mapData": {
+    "msgIssueRevision": 1,
+    "intersections": [
+      {
+        "name": "Synthetic three-arm signal junction",
+        "id": {
+          "region": 826,
+          "id": "SYNTH-001"
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 53.800755,
+          "lon": -1.549077
+        },
+        "laneWidth": 3.25,
+        "laneSet": [
+          {
+            "laneID": 1,
+            "name": "Northbound ingress",
+            "ingressApproach": 1,
+            "laneAttributes": {
+              "laneType": "vehicle",
+              "directionalUse": "ingress",
+              "sharedWith": []
+            },
+            "maneuvers": ["straight", "right"],
+            "nodeList": {
+              "nodes": [
+                { "x": 0.0, "y": -40.0 },
+                { "x": 0.0, "y": -10.0 },
+                { "x": 0.0, "y": 0.0 }
+              ]
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 2,
+                  "maneuver": "straight"
+                },
+                "signalGroup": 1,
+                "connectionID": 1
+              }
+            ]
+          },
+          {
+            "laneID": 2,
+            "name": "Northbound egress",
+            "egressApproach": 1,
+            "laneAttributes": {
+              "laneType": "vehicle",
+              "directionalUse": "egress",
+              "sharedWith": []
+            },
+            "maneuvers": [],
+            "nodeList": {
+              "nodes": [
+                { "x": 3.5, "y": 0.0 },
+                { "x": 3.5, "y": 20.0 },
+                { "x": 3.5, "y": 45.0 }
+              ]
+            },
+            "connectsTo": []
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": { "x": -1.5, "y": -8.0 },
+            "signalGroupID": 1
+          }
+        ]
+      }
+    ],
+    "dataParameters": {
+      "processMethod": "synthetic example",
+      "processAgency": "Imperial GDP Group 9"
+    }
   },
-  "lane_width_m": 3.25,
-  "source_notes": [
+  "sourceNotes": [
     "Synthetic non-confidential example for repository smoke tests."
-  ],
-  "lanes": [
-    {
-      "lane_id": 1,
-      "name": "Northbound ingress",
-      "lane_type": "vehicle",
-      "approach_id": 1,
-      "direction": "ingress",
-      "centerline": [[0.0, -40.0], [0.0, -10.0], [0.0, 0.0]],
-      "maneuvers": ["straight", "right"],
-      "connects_to": [2],
-      "signal_group": 1
-    },
-    {
-      "lane_id": 2,
-      "name": "Northbound egress",
-      "lane_type": "vehicle",
-      "approach_id": 1,
-      "direction": "egress",
-      "centerline": [[3.5, 0.0], [3.5, 20.0], [3.5, 45.0]],
-      "maneuvers": [],
-      "connects_to": [],
-      "signal_group": null
-    }
-  ],
-  "signal_groups": [
-    {
-      "signal_group_id": 1,
-      "phase_label": "A",
-      "description": "Northbound vehicle movement",
-      "controlled_lanes": [1]
-    }
   ]
 }
-

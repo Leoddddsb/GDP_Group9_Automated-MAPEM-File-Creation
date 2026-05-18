@@ -34,46 +34,81 @@ def validate_site_model(site: SiteModel) -> ValidationReport:
     errors: list[str] = []
     warnings: list[str] = []
 
-    lane_ids = [lane.lane_id for lane in site.lanes]
-    duplicate_lane_ids = sorted({lane_id for lane_id in lane_ids if lane_ids.count(lane_id) > 1})
+    if not site.map_data.intersections:
+        return ValidationReport(
+            site_id="unknown",
+            errors=["MapData contains no intersections"],
+        )
+
+    intersection = site.primary_intersection
+    lane_ids = [lane.lane_id for lane in intersection.lane_set]
+    duplicate_lane_ids = sorted(
+        {lane_id for lane_id in lane_ids if lane_ids.count(lane_id) > 1}
+    )
     if duplicate_lane_ids:
         errors.append(f"Duplicate lane IDs: {duplicate_lane_ids}")
 
     known_lanes = set(lane_ids)
-    for lane in site.lanes:
-        if not lane.centerline:
-            errors.append(f"Lane {lane.lane_id} has no centreline nodes")
-        if lane.direction not in {"ingress", "egress", "internal"}:
-            warnings.append(f"Lane {lane.lane_id} has non-standard direction '{lane.direction}'")
-        for target in lane.connects_to:
-            if target not in known_lanes:
-                errors.append(f"Lane {lane.lane_id} connects to missing lane {target}")
+    referenced_signal_groups: set[int] = set()
 
-    known_signal_groups = {group.signal_group_id for group in site.signal_groups}
-    for lane in site.lanes:
-        if lane.signal_group is not None and lane.signal_group not in known_signal_groups:
+    for lane in intersection.lane_set:
+        if not lane.node_list.nodes:
+            errors.append(f"Lane {lane.lane_id} has no nodeList nodes")
+
+        if lane.ingress_approach is None and lane.egress_approach is None:
             errors.append(
-                f"Lane {lane.lane_id} references missing signal group {lane.signal_group}"
+                f"Lane {lane.lane_id} has neither ingressApproach nor egressApproach"
             )
 
-    controlled = {
-        lane_id for group in site.signal_groups for lane_id in group.controlled_lanes
+        if lane.lane_attributes.directional_use not in {"ingress", "egress", "both"}:
+            warnings.append(
+                f"Lane {lane.lane_id} has non-standard directionalUse "
+                f"'{lane.lane_attributes.directional_use}'"
+            )
+
+        for connection in lane.connects_to:
+            target = connection.connecting_lane.lane
+            if target not in known_lanes:
+                errors.append(f"Lane {lane.lane_id} connects to missing lane {target}")
+            if connection.signal_group is None:
+                errors.append(
+                    f"Lane {lane.lane_id} connection to lane {target} has no signalGroup"
+                )
+            else:
+                referenced_signal_groups.add(connection.signal_group)
+            if connection.connecting_lane.maneuver is None:
+                warnings.append(
+                    f"Lane {lane.lane_id} connection to lane {target} has no maneuver"
+                )
+
+        if (
+            lane.lane_attributes.directional_use == "ingress"
+            and lane.connects_to
+            and not lane.maneuvers
+        ):
+            warnings.append(f"Ingress lane {lane.lane_id} has no maneuvers")
+
+    signal_head_groups = {
+        location.signal_group_id for location in intersection.signal_head_locations
     }
-    uncontrolled_ingress = [
-        lane.lane_id
-        for lane in site.lanes
-        if lane.direction == "ingress" and lane.lane_id not in controlled
-    ]
-    if uncontrolled_ingress:
-        warnings.append(f"Ingress lanes not controlled by a signal group: {uncontrolled_ingress}")
+    unlocated_signal_groups = sorted(referenced_signal_groups - signal_head_groups)
+    if referenced_signal_groups and intersection.signal_head_locations and unlocated_signal_groups:
+        warnings.append(
+            f"Signal groups referenced by connections but missing signal head locations: "
+            f"{unlocated_signal_groups}"
+        )
 
     metrics = {
-        "lane_count": len(site.lanes),
-        "signal_group_count": len(site.signal_groups),
-        "lane_node_count": sum(len(lane.centerline) for lane in site.lanes),
-        "controlled_lane_ratio": (
-            len(controlled & known_lanes) / len(known_lanes) if known_lanes else 0
+        "intersection_count": len(site.map_data.intersections),
+        "lane_count": len(intersection.lane_set),
+        "lane_node_count": sum(
+            len(lane.node_list.nodes) for lane in intersection.lane_set
         ),
+        "connection_count": sum(
+            len(lane.connects_to) for lane in intersection.lane_set
+        ),
+        "referenced_signal_group_count": len(referenced_signal_groups),
+        "signal_head_location_count": len(intersection.signal_head_locations),
     }
     return ValidationReport(
         site_id=site.site_id,
@@ -81,4 +116,3 @@ def validate_site_model(site: SiteModel) -> ValidationReport:
         warnings=warnings,
         metrics=metrics,
     )
-

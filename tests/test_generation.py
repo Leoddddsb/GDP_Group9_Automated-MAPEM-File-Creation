@@ -19,10 +19,21 @@ class GenerationTest(unittest.TestCase):
         self.assertEqual(len(lane_set), 2)
         self.assertEqual(lane_set[0]["laneID"], 1)
 
+    def test_json_generator_uses_mapem_connection_level_signal_group(self):
+        output = generate_json_mapem(load_example())
+        lane = output["mapData"]["intersections"][0]["laneSet"][0]
+        connection = lane["connectsTo"][0]
+
+        self.assertNotIn("signalGroup", lane)
+        self.assertEqual(connection["connectingLane"]["lane"], 2)
+        self.assertEqual(connection["connectingLane"]["maneuver"], "straight")
+        self.assertEqual(connection["signalGroup"], 1)
+
     def test_asn1_generator_contains_map_data(self):
         output = generate_asn1_mapem(load_example())
         self.assertIn("MapData ::= {", output)
         self.assertIn("laneID 1", output)
+        self.assertIn("signalGroup 1", output)
 
 
 if __name__ == "__main__":

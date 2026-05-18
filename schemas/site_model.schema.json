@@ -1,76 +1,211 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/mapem/site_model.schema.json",
-  "title": "SiteModel",
+  "title": "MAPEM-aligned SiteModel",
   "type": "object",
-  "required": ["site_id", "ref_point", "lanes", "signal_groups"],
+  "required": ["mapData"],
   "properties": {
-    "site_id": { "type": "string" },
-    "name": { "type": "string" },
-    "revision": { "type": "integer", "minimum": 1 },
-    "ref_point": {
+    "mapData": {
+      "type": "object",
+      "required": ["msgIssueRevision", "intersections"],
+      "properties": {
+        "timestamp": { "type": "integer" },
+        "msgIssueRevision": { "type": "integer", "minimum": 1 },
+        "layerType": { "type": "string" },
+        "layerID": { "type": "integer" },
+        "intersections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/intersectionGeometry" }
+        },
+        "dataParameters": {
+          "type": "object",
+          "properties": {
+            "processMethod": { "type": "string" },
+            "processAgency": { "type": "string" },
+            "lastCheckedDate": { "type": "string" },
+            "geoidUsed": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "restrictionList": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restrictionClassAssignment" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceNotes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "intersectionGeometry": {
+      "type": "object",
+      "required": ["id", "revision", "refPoint", "laneSet"],
+      "properties": {
+        "name": { "type": "string" },
+        "id": { "$ref": "#/$defs/intersectionReferenceID" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "refPoint": { "$ref": "#/$defs/position3D" },
+        "laneWidth": { "type": "number", "exclusiveMinimum": 0 },
+        "speedLimits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/speedLimit" }
+        },
+        "laneSet": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/genericLane" }
+        },
+        "signalHeadLocations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/signalHeadLocation" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "intersectionReferenceID": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "region": { "type": "integer" },
+        "id": { "type": ["integer", "string"] }
+      },
+      "additionalProperties": false
+    },
+    "position3D": {
       "type": "object",
       "required": ["lat", "lon"],
       "properties": {
         "lat": { "type": "number" },
-        "lon": { "type": "number" }
-      }
+        "lon": { "type": "number" },
+        "elevation": { "type": "number" }
+      },
+      "additionalProperties": false
     },
-    "lane_width_m": { "type": "number", "exclusiveMinimum": 0 },
-    "source_notes": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "lanes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["lane_id", "approach_id", "centerline"],
-        "properties": {
-          "lane_id": { "type": "integer" },
-          "name": { "type": "string" },
-          "lane_type": { "type": "string" },
-          "approach_id": { "type": "integer" },
-          "direction": { "type": "string" },
-          "centerline": {
-            "type": "array",
-            "items": {
-              "type": "array",
-              "prefixItems": [{ "type": "number" }, { "type": "number" }],
-              "minItems": 2,
-              "maxItems": 2
-            }
-          },
-          "maneuvers": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "connects_to": {
-            "type": "array",
-            "items": { "type": "integer" }
-          },
-          "signal_group": {
-            "type": ["integer", "null"]
-          }
+    "genericLane": {
+      "type": "object",
+      "required": ["laneID", "laneAttributes", "nodeList"],
+      "properties": {
+        "laneID": { "type": "integer" },
+        "name": { "type": "string" },
+        "ingressApproach": { "type": "integer" },
+        "egressApproach": { "type": "integer" },
+        "laneAttributes": { "$ref": "#/$defs/laneAttributes" },
+        "maneuvers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "nodeList": { "$ref": "#/$defs/nodeList" },
+        "connectsTo": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/connection" }
         }
-      }
+      },
+      "additionalProperties": false
     },
-    "signal_groups": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["signal_group_id"],
-        "properties": {
-          "signal_group_id": { "type": "integer" },
-          "phase_label": { "type": "string" },
-          "description": { "type": "string" },
-          "controlled_lanes": {
-            "type": "array",
-            "items": { "type": "integer" }
-          }
+    "laneAttributes": {
+      "type": "object",
+      "required": ["laneType", "directionalUse"],
+      "properties": {
+        "laneType": {
+          "type": "string",
+          "enum": [
+            "vehicle",
+            "crosswalk",
+            "bikeLane",
+            "sidewalk",
+            "median",
+            "striping",
+            "trackedVehicle",
+            "parking"
+          ]
+        },
+        "directionalUse": {
+          "type": "string",
+          "enum": ["ingress", "egress", "both"]
+        },
+        "sharedWith": {
+          "type": "array",
+          "items": { "type": "string" }
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "nodeList": {
+      "type": "object",
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nodeXY" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodeXY": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "connection": {
+      "type": "object",
+      "required": ["connectingLane"],
+      "properties": {
+        "connectingLane": { "$ref": "#/$defs/connectingLane" },
+        "signalGroup": { "type": "integer" },
+        "connectionID": { "type": "integer" },
+        "userClass": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "connectingLane": {
+      "type": "object",
+      "required": ["lane"],
+      "properties": {
+        "lane": { "type": "integer" },
+        "maneuver": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "speedLimit": {
+      "type": "object",
+      "required": ["type", "speed"],
+      "properties": {
+        "type": { "type": "string" },
+        "speed": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "signalHeadLocation": {
+      "type": "object",
+      "required": ["nodeXY", "signalGroupID"],
+      "properties": {
+        "nodeXY": { "$ref": "#/$defs/nodeXY" },
+        "nodeZ": { "type": "number" },
+        "signalGroupID": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "restrictionClassAssignment": {
+      "type": "object",
+      "required": ["id", "users"],
+      "properties": {
+        "id": { "type": "integer" },
+        "users": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
-
