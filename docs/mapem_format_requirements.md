@@ -1,288 +1,569 @@
-# MAPEM Format Requirements Notes
+# MAPEM Data Structure Requirements
 
-These notes summarise the MAPEM data format requirements relevant to this project, based on the project brief, client briefing slides, and the C-ITS European Handbook for MAPEM/SPATEM Creation v3.2.0.
+This document is a simplified project-facing explanation of the MAPEM data structure. It is not a full translation of the standard. Its purpose is to help the team understand:
 
-## Project Interpretation
+- what the MAPEM hierarchy looks like
+- what each layer contains
+- where our extracted CAD/PDF/GIS data should fit
+- how the current `SiteModel` example is shaped
 
-The project needs to generate machine-readable MAPEM topographic data for signal-controlled sites.
+## 1. Core MAPEM Data Structure
 
-There are two output-format expectations in the current materials:
+MAPEM can be understood as this tree:
 
-- The project brief asks for valid MAPEM files in ASN.1 format.
-- The client briefing describes the task as extracting topographic content into a MAPEM file in JSON.
+```text
+MAPEM / MapData
+|
++-- intersections
+    |
+    +-- IntersectionGeometry
+        |
+        +-- id
+        +-- revision
+        +-- refPoint
+        |   |
+        |   +-- lat
+        |   +-- lon
+        |
+        +-- laneWidth
+        |
+        +-- laneSet
+            |
+            +-- GenericLane
+                |
+                +-- laneID
+                +-- ingressApproach / egressApproach
+                +-- laneAttributes
+                |   |
+                |   +-- laneType
+                |   +-- directionalUse
+                |
+                +-- maneuvers
+                +-- nodeList
+                |   |
+                |   +-- NodeXY
+                |   +-- NodeXY
+                |   +-- NodeXY
+                |
+                +-- connectsTo
+                    |
+                    +-- target lane
+                    +-- maneuver
+                    +-- signalGroup
+```
 
-For this project, the safest interpretation is:
+The key relationship is:
 
-- Use JSON internally and for readable inspection.
-- Generate `mapem.json` as a transparent project/debug output.
-- Generate `mapem.asn1` as the standards-facing output.
-- Generate `validation_report.json` to explain whether the MAPEM is complete, consistent, and accurate.
+```text
+MapData
+  -> IntersectionGeometry
+      -> GenericLane
+          -> nodeList       lane geometry
+          -> connectsTo     lane connection relationship
+              -> signalGroup    signal group controlling this connection
+```
 
-## MAPEM Concept
+In plain terms:
 
-MAPEM describes the static topology of a road intersection or signal-controlled site. It does not describe signal timing or sequencing.
+- `MapData` is the whole MAPEM message.
+- `IntersectionGeometry` is one junction or signal-controlled site.
+- `GenericLane` is one lane inside that site.
+- `nodeList` describes the lane geometry.
+- `connectsTo` describes which downstream lane this lane can connect to.
+- `signalGroup` sits under `connectsTo` and describes which signal group controls that lane connection / movement.
 
-MAPEM should represent:
+## 2. First Layer: MapData
 
-- intersection reference point
-- lane geometry
-- ingress and egress approaches
-- permitted lane movements
-- lane-to-lane connections
-- signal group references
-- optional signal head locations
-- optional restrictions and speed limits
+`MapData` is the outer layer of MAPEM.
 
-SPATEM is the related message for signal phase and timing. MAPEM and SPATEM need consistent intersection IDs and revision numbers, but SPATEM generation is out of scope for the current prototype.
+```text
+MapData
+|
++-- msgIssueRevision
++-- intersections
++-- restrictionList       optional
++-- dataParameters        optional
+```
 
-## Top-Level Structure
+For this project, the most important fields are:
 
-The main MAPEM data frame is `MapData`.
-
-Relevant `MapData` fields for this project:
-
-| Field | Purpose | Project handling |
+| Field | Meaning | Needed for MVP |
 | --- | --- | --- |
-| `timestamp` | Message timestamp | Optional for MVP |
-| `msgIssueRevision` | MAPEM revision/version number | Required for version tracking |
-| `layerType` | MAPEM fragmentation/layering | Only needed for fragmented messages |
-| `layerID` | Fragment ID when one MAPEM is split across layers | Omit for MVP unless message is fragmented |
-| `intersections` | List of `IntersectionGeometry` objects | Required |
-| `roadSegments` | Road segments outside intersections | Out of MVP scope |
-| `dataParameters` | Metadata about process/method/agency | Optional documentation field |
-| `restrictionList` | Road user restrictions | Optional unless restrictions are known |
-| `regional.signalHeadLocations` | Signal head location extension | Useful if signal head positions are extracted |
+| `msgIssueRevision` | MAPEM version / revision number | Yes |
+| `intersections` | List of junctions | Yes |
+| `restrictionList` | Restriction information | Optional |
+| `dataParameters` | Generation method, agency, metadata | Optional |
 
-For most project sites, we should generate one `MapData` containing one `IntersectionGeometry`.
+For most project sites, we can start with:
 
-## IntersectionGeometry
+```text
+one MapData
+  containing one IntersectionGeometry
+```
 
-`IntersectionGeometry` describes one signal-controlled site.
+## 3. Second Layer: IntersectionGeometry
 
-Relevant fields:
+`IntersectionGeometry` represents one specific junction or signal-controlled site.
 
-| Field | Purpose | Requirement |
+```text
+IntersectionGeometry
+|
++-- id
+|   |
+|   +-- region
+|   +-- id
+|
++-- revision
++-- refPoint
+|   |
+|   +-- lat
+|   +-- lon
+|
++-- laneWidth
++-- laneSet
+```
+
+Important fields:
+
+- `id`: the site or junction ID.
+- `revision`: the topology version of this site.
+- `refPoint`: the reference point, usually near the centre of the conflict area.
+- `laneWidth`: generic lane width.
+- `laneSet`: all lanes encoded for this site.
+
+| Field | Meaning | Likely source |
 | --- | --- | --- |
-| `name` | Human-readable site name | Optional; handbook recommends omitting to reduce message size |
-| `id.region` | Region/authority identifier | Needed for real deployment; MVP can use a documented placeholder |
-| `id.id` | Intersection/site identifier | Required; must match related SPATEM if SPATEM exists |
-| `revision` | Intersection topology version | Required |
-| `refPoint.lat` | Reference latitude | Required |
-| `refPoint.lon` | Reference longitude | Required |
-| `refPoint.elevation` | Reference elevation | Optional for MVP |
-| `laneWidth` | Generic lane width | Recommended; useful when per-node width is not encoded |
-| `speedLimits` | Regulatory speed limits | Optional for MVP |
-| `laneSet` | List of lanes at the intersection | Required |
+| `id.region` | Region or road authority identifier | Client / manual setup |
+| `id.id` | Junction/site identifier | Site ID, PDF title, folder name |
+| `revision` | Site topology version | Manual setup or version management |
+| `refPoint.lat` | Reference point latitude | GIS/CAD/manual selection |
+| `refPoint.lon` | Reference point longitude | GIS/CAD/manual selection |
+| `laneWidth` | Default lane width | CAD/PDF/default value |
+| `laneSet` | Lane collection | CAD + PDF + manual checking |
 
-The reference point should be near the centre of the intersection conflict area. Other geometry is encoded relative to this reference point, so a sensible `refPoint` keeps node offsets smaller and improves message efficiency.
+`refPoint` is important because many MAPEM geometry points are encoded as offsets from it rather than as raw CAD coordinates.
 
-## GenericLane
+## 4. Third Layer: GenericLane
 
-Each lane in `laneSet` is a `GenericLane`.
+`GenericLane` represents one lane.
 
-Relevant fields:
+```text
+GenericLane
+|
++-- laneID
++-- ingressApproach / egressApproach
++-- laneAttributes
+|   |
+|   +-- laneType
+|   +-- directionalUse
+|
++-- maneuvers
++-- nodeList
++-- connectsTo
+```
 
-| Field | Purpose | Requirement |
+| Field | Meaning | Likely source |
 | --- | --- | --- |
-| `laneID` | Unique lane identifier inside the intersection | Required |
-| `name` | Human-readable lane name | Optional |
-| `ingressApproach` | Approach ID for entering lanes | Required for ingress lanes |
-| `egressApproach` | Approach ID for exiting lanes | Required for egress lanes |
-| `laneAttributes.directionalUse` | Ingress/egress/bidirectional use | Required where known |
-| `laneAttributes.sharedWith` | Shared use, e.g. bicycle/pedestrian/tram | Required where relevant |
-| `laneAttributes.laneType` | Vehicle, crosswalk, bike lane, sidewalk, etc. | Required |
-| `maneuvers` | Allowed movements, e.g. left/straight/right | Required for controlled vehicle lanes |
-| `nodeList` | Lane geometry as node points | Required |
-| `connectsTo` | Downstream lane connections | Required for ingress lanes where known |
-| `overlays` | Relationship to another lane | Optional |
+| `laneID` | Unique lane ID | Auto-numbering / manual confirmation |
+| `ingressApproach` | Ingress approach | Lane direction interpretation |
+| `egressApproach` | Egress approach | Lane direction interpretation |
+| `laneAttributes.laneType` | Lane type | CAD layers, PDF, manual interpretation |
+| `laneAttributes.directionalUse` | Ingress/egress/bidirectional use | CAD/GIS/manual interpretation |
+| `maneuvers` | Allowed left/straight/right movements | PDF phase/stage diagrams, road markings |
+| `nodeList` | Lane centreline geometry | CAD/DXF/GIS |
+| `connectsTo` | Downstream lane connections | Geometry + movement interpretation |
 
-The handbook states that `laneSet` should include all traffic-light-controlled lanes. Omitting controlled bicycle, pedestrian, or tracked-vehicle lanes can make the MAPEM misleading, because a receiver cannot know whether the lane does not exist or was merely omitted.
+Simple interpretation:
 
-## Approaches
+```text
+GenericLane = lane ID + type + direction + geometry + movement + connections
+```
 
-Each lane belongs to an approach.
+## 5. nodeList: Lane Geometry
 
-Project interpretation:
+`nodeList` describes the lane centreline.
 
-- Ingress lanes enter the intersection.
-- Egress lanes leave the intersection.
-- Ingress and egress lanes on the same arm should share the same approach ID.
-- Approach IDs should be consistent within the site and stable across revisions.
+```text
+nodeList
+|
++-- NodeXY 1
++-- NodeXY 2
++-- NodeXY 3
++-- ...
+```
 
-The current `SiteModel` has `approach_id` and `direction`; later schema revisions should map these explicitly to `ingressApproach` and `egressApproach`.
+Each `NodeXY` is a point. Multiple points form the lane centreline.
 
-## NodeList And Geometry
+```text
+Lane centreline
 
-`nodeList` describes lane geometry.
+Node 1 ------ Node 2 ------ Node 3
+```
 
-Relevant requirements:
-
-- Nodes should represent the lane centreline.
-- Node coordinates are relative to the intersection `refPoint`.
-- Nodes should be accurate enough to describe the lane shape without making the message unnecessarily large.
-- Fewer nodes are preferred when the lane shape can still be represented within quality limits.
-- Extra attributes such as lane width delta and elevation delta can be added later if needed.
-
-For this project, the minimum useful lane geometry is:
+In our intermediate JSON, this can be represented as:
 
 ```json
 {
-  "lane_id": 1,
-  "centerline": [[0.0, -40.0], [0.0, -10.0], [0.0, 0.0]]
+  "laneID": 1,
+  "nodeList": {
+    "nodes": [
+      { "x": 0.0, "y": -40.0 },
+      { "x": 0.0, "y": -10.0 },
+      { "x": 0.0, "y": 0.0 }
+    ]
+  }
 }
 ```
 
-These coordinates should be treated as local offsets from `refPoint`, not raw CAD coordinates.
+Notes:
 
-## ConnectsTo
+- These points should be local offsets from `refPoint`.
+- Do not directly place raw CAD coordinates into MAPEM.
+- Too few nodes reduce geometry accuracy.
+- Too many nodes increase message size.
 
-`connectsTo` describes which lane or lanes a vehicle can enter after following an ingress lane.
+## 6. connectsTo: Lane Connection Relationship
 
-Relevant fields:
+`connectsTo` describes where an ingress lane can go after entering the junction.
 
-| Field | Purpose |
+```text
+GenericLane 1
+|
++-- connectsTo
+    |
+    +-- connectingLane: Lane 2
+    +-- maneuver: straight
+    +-- signalGroup: 1
+```
+
+This can also be read as:
+
+```text
+Lane 1  --straight / signalGroup 1-->  Lane 2
+```
+
+For MVP, we need at least:
+
+| Information | Example |
 | --- | --- |
-| `connectingLane.lane` | Target lane ID |
-| `connectingLane.maneuver` | Movement used for the connection |
-| `signalGroup` | Signal group controlling this connection |
-| `connectionID` | Optional unique connection ID |
-| `remoteIntersection` | Optional for connections into another intersection |
+| Source lane | Lane 1 |
+| Target lane | Lane 2 |
+| Movement | straight / left / right |
+| Signal group | Signal Group 1 |
 
-For MVP, the most important parts are:
+This usually cannot be inferred from CAD alone. It often needs:
 
-- source lane ID
-- target lane ID
-- movement type
-- signal group ID
+- PDF stage diagrams
+- phase tables
+- road markings
+- manual checking
 
-## Signal Groups
+## 7. signalGroup: Signal Group
 
-MAPEM does not encode signal timing, but it references signal groups so that MAPEM topology can line up with SPATEM signal status.
+MAPEM does not describe signal timing, but it references signal groups so that MAPEM topology can line up with SPATEM signal state.
 
-For this project, each signal group should capture:
+Conceptual structure:
 
-- numeric `signalGroupID`
-- source phase label from the PDF, e.g. `A`, `B`, `C`
-- controlled lanes or controlled lane connections
-- description of the movement, if available
+```text
+SignalGroup
+|
++-- signalGroupID
++-- phaseLabel
++-- controlledLanes
++-- description
+```
 
-The PDF specification files are likely to be the main source for phase labels, movement descriptions, conflict matrices, and stage/phase relationships.
+Example:
 
-## Signal Head Locations
+```text
+SignalGroup 1
+|
++-- phaseLabel: A
++-- controlledLanes: Lane 1
++-- description: northbound ahead movement
+```
 
-The handbook includes `signalHeadLocations` as a regional extension.
+Likely PDF sources:
 
-Relevant fields:
+- USE OF PHASES
+- STAGE / PHASE table
+- CONFLICTING PHASES
+- stage arrows
+- phase labels such as A/B/C/D
 
-- `nodeXY`
-- `nodeZ`
-- `signalGroupID`
+## 8. signalHeadLocations: Optional Extension
 
-For this project, signal head locations are useful for quality assessment and richer MAPEM output, but they should be treated as optional until CAD/PDF extraction is reliable.
+If signal head locations can be extracted from CAD or PDF, they can be added:
 
-## Restrictions And Speed Limits
+```text
+signalHeadLocations
+|
++-- nodeXY
++-- nodeZ
++-- signalGroupID
+```
 
-MAPEM can include:
+This is useful for quality assessment, but it is not required for the first MVP.
 
-- `restrictionList`
-- road user types
-- regulatory speed limits
+## 9. Minimum Viable MAPEM For This Project
 
-These are useful but not essential for the first MVP. They should be added only when the source data clearly provides them.
+The first working MAPEM should include at least:
 
-## Minimum Viable MAPEM For This Project
+```text
+MapData
+|
++-- msgIssueRevision
++-- intersections
+    |
+    +-- IntersectionGeometry
+        |
+        +-- id
+        +-- revision
+        +-- refPoint
+        +-- laneWidth
+        +-- laneSet
+            |
+            +-- GenericLane
+                |
+                +-- laneID
+                +-- laneType
+                +-- ingressApproach / egressApproach
+                +-- nodeList
+                +-- maneuvers
+                +-- connectsTo
+                    |
+                    +-- target lane
+                    +-- maneuver
+                    +-- signalGroup
+```
 
-A minimum useful MAPEM output should include:
+In other words, the MVP does not need to cover the whole MAPEM standard, but it must clearly answer:
 
-- `MapData.msgIssueRevision`
-- one `IntersectionGeometry`
-- `IntersectionGeometry.id`
-- `IntersectionGeometry.revision`
-- `IntersectionGeometry.refPoint.lat`
-- `IntersectionGeometry.refPoint.lon`
-- `IntersectionGeometry.laneWidth`
-- `IntersectionGeometry.laneSet`
-- each lane's `laneID`
-- each lane's ingress/egress approach
-- each lane's lane type
-- each lane's `nodeList`
-- ingress lane `maneuvers`
-- ingress lane `connectsTo`
-- signal group references for controlled movements
+1. Which junction is this?
+2. Where is the reference point?
+3. Which lanes exist?
+4. What is the geometry of each lane?
+5. What movements are allowed from each ingress lane?
+6. Which egress lane does each ingress lane connect to?
+7. Which signal group controls each movement?
 
-## Data Source Mapping
+## 10. Source Data To MAPEM Field Mapping
 
-| MAPEM requirement | Likely source |
+| MAPEM content | Main source |
 | --- | --- |
-| Site ID / intersection ID | Site folder name, PDF title, client metadata |
-| `refPoint` | CAD/GIS coordinates, manually selected conflict-area centre |
-| Lane geometry / `nodeList` | DWG/DXF geometry, GIS, manual correction |
-| Lane type | CAD layers, road markings, PDF site map, manual interpretation |
-| Stop lines | DWG/DXF geometry, PDF site map |
-| Maneuvers | PDF stage arrows, phase descriptions, road markings |
-| `connectsTo` | Lane geometry plus movement interpretation |
-| Signal groups | PDF phase tables and signal labels |
-| Signal head locations | CAD symbols, PDF site map, CV extraction |
-| Restrictions | PDF notes, road markings, site specification |
-| Speed limits | PDF notes, public GIS/OSM, manual entry |
+| Junction ID | Folder name, PDF title, client metadata |
+| `refPoint` | CAD/GIS coordinates, manual selection |
+| lane geometry / `nodeList` | DWG/DXF, GIS |
+| lane type | CAD layer, PDF site map, manual interpretation |
+| stop line | DWG/DXF, PDF site map |
+| maneuvers | PDF stage arrows, phase descriptions, road markings |
+| connectsTo | Lane geometry + movement interpretation |
+| signal groups | PDF phase tables, signal labels |
+| signal head locations | CAD symbols, PDF drawings, CV |
+| restrictions | PDF notes, road markings |
+| speed limits | PDF, OSM/GIS, manual entry |
 
-## Current SiteModel Coverage
+## 11. Current SiteModel As A MAPEM Example
 
-The current repository `SiteModel` is now structured around `mapData`, `IntersectionGeometry`, `laneSet`, `GenericLane`, `nodeList`, and connection-level `connectsTo.signalGroup`.
+The current `examples/site_model.example.json` file is a MAPEM-style example. It is not generated from real Leeds data. It shows the shape that extraction modules should eventually produce.
 
-Covered:
+Current structure:
 
-- `MapData.msgIssueRevision`
-- `MapData.intersections`
-- `IntersectionGeometry.id`
-- `IntersectionGeometry.revision`
-- `IntersectionGeometry.refPoint`
-- `IntersectionGeometry.laneWidth`
-- `IntersectionGeometry.laneSet`
-- `GenericLane.laneID`
-- `GenericLane.ingressApproach`
-- `GenericLane.egressApproach`
-- `GenericLane.laneAttributes`
-- `GenericLane.nodeList`
-- maneuvers
-- connection objects
-- connection-level signal groups
-- optional signal head locations
-- optional speed limits
-- optional restriction list
-- optional data parameters
+```text
+SiteModel
+|
++-- mapData
+|   |
+|   +-- msgIssueRevision
+|   +-- intersections
+|       |
+|       +-- IntersectionGeometry
+|           |
+|           +-- id
+|           |   |
+|           |   +-- region
+|           |   +-- id
+|           |
+|           +-- revision
+|           +-- refPoint
+|           |   |
+|           |   +-- lat
+|           |   +-- lon
+|           |   +-- elevation        optional
+|           |
+|           +-- laneWidth            optional but recommended
+|           +-- speedLimits          optional
+|           +-- signalHeadLocations  optional
+|           |
+|           +-- laneSet
+|               |
+|               +-- GenericLane
+|                   |
+|                   +-- laneID
+|                   +-- name
+|                   +-- ingressApproach / egressApproach
+|                   +-- laneAttributes
+|                   |   |
+|                   |   +-- laneType
+|                   |   +-- directionalUse
+|                   |   +-- sharedWith
+|                   |
+|                   +-- maneuvers
+|                   +-- nodeList
+|                   |   |
+|                   |   +-- nodes
+|                   |       |
+|                   |       +-- NodeXY
+|                   |       +-- NodeXY
+|                   |
+|                   +-- connectsTo
+|                       |
+|                       +-- Connection
+|                           |
+|                           +-- connectingLane
+|                           |   |
+|                           |   +-- lane
+|                           |   +-- maneuver
+|                           |
+|                           +-- signalGroup
+|                           +-- connectionID
+|
++-- sourceNotes
+```
 
-Still missing or simplified:
+Simplified JSON view:
 
-- per-node MAPEM delta type and coordinate encoding
+```json
+{
+  "mapData": {
+    "msgIssueRevision": 1,
+    "intersections": [
+      {
+        "name": "Synthetic three-arm signal junction",
+        "id": {
+          "region": 826,
+          "id": "SYNTH-001"
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 53.800755,
+          "lon": -1.549077
+        },
+        "laneWidth": 3.25,
+        "laneSet": [
+          {
+            "laneID": 1,
+            "name": "Northbound ingress",
+            "ingressApproach": 1,
+            "laneAttributes": {
+              "laneType": "vehicle",
+              "directionalUse": "ingress",
+              "sharedWith": []
+            },
+            "maneuvers": ["straight", "right"],
+            "nodeList": {
+              "nodes": [
+                { "x": 0.0, "y": -40.0 },
+                { "x": 0.0, "y": -10.0 },
+                { "x": 0.0, "y": 0.0 }
+              ]
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 2,
+                  "maneuver": "straight"
+                },
+                "signalGroup": 1,
+                "connectionID": 1
+              }
+            ]
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": { "x": -1.5, "y": -8.0 },
+            "signalGroupID": 1
+          }
+        ]
+      }
+    ],
+    "dataParameters": {
+      "processMethod": "synthetic example",
+      "processAgency": "Imperial GDP Group 9"
+    }
+  },
+  "sourceNotes": [
+    "Synthetic non-confidential example for repository smoke tests."
+  ]
+}
+```
+
+This example follows the core MAPEM line:
+
+```text
+MapData
+  -> IntersectionGeometry
+      -> laneSet
+          -> GenericLane
+              -> nodeList
+              -> connectsTo
+                  -> signalGroup
+```
+
+## 12. Current SiteModel Coverage
+
+| MAPEM content | Current field |
+| --- | --- |
+| MAPEM top level | `mapData` |
+| MAPEM revision | `mapData.msgIssueRevision` |
+| Junction list | `mapData.intersections` |
+| Junction object | `IntersectionGeometry` |
+| Junction ID | `IntersectionGeometry.id` |
+| Junction revision | `IntersectionGeometry.revision` |
+| Junction reference point | `IntersectionGeometry.refPoint` |
+| Generic lane width | `IntersectionGeometry.laneWidth` |
+| Lane collection | `IntersectionGeometry.laneSet` |
+| Single lane | `GenericLane` |
+| Lane attributes | `GenericLane.laneAttributes` |
+| Lane geometry | `GenericLane.nodeList.nodes` |
+| Lane movement | `GenericLane.maneuvers` |
+| Lane connection | `GenericLane.connectsTo` |
+| Connection target lane | `connectsTo.connectingLane.lane` |
+| Connection movement | `connectsTo.connectingLane.maneuver` |
+| Connection signal group | `connectsTo.signalGroup` |
+| Signal head location | `IntersectionGeometry.signalHeadLocations` |
+| Speed limits | `IntersectionGeometry.speedLimits` |
+| Restrictions | `mapData.restrictionList` |
+| Generation metadata | `mapData.dataParameters` |
+
+## 13. Remaining Gaps Before Production-Grade MAPEM
+
+The current `SiteModel` hierarchy is MAPEM-style, but it is still not a production-grade MAPEM encoder.
+
+Still needed:
+
+- stricter ASN.1 enumerations and bit string representation
+- real MAPEM `NodeXY` delta type encoding
 - lane width deltas
-- detailed lane attribute bit strings from the ASN.1 specification
-- full regional extension support
-- source provenance fields for extracted CAD/PDF/GIS values
-- production ASN.1 encoding; the current generator is still a readable ASN.1-style representation
+- fuller regional extension support
+- source provenance for every extracted field
+- stricter geometry quality checks, such as node spacing, offset range, and connection plausibility
+- ASN.1 output that can be parsed by standards-compliant tools, not only the current ASN.1-style text representation
 
-## Validation Requirements
+Recommended next addition:
 
-The validator should eventually check:
+```text
+source provenance
+|
++-- which CAD layer each lane came from
++-- which PDF table or stage diagram each movement came from
++-- which phase label each signalGroup came from
++-- which fields were manually checked
+```
 
-- every lane ID is unique
-- every `connectsTo` target exists
-- every signal group reference exists
-- every lane has a non-empty `nodeList`
-- ingress lanes have maneuvers or an explicit reason why not
-- controlled lanes map to signal groups
-- `refPoint` is present and plausible
-- node offsets are within a plausible distance from the reference point
-- generated MAPEM JSON and ASN.1 represent the same site content
-- manual interventions are recorded
+This will make `validation_report.json` able to explain:
 
-## Recommended Next Schema Updates
-
-The next `SiteModel` version should add:
-
-- `approaches`
-- source provenance fields for each extracted element
-- stricter MAPEM ASN.1 type names and enumerations
-- richer validation for coordinate scale, lane geometry quality, and connection semantics
-
-This will make the intermediate JSON closer to real MAPEM while still staying practical for CAD/PDF/GIS extraction.
+- what was extracted automatically
+- what was manually corrected
+- what is missing or unreliable
