@@ -157,7 +157,6 @@ GenericLane
 |   +-- laneType
 |   +-- directionalUse
 |
-+-- maneuvers
 +-- nodeList
 +-- connectsTo
 ```
@@ -169,7 +168,7 @@ GenericLane
 | `egressApproach` | Egress approach | Lane direction interpretation |
 | `laneAttributes.laneType` | Lane type | CAD layers, PDF, manual interpretation |
 | `laneAttributes.directionalUse` | Ingress/egress/bidirectional use | CAD/GIS/manual interpretation |
-| `maneuvers` | Allowed left/straight/right movements | PDF phase/stage diagrams, road markings |
+| `laneAttributes.sharedWith` | Road user sharing flags — mandatory per C-Roads Profile | CAD/PDF/manual interpretation |
 | `nodeList` | Lane centreline geometry | CAD/DXF/GIS |
 | `connectsTo` | Downstream lane connections | Geometry + movement interpretation |
 
@@ -326,10 +325,13 @@ MapData
             +-- GenericLane
                 |
                 +-- laneID
-                +-- laneType
+                +-- laneAttributes
+                    |
+                    +-- laneType
+                    +-- directionalUse
+                    +-- sharedWith
                 +-- ingressApproach / egressApproach
                 +-- nodeList
-                +-- maneuvers
                 +-- connectsTo
                     |
                     +-- target lane
@@ -408,7 +410,6 @@ SiteModel
 |                   |   +-- directionalUse
 |                   |   +-- sharedWith
 |                   |
-|                   +-- maneuvers
 |                   +-- nodeList
 |                   |   |
 |                   |   +-- nodes
