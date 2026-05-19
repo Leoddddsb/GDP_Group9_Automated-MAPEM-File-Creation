@@ -37,8 +37,7 @@ MAPEM / MapData
                 |   |
                 |   +-- laneType
                 |   +-- directionalUse
-                |
-                +-- maneuvers
+                |   +-- sharedWith
                 +-- nodeList
                 |   |
                 |   +-- NodeXY
@@ -461,7 +460,6 @@ Simplified JSON view:
               "directionalUse": "ingress",
               "sharedWith": []
             },
-            "maneuvers": ["straight", "right"],
             "nodeList": {
               "nodes": [
                 { "x": 0.0, "y": -40.0 },
