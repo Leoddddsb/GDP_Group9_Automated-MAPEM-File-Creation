@@ -22,7 +22,7 @@ Therefore, the first version uses a practical workflow: **file-format extraction
 
 Overview:
 
-| Step | Purpose | Output File | Current Repository Area |
+| Step | Purpose | Output File | Related GitHub Folder |
 | --- | --- | --- | --- |
 | Step 1 | Build a file inventory for each site | `site_inventory.partial.json` | `configs/`, `src/mapemgen/ingestion/` |
 | Step 2 | Extract MAPEM-relevant facts by file format | `extracted_facts.partial.json` | `src/mapemgen/ingestion/` |
@@ -31,6 +31,8 @@ Overview:
 | Step 5 | Validate outputs and generate low-confidence / manual review items | `validation_report.json` | `src/mapemgen/validation/` |
 | Step 6 | Run robustness testing with development and held-out validation sites | `robustness_summary.json` | `tests/`, `docs/` |
 | Step 7 | Calculate conversion quality scores | `validation_report.json` | `src/mapemgen/validation/`, `docs/` |
+
+Note: "Related GitHub Folder" means where the code, configuration, or documentation for that step should mainly live in the repository. It does not mean the output files must be stored there.
 
 ### Step 1: Build File Inventory
 
@@ -108,7 +110,9 @@ Example:
 ```
 
 Output file: `site_inventory.partial.json`  
-Related folders: `configs/`, `src/mapemgen/ingestion/`
+Related GitHub folders: `configs/`, `src/mapemgen/ingestion/`
+
+`configs/` should hold site configuration and parser rules. `src/mapemgen/ingestion/` should hold the code that reads input files and generates the file inventory.
 
 ### Step 2: Extract MAPEM-relevant Facts by File Format
 
@@ -850,11 +854,9 @@ The project progresses on three parallel lines:
 
 ## 3. Key Conclusions
 
-1. The project should no longer be designed only around Leeds PDF + DWG. It should use a file-format extraction -> MAPEM field matching -> evidence fusion workflow.
-2. The first version does not need to classify files into source categories. That does not directly help extract the MAPEM fields and adds complexity.
-3. PDF, DOCX, DWG, DXF, GIS, and LiDAR are input formats, not final MAPEM semantics. The same PDF may produce phase/stage facts or drawing/layout facts.
-4. MAPEM geometry fields mainly depend on geometry facts, such as `laneSet`, `nodeList`, stop lines, and signal head locations.
-5. MAPEM control semantics mainly depend on phase/stage/control facts, such as stages, phases, streams, and `connectsTo.signalGroup`.
-6. The pipeline should first extract MAPEM-relevant facts by file format, then match facts to MAPEM fields, and finally use evidence fusion to generate `SiteModel`.
-7. Conversion quality should measure file readability, fact extraction, field matching, fusion consistency, SiteModel completeness, geometry, semantic quality, manual effort, and robustness.
-8. Leeds plus part of DCIS/Bathnes should be used as the development subset, while remaining typical sites should be used for held-out validation to test generality and robustness.
+1. PDF, DOCX, DWG, DXF, GIS, and LiDAR are input formats, not final MAPEM semantics. The same PDF may produce phase/stage facts or drawing/layout facts.
+2. MAPEM geometry fields mainly depend on geometry facts, such as `laneSet`, `nodeList`, stop lines, and signal head locations.
+3. MAPEM control semantics mainly depend on phase/stage/control facts, such as stages, phases, streams, and `connectsTo.signalGroup`.
+4. The pipeline should first extract MAPEM-relevant facts by file format, then match facts to MAPEM fields, and finally use evidence fusion to generate `SiteModel`.
+5. Conversion quality should measure file readability, fact extraction, field matching, fusion consistency, SiteModel completeness, geometry, semantic quality, manual effort, and robustness.
+6. Leeds plus part of DCIS/Bathnes should be used as the development subset, while remaining typical sites should be used for held-out validation to test generality and robustness.
