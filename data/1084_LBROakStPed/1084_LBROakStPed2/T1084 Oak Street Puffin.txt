@@ -1,0 +1,47 @@
+Transmittal Report:
+Created by AutoCAD eTransmit 13 May 2026, 09:50.
+
+Drawing:
+This is a transmittal based on T1084 Oak Street Puffin.dwg.
+
+Files:
+
+Root Drawing:
+	T1084 Oak Street Puffin.dwg
+
+AutoCAD Drawing (External) References:
+	1084 Oak Street Puffin.dwg
+	Frames\Canwell Logo.dwg
+
+The following files were excluded from the transmittal:
+	acad.fmp
+	Fonts\simplex.shx
+	Fonts\txt.shx
+	Fonts\calibri.ttf
+	Fonts\romans.shx
+	Fonts\arial.ttf
+	Fonts\tahoma.ttf
+	Fonts\simplex_.ttf
+	Fonts\romand.shx
+	Fonts\rdmarkp.shx
+	Fonts\swiss.ttf
+	Fonts\swissb.ttf
+	Fonts\swissi.ttf
+	Fonts\ARIALN.TTF
+
+The following files could not be located:
+	suf_____.(shx,ttf)
+	RMNOR16O.(shx,ttf)
+	RMNOR40O.(shx,ttf)
+
+
+Notes for distribution:
+
+.DWG external reference files:
+External reference (xref) paths may be present.  Make sure these paths work or that the root drawing is using the correct references.
+eTransmit does not include files required by xrefs unless they are also required by the root drawing.  In particular, plot style tables and overlay xrefs that are not used by the root drawing are omitted
+
+The AutoCAD variable FONTALT was set to:
+C:\Users\tennisp\appdata\roaming\autodesk\autocad 2023\r24.2\enu\support\simplex.shx
+Please make sure that the FONTALT variable is set to this file or an equivalent before opening any drawings.  All text styles with missing fonts are automatically set to this font.
+
