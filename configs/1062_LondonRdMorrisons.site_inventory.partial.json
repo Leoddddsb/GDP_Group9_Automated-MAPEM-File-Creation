@@ -1,0 +1,270 @@
+{
+  "site_id": "1062",
+  "site_name": "LondonRdMorrisons",
+  "local_authority_or_dataset": "",
+  "site_data_path": "../data/1062_LondonRdMorrisons",
+  "source_files": [
+    {
+      "file_path": "1062_LondonRdMorrisons1/1062_2500Config_Mar24.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible signal controller configuration",
+        "possible configuration file"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons1/1062_Drawing_Sep24.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons1/1062_RAMData_Mar26.8tx",
+      "file_type": "8tx",
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons1/1062_SCOOTDets_Sep24.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible SCOOT detector data"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons1/1062_UTCForm_Jan24.docx",
+      "file_type": "docx",
+      "filename_hints": [
+        "possible UTC form",
+        "possible site metadata",
+        "possible staging"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "docx_text_table_parser",
+      "notes": [],
+      "content_hints": {
+        "document_kind": "utc_form",
+        "source_parser": "docx_shallow_utc_form_parser",
+        "utc_junction_description": "London Rd/ Morrisons",
+        "outstation_scn_and_type": "Yunex Gemini 2/ X04120",
+        "junction_scn": "J04121",
+        "ip_address": "172.16.52.53",
+        "topas2500_configuration_no": "EPR203",
+        "phase_labels": [
+          "X",
+          "G",
+          "B",
+          "A",
+          "C",
+          "Y",
+          "Z",
+          "D"
+        ],
+        "stream_count": 2,
+        "stream_labels": [
+          "Str 0",
+          "Str 1"
+        ],
+        "stage_count": 3,
+        "stage_count_by_stream": {
+          "Str 0": 3,
+          "Str 1": 2
+        },
+        "scoot_max_stage_count": 3,
+        "scoot_link_descriptions": [
+          "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd WB Stopline",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB Rt Stopline",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Rt",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd WB",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB Ahead Stopline",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Rt Stopline",
+          "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Lft Stopline"
+        ],
+        "controller_type": "Yunex Gemini 2",
+        "junction_type": "three_arm",
+        "junction_type_basis": "UTC form links reference London Road EB/WB and the Morrisons car park exit."
+      }
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/1003_Cleveland Place_Overlay.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/1018_Snow Hill_Overlay.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/1021_London Rd_Overlay.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/1062_Safeway Store_Overlay.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/OS-TOPO.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/OS.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/T1062 Safeway Store.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/T1062 Safeway Store.dxf",
+      "file_type": "dxf",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "cad_text_readable",
+      "parser_to_use": "cad_geometry_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1062_LondonRdMorrisons2/T1062 Safeway Store.txt",
+      "file_type": "txt",
+      "filename_hints": [],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": []
+    }
+  ],
+  "junction_type": "three_arm",
+  "controller_type": "Yunex Gemini 2",
+  "control_method": "SCOOT + UTC",
+  "stream_count": 2,
+  "stage_count": 3,
+  "phase_labels": [
+    "X",
+    "G",
+    "B",
+    "A",
+    "C",
+    "Y",
+    "Z",
+    "D"
+  ],
+  "known_special_logic": [
+    "RAM / override data may define timing or detector overrides."
+  ],
+  "confidence": "high",
+  "manual_questions": [],
+  "content_summary": {
+    "source_files": [
+      "1062_LondonRdMorrisons1/1062_UTCForm_Jan24.docx"
+    ],
+    "utc_junction_description": "London Rd/ Morrisons",
+    "outstation_scn_and_type": "Yunex Gemini 2/ X04120",
+    "junction_scn": "J04121",
+    "ip_address": "172.16.52.53",
+    "topas2500_configuration_no": "EPR203",
+    "phase_labels": [
+      "X",
+      "G",
+      "B",
+      "A",
+      "C",
+      "Y",
+      "Z",
+      "D"
+    ],
+    "stream_count": 2,
+    "stream_labels": [
+      "Str 0",
+      "Str 1"
+    ],
+    "stage_count": 3,
+    "stage_count_by_stream": {
+      "Str 0": 3,
+      "Str 1": 2
+    },
+    "scoot_max_stage_count": 3,
+    "scoot_link_descriptions": [
+      "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd WB Stopline",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB Rt Stopline",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Rt",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd WB",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: London Rd EB Ahead Stopline",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Rt Stopline",
+      "1062 A4 London Rd/ Morrisons Car Park Exit: Car Park Exit Lft Stopline"
+    ],
+    "controller_type": "Yunex Gemini 2",
+    "junction_type": "three_arm",
+    "junction_type_basis": "UTC form links reference London Road EB/WB and the Morrisons car park exit."
+  }
+}
