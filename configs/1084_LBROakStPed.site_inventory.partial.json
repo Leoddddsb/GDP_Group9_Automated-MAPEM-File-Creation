@@ -1,0 +1,185 @@
+{
+  "site_id": "1084",
+  "site_name": "LBROakStPed",
+  "local_authority_or_dataset": "",
+  "site_data_path": "../data/1084_LBROakStPed",
+  "source_files": [
+    {
+      "file_path": "1084_LBROakStPed1/1084_2500Config_Nov23.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible signal controller configuration",
+        "possible configuration file"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1084_LBROakStPed1/1084_AS BUILT STILL TO BE PROVIDED.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1084_LBROakStPed1/1084_DetailedDesignDrawing.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "document_readable",
+      "parser_to_use": "pdf_text_table_drawing_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1084_LBROakStPed1/1084_RAMData_Nov25.8tx",
+      "file_type": "8tx",
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1084_LBROakStPed1/1084_UTCForm_Nov23.docx",
+      "file_type": "docx",
+      "filename_hints": [
+        "possible UTC form",
+        "possible site metadata",
+        "possible staging"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "docx_text_table_parser",
+      "notes": [],
+      "content_hints": {
+        "document_kind": "utc_form",
+        "source_parser": "docx_shallow_utc_form_parser",
+        "utc_junction_description": "Lower Bristol Rd/ Oak St Ped",
+        "junction_scn": "J02345",
+        "ip_address": "10.249.151.7",
+        "topas2500_configuration_no": "1084",
+        "outstation_scn_and_type": "ST950/ X02340",
+        "phase_labels": [
+          "O",
+          "M",
+          "A",
+          "B"
+        ],
+        "stage_count": 2,
+        "stream_count": 1,
+        "stream_labels": [
+          "single_stream"
+        ],
+        "stage_count_by_stream": {
+          "single_stream": 2
+        },
+        "controller_type": "ST950",
+        "junction_type": "pedestrian_crossing",
+        "junction_type_basis": "UTC junction description references a pedestrian crossing."
+      }
+    },
+    {
+      "file_path": "1084_LBROakStPed1/Lower Bristol Road_F_MOVA Tools Report_MAIN.pdf",
+      "file_type": "pdf",
+      "filename_hints": [
+        "possible MOVA/control logic data"
+      ],
+      "readable_status": "binary_or_proprietary_available",
+      "parser_to_use": "mova_availability_parser",
+      "notes": [
+        "First inventory version records MOVA availability only."
+      ]
+    },
+    {
+      "file_path": "1084_LBROakStPed2/1084 Oak Street Puffin.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1084_LBROakStPed2/1084 Oak Street Puffin.dxf",
+      "file_type": "dxf",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "cad_text_readable",
+      "parser_to_use": "cad_geometry_parser",
+      "notes": []
+    },
+    {
+      "file_path": "1084_LBROakStPed2/T1084 Oak Street Puffin.dwg",
+      "file_type": "dwg",
+      "filename_hints": [
+        "possible CAD drawing"
+      ],
+      "readable_status": "needs_dxf_conversion",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": [
+        "Convert to DXF before CAD geometry extraction."
+      ]
+    },
+    {
+      "file_path": "1084_LBROakStPed2/T1084 Oak Street Puffin.txt",
+      "file_type": "txt",
+      "filename_hints": [],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": []
+    }
+  ],
+  "junction_type": "pedestrian_crossing",
+  "controller_type": "ST950",
+  "control_method": "MOVA + UTC",
+  "stream_count": 1,
+  "stage_count": 2,
+  "phase_labels": [
+    "O",
+    "M",
+    "A",
+    "B"
+  ],
+  "known_special_logic": [
+    "RAM / override data may define timing or detector overrides.",
+    "MOVA data may define detector/control logic."
+  ],
+  "confidence": "high",
+  "manual_questions": [],
+  "content_summary": {
+    "source_files": [
+      "1084_LBROakStPed1/1084_UTCForm_Nov23.docx"
+    ],
+    "utc_junction_description": "Lower Bristol Rd/ Oak St Ped",
+    "junction_scn": "J02345",
+    "ip_address": "10.249.151.7",
+    "topas2500_configuration_no": "1084",
+    "outstation_scn_and_type": "ST950/ X02340",
+    "phase_labels": [
+      "O",
+      "M",
+      "A",
+      "B"
+    ],
+    "stage_count": 2,
+    "stream_count": 1,
+    "stream_labels": [
+      "single_stream"
+    ],
+    "stage_count_by_stream": {
+      "single_stream": 2
+    },
+    "controller_type": "ST950",
+    "junction_type": "pedestrian_crossing",
+    "junction_type_basis": "UTC junction description references a pedestrian crossing."
+  }
+}
