@@ -1,0 +1,56 @@
+Transmittal Report:
+Created by AutoCAD eTransmit 13 May 2026, 11:12.
+
+Drawing:
+This is a transmittal based on T1062 Safeway Store.dwg.
+
+Files:
+
+Root Drawing:
+	T1062 Safeway Store.dwg
+
+AutoCAD Drawing (External) References:
+	OS.dwg
+	1062_Safeway Store_Overlay.dwg
+	1003_Cleveland Place_Overlay.dwg
+	1018_Snow Hill_Overlay.dwg
+	OS-TOPO.dwg
+	1021_London Rd_Overlay.dwg
+
+The following files were excluded from the transmittal:
+	acad.fmp
+	Fonts\simplex.shx
+	Fonts\txt.shx
+	Fonts\romans.shx
+	Fonts\romant.shx
+	Fonts\arial.ttf
+	Fonts\rdmarkp.shx
+	Fonts\tahoma.ttf
+	PlotCfgs\acad.ctb
+	PlotCfgs\DWG To PDF.pc3
+	PlotCfgs\CCK Plotter (New Driver).pc3
+	Fonts\ARIALN.TTF
+	Fonts\GOTHIC.TTF
+	Fonts\romanc.shx
+	Fonts\RDMARKO.shx
+	Fonts\romans__.ttf
+	Fonts\calibri.ttf
+	Fonts\times.ttf
+
+The following files could not be located:
+	WORKING.(shx,ttf)
+	STANDARD.(shx,ttf)
+	ITALICS.(shx,ttf)
+	tmodelf.(shx,ttf)
+
+
+Notes for distribution:
+
+.DWG external reference files:
+External reference (xref) paths may be present.  Make sure these paths work or that the root drawing is using the correct references.
+eTransmit does not include files required by xrefs unless they are also required by the root drawing.  In particular, plot style tables and overlay xrefs that are not used by the root drawing are omitted
+
+The AutoCAD variable FONTALT was set to:
+C:\Users\tennisp\appdata\roaming\autodesk\autocad 2023\r24.2\enu\support\simplex.shx
+Please make sure that the FONTALT variable is set to this file or an equivalent before opening any drawings.  All text styles with missing fonts are automatically set to this font.
+
