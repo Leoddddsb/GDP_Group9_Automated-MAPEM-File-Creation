@@ -1,0 +1,37 @@
+                             IC4 View Differences Report
+
+
+IC4 Handset Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+261   MBX A    30                 25                 Phase Maximum Green Time - Set B
+263   MDX A    30                 20                 Phase Maximum Green Time - Set D
+111   TSW 8 0  88                 7                  Master Time Clock Time Switch Data
+111   TSW 8 1  88                 7                  Master Time Clock Time Switch Data
+111   TSW 8 2  88                 0                  Master Time Clock Time Switch Data
+111   TSW 8 3  88                 0                  Master Time Clock Time Switch Data
+111   TSW 8 4  88                 4                  Master Time Clock Time Switch Data
+111   TSW 8 5  88                 6                  Master Time Clock Time Switch Data
+111   TSW 9 0  88                 7                  Master Time Clock Time Switch Data
+111   TSW 9 1  88                 22                 Master Time Clock Time Switch Data
+111   TSW 9 2  88                 30                 Master Time Clock Time Switch Data
+111   TSW 9 3  88                 0                  Master Time Clock Time Switch Data
+111   TSW 9 4  88                 3                  Master Time Clock Time Switch Data
+111   TSW 9 5  88                 6                  Master Time Clock Time Switch Data
+
+IC4 Junction Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+
+
+Other Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+365   CFE 6    0                  1                  Conditioning Facility Enable
+434   IOA 5    5                  255                Logical to physical I/O allocation map
+434   IOA 6    255                6                  Logical to physical I/O allocation map
+434   IOA 20   255                20                 Logical to physical I/O allocation map
+434   IOA 21   255                21                 Logical to physical I/O allocation map
