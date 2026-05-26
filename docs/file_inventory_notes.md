@@ -275,7 +275,7 @@ Step 1 does not:
 From the project root, use this template. Replace values inside angle brackets with the values for the site being processed:
 
 ```powershell
-cd C:\Users\leovo\Desktop\GDP
+cd <project_root>
 $env:PYTHONPATH='src'; python -m mapemgen.cli inventory `
   --site-folder <site_folder_to_scan> `
   --site-id <site_id> `
@@ -329,7 +329,7 @@ To specify a custom output folder, add:
 Minimum required arguments:
 
 ```powershell
-cd C:\Users\leovo\Desktop\GDP
+cd <project_root>
 $env:PYTHONPATH='src'; python -m mapemgen.cli inventory `
   --site-folder <site_folder_to_scan> `
   --site-id <site_id>
