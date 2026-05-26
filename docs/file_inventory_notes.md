@@ -275,6 +275,7 @@ Step 1 does not:
 From the project root, use this template. Replace values inside angle brackets with the values for the site being processed:
 
 ```powershell
+cd C:\Users\leovo\Desktop\GDP
 $env:PYTHONPATH='src'; python -m mapemgen.cli inventory `
   --site-folder <site_folder_to_scan> `
   --site-id <site_id> `
@@ -301,6 +302,7 @@ The output filename is fixed as `site_inventory.partial.json`.
 Example:
 
 ```powershell
+cd C:\Users\leovo\Desktop\GDP
 $env:PYTHONPATH='src'; python -m mapemgen.cli inventory `
   --site-folder local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge `
   --site-id 1003 `
@@ -327,6 +329,7 @@ To specify a custom output folder, add:
 Minimum required arguments:
 
 ```powershell
+cd C:\Users\leovo\Desktop\GDP
 $env:PYTHONPATH='src'; python -m mapemgen.cli inventory `
   --site-folder <site_folder_to_scan> `
   --site-id <site_id>
