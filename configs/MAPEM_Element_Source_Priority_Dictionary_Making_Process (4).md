@@ -128,7 +128,6 @@ The dictionary should use the source categories identified in the project brief,
 | `site_configuration_information` | Signal-control, phase, stage, stream and official site metadata | Confirmed in supplied data |
 | `asset_management_tools` | Pole or signal-equipment location records | Potential source; independent export not yet confirmed |
 | `road_condition_and_lidar_surveys` | Topographic or high-resolution geometry evidence | Potential source; not yet confirmed |
-| `project_or_client_configuration` | Information that cannot safely be inferred from ordinary site files | Required for certain mandatory fields |
 
 ### 4.2 Add Source Subtypes Based on Actual Supplied Files
 
