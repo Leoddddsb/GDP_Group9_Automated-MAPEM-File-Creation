@@ -187,7 +187,7 @@ The system should first identify all lanes and assign `laneID`s. It should then 
 |---|---|
 | `multiple_target_lanes_plausible` | One lane could reasonably connect to more than one downstream lane. |
 | `target_lane_missing` | The inferred target lane does not exist in the generated `laneSet`. |
-| `roundabout_internal_connection_uncertain` | Internal roundabout movement cannot be confidently resolved. |
+| `complex_internal_connection_uncertain` | Internal or complex junction movement, such as roundabout movement, cannot be confidently resolved. |
 | `lane_direction_uncertain` | Ingress/egress direction is unclear. |
 | `movement_arrow_conflicts_with_geometry` | Drawing movement arrow and CAD geometry suggest different connections. |
 | `connection_crosses_invalid_area` | Connection appears to cross an unrealistic or prohibited path. |
