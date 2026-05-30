@@ -2,7 +2,7 @@
 
 ## 1. Overview: Minimum Dictionary Table to Complete
 
-This section provides the human-readable overview table for the part of the MAPEM element-source priority dictionary covering lane geometry and lane-to-lane connections. Before writing the full YAML configuration, this table should be completed and agreed by the group.
+This section provides the human-readable overview table for the part of the MAPEM element-source priority dictionary covering lane geometry and lane-to-lane connections. 
 
 This table is not a site-specific evidence matrix. It does not record final values for a particular site such as `337L` or `5040`. Instead, it defines the general rule for how each mandatory MAPEM element in this section should be populated across different site packages.
 
