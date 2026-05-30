@@ -138,8 +138,7 @@ The source category is the high-level classification. The source subtype records
 | `site_plans_and_cad_files` | `cad_drawing` | Leeds DWG; `T5040 Whitecross.dwg`; `5040 Whitecross.dwg` | Vector geometry and physical layout |
 | `site_plans_and_cad_files` | `annotated_drawing_pdf` | `5040_Drawing.pdf` | Layout, detector/pole/head annotations, movement interpretation |
 | `site_plans_and_cad_files` | `embedded_layout_in_specification_pdf` | Layout pages in the 337L specification PDF | Supporting visual layout evidence |
-| `site_configuration_information` | `signal_specification_pdf` | `337L RODLEY RBOUT SPEC 15_6_15.pdf` | Site identity, streams, phases, stages, stage–phase relationships |
-| `site_configuration_information` | `controller_configuration_pdf` | `5040_2500Config_Nov22.pdf` | Controller configuration, phases, stages, streams, conflict data |
+| `site_configuration_information` | `controller_configuration_pdf` | `5040_2500Config_Nov22.pdf`, `337L RODLEY RBOUT SPEC 15_6_15.pdf` | Controller configuration, phases, stages, streams, conflict data |
 | `site_configuration_information` | `utc_form_docx` | `5040_UTCForm_Sep22.docx` | Junction description, SCN, phasing, staging, SCOOT links |
 | `site_configuration_information` | `mova_schematic_docx` | `5040_MOVADrawing_Oct22.docx` | Movement/phase and detector-supporting schematic |
 | `site_configuration_information` | `ram_8tx` | `5040_RAMData_Nov25.8TX` | Potential changed/override evidence; parser not yet confirmed |
