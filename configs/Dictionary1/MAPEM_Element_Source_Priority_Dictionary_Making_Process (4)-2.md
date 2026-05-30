@@ -293,9 +293,9 @@ Use:
 
 | Code | Meaning |
 |---|---|
-| `P1` | Primary source: preferred for automatic population |
-| `P2` | Supporting source: confirms or complements P1 evidence |
-| `P3` | Fallback source: usable only when stronger evidence is unavailable or with lower confidence |
+| `P1` | first choice / highest priority source |
+| `P2` | second choice / supporting or backup source |
+| `P3` | second choice / supporting or backup source |
 | `MANUAL` | Value must be supplied or confirmed through review |
 | `N/A` | The source is not relevant to the element |
 
