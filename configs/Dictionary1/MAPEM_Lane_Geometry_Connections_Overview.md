@@ -200,7 +200,7 @@ The system should first identify all lanes and assign `laneID`s. It should then 
 | `ingress_lane_should_connect_to_valid_downstream_lane` | Ensure every ingress lane has a downstream connection. |
 | `connection_should_follow_lane_direction` | Avoid reverse or invalid movement connections. |
 | `connection_should_be_consistent_with_topology` | Ensure lane connection is physically plausible. |
-| `roundabout_connections_should_preserve_circulatory_logic` | Important for signalised roundabout cases. |
+| `complex_connections_should_preserve_circulatory_logic` | Important for signalised roundabout cases. |
 
 ## 7. Element Detail: `connectsTo.signalGroup`
 
