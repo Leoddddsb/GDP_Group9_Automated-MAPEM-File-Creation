@@ -119,7 +119,7 @@ The program should first attempt to extract lane geometry from CAD/DWG files. If
 | `cad_coordinate_system_unknown` | CAD geometry exists but has no clear CRS or georeference. |
 | `lane_centreline_broken` | Extracted lane centreline is incomplete or discontinuous. |
 | `lane_geometry_ambiguous` | It is unclear which geometry represents the lane centreline. |
-| `refpoint_missing_or_uncertain` | `refPoint` is not available or cannot be linked to the geometry. |
+| `refpoint_missing_or_uncertain` | The upstream refPoint could not be derived or confirmed reliably, so NodeXY.delta cannot be calculated with confidence. |
 | `pdf_digitisation_required` | Only a drawing PDF exists, so manual digitisation may be required. |
 | `node_offset_out_of_range` | A node offset cannot be encoded within the selected NodeXY delta type. |
 
