@@ -48,7 +48,7 @@ GenericLane
 
 These elements are central to representing how a vehicle, cyclist or pedestrian moves through a signalised junction.
 
-- `mapData.intersections.laneset.nodeList.nodes[].delta` describes the geometry of each lane.
+- `mapData.intersections[].laneSet.nodeList.nodes[].delta` describes the geometry of each lane.
 - `connectsTo.connectingLane.lane` defines which downstream lane can be reached.
 - `connectsTo.signalGroup` identifies the signal group controlling that movement.
 
