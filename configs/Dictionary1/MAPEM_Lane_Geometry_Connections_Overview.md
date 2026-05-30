@@ -132,6 +132,7 @@ The program should first attempt to extract lane geometry from CAD/DWG files. If
 | `lane_geometry_must_not_cross_unintended_conflict_area` | Avoid unrealistic or unsafe lane paths. |
 | `node_offsets_must_be_valid_NodeXY_values` | Ensure ASN.1-compatible encoding. |
 | `geometry_should_be_consistent_with_lane_direction` | Ensure node order follows ingress or egress direction. |
+| `node_count_should_be_minimised_within_quality_limits` | Reduce the number of nodes where possible to limit MAPEM message size, while maintaining the required lane-geometry quality. |
 
 ## 6. Element Detail: `connectsTo.connectingLane.lane`
 
