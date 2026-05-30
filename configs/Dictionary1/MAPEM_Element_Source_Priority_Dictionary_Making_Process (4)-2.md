@@ -310,24 +310,6 @@ Use:
 | `P3` | `gis_data → open_street_map` | Approximate fallback or cross-check |
 | `MANUAL` | `annotated_drawing_pdf` only | Cannot produce geographic lat/long without alignment |
 
-### Example B: `nodeList.nodes[].delta`
-
-| Priority | Source category / subtype | Condition |
-|---|---|---|
-| `P1` | `site_plans_and_cad_files → cad_drawing` | Vector lane geometry available |
-| `P2` | `road_condition_and_lidar_surveys` | If later supplied |
-| `P3` | `site_plans_and_cad_files → annotated_drawing_pdf` | Digitised fallback only |
-| `N/A` | `site_configuration_information` | Does not normally contain centreline geometry |
-
-### Example C: `connectsTo.signalGroup`
-
-| Priority | Source category / subtype | Use |
-|---|---|---|
-| `P1` | `site_configuration_information → configuration PDF / UTC form / signal specification PDF` | Phase/stage/control semantics |
-| `P2` | `site_configuration_information → MOVA schematic DOCX` | Movement-to-phase interpretation support |
-| `P3` | `site_plans_and_cad_files → annotated drawing PDF` | Physical movement confirmation only |
-| Required complementary evidence | `site_plans_and_cad_files → CAD drawing` | Identifies the physical lane connection; does not determine signal group alone |
-
 ---
 
 ## Step 6 — Add Source Conditions and Manual-Review Triggers
