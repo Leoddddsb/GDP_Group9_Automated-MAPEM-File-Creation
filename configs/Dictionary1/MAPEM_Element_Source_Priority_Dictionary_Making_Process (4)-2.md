@@ -200,21 +200,21 @@ mandatory_mapem_paths:
   - header.protocolVersion
   - header.messageID
   - header.stationID
-  - map.msgIssueRevision
-  - map.intersections[].id.region
-  - map.intersections[].id.id
-  - map.intersections[].revision
-  - map.intersections[].refPoint.lat
-  - map.intersections[].refPoint.long
-  - map.intersections[].laneSet[].laneID
-  - map.intersections[].laneSet[].ingressApproach
-  - map.intersections[].laneSet[].egressApproach
-  - map.intersections[].laneSet[].laneAttributes.directionalUse
-  - map.intersections[].laneSet[].laneAttributes.sharedWith
-  - map.intersections[].laneSet[].laneAttributes.laneType
-  - map.intersections[].laneSet[].nodeList.nodes[].delta
-  - map.intersections[].laneSet[].connectsTo[].connectingLane.lane
-  - map.intersections[].laneSet[].connectsTo[].signalGroup
+  - mapData.msgIssueRevision
+  - mapData.intersections[].id.region
+  - mapData.intersections[].id.id
+  - mapData.intersections[].revision
+  - mapData.intersections[].refPoint.lat
+  - mapData.intersections[].refPoint.long
+  - mapData.intersections[].laneSet[].laneID
+  - mapData.intersections[].laneSet[].ingressApproach
+  - mapData.intersections[].laneSet[].egressApproach
+  - mapData.intersections[].laneSet[].laneAttributes.directionalUse
+  - mapData.intersections[].laneSet[].laneAttributes.sharedWith
+  - mapData.intersections[].laneSet[].laneAttributes.laneType
+  - mapData.intersections[].laneSet[].nodeList.nodes[].delta
+  - mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane
+  - mapData.intersections[].laneSet[].connectsTo[].signalGroup
 ```
 
 ---
