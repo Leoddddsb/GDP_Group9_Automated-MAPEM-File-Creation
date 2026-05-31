@@ -1,0 +1,300 @@
+# MAPEM Dictionary Section: Lane Geometry and Connections
+
+## 1. Overview: Minimum Dictionary Table to Complete
+
+This section provides the human-readable overview table for the part of the MAPEM element-source priority dictionary covering lane geometry and lane-to-lane connections. 
+
+This table is not a site-specific evidence matrix. It does not record final values for a particular site such as `337L` or `5040`. Instead, it defines the general rule for how each mandatory MAPEM element in this section should be populated across different site packages.
+
+For each MAPEM element, the table identifies:
+
+1. how the value is populated;
+2. what intermediate facts are required;
+3. which source category/subtype should be used first;
+4. which sources can support or validate the result;
+5. when manual review is required; and
+6. what validation rule should be applied.
+
+After this overview table is agreed, the same logic can be converted into a machine-readable YAML configuration used by the prototype for fact extraction, field matching, evidence fusion and validation.
+
+## 2. Table Columns
+
+| Column | Meaning |
+|---|---|
+| `MAPEM mandatory element` | The MAPEM field path that must be handled in the MVP. |
+| `Population mode` | How the final value is obtained: constant, configured, extracted, derived, generated or fused. |
+| `Required fact type(s)` | Intermediate facts that need to be extracted before the MAPEM field can be populated. |
+| `P1 source category / subtype` | first choice / highest priority source. |
+| `P2 supporting source` | second choice / supporting or backup source. |
+| `P3 / fallback` | third choice / lower-priority fallback source. |
+| `Manual-review trigger` | Condition where automatic population should stop and ask for review. |
+| `Validation rule` | Rule used to check whether the populated value is structurally or semantically acceptable. |
+
+## 3. Scope of This Section
+
+This section covers the MAPEM elements used to describe lane geometry and downstream lane connections:
+
+```text
+GenericLane
+├── nodeList
+│   └── nodes[]
+│       └── delta
+└── connectsTo[]
+    └── Connection
+        ├── connectingLane
+        │   └── lane
+        └── signalGroup
+```
+
+These elements are central to representing how a vehicle, cyclist or pedestrian moves through a signalised junction.
+
+- `mapData.intersections[].laneSet.nodeList.nodes[].delta` describes the geometry of each lane.
+- `mapData.intersections[].laneSet.connectsTo[].connectingLane.lane` defines which downstream lane can be reached.
+- `mapData.intersections[].laneSet.connectsTo[].signalGroup` identifies the signal group controlling that movement.
+
+In this section:
+
+- `nodeList.nodes[].delta` is treated as a `geometry_derived` element because it is calculated from lane centreline geometry relative to the intersection reference point.
+- `connectsTo.connectingLane.lane` is treated as an `evidence_fused` element because the target lane should be inferred from physical lane topology and confirmed against movement evidence where necessary.
+- `connectsTo.signalGroup` is treated as an `evidence_fused` element because geometry alone cannot determine the controlling signal group; signal-control documents must be combined with physical lane-connection evidence.
+## 4. Minimum Dictionary Table for This Section
+
+| MAPEM mandatory element | Population mode | Required fact type(s) | P1 source category / subtype | P2 supporting source | P3 / fallback | Manual-review trigger | Validation rule |
+|---|---|---|---|---|---|---|---|
+| `mapData.intersections[].laneSet.nodeList.nodes[].delta` | `geometry_derived` | `lane_geometry_candidate`; `lane_centreline_nodes`; `upstream_refPoint`; `coordinate_reference_system_evidence`; `georeference_status`; `node_position_offsets` | `site_plans_and_cad_files -> cad_drawing` as the first-choice source for lane geometry and centreline extraction/inference | `road_condition_and_lidar_surveys`, if available, for high-resolution geometry validation | `annotated_drawing_pdf` as manual/digitised fallback; `gis_data` for approximate alignment or validation only | CAD CRS unknown; lane centreline broken; lane geometry ambiguous; upstream `refPoint` derivation failed or is uncertain; PDF digitisation required; node offset out of valid range | Nodes must follow lane centreline; nodes must be encoded as relative offsets; node count should be minimised within quality limits; geometry must reflect road topology; node offsets must be valid `NodeXY.delta` values; geometry should be consistent with lane direction |
+| `mapData.intersections[].laneSet.connectsTo[].connectingLane.lane` | `evidence_fused` | `lane_candidate`; `lane_id_assignment`; `lane_connection_candidate`; `target_lane_candidate`; `movement_direction_candidate`; `lane_direction_candidate`; `stop_line_candidate` | `site_plans_and_cad_files -> cad_drawing` as the first-choice source for physical lane topology and lane-to-lane connection candidates | `site_plans_and_cad_files -> annotated_drawing_pdf` for lane layout, movement arrows, road markings and connection interpretation | `site_configuration_information -> signal_specification_pdf / mova_schematic_docx` for movement interpretation support; `gis_data` only for approximate topology support | Multiple target lanes plausible; target lane missing; complex/internal connection uncertain; lane direction uncertain; movement arrow conflicts with geometry; connection crosses invalid or prohibited area | Target lane ID must exist; each ingress lane should connect to a valid downstream lane; connection should follow lane direction; connection should be consistent with road topology; complex or roundabout connections should preserve circulatory/topology logic |
+| `mapData.intersections[].laneSet.connectsTo[].signalGroup` | `evidence_fused` | `phase_label`; `phase_type`; `stage_phase_relationship`; `movement_phase_mapping`; `lane_connection_candidate`; `target_lane_candidate`; `signal_group_assignment_candidate`; optional/supporting: `control_stream_candidate`, `conflict_matrix_evidence` | Signal-control evidence: `site_configuration_information -> signal_control_configuration_document` as P1 for formal phase, stage, stream, movement and control logic. Physical connection evidence: `site_plans_and_cad_files -> cad_drawing` as P1 for the physical lane connection to which the signal group is assigned | Signal-control support: `site_configuration_information -> utc_form_docx` for staging/phasing confirmation and SCOOT support. Physical support: `site_plans_and_cad_files -> annotated_drawing_pdf` for movement arrows, signal-head annotations and layout checks | Signal-control fallback/support: `site_configuration_information -> mova_schematic_docx` for movement-to-phase interpretation. Physical fallback: `gis_data`, such as OSM / Ordnance Survey, for approximate road-arm support only; asset data may provide future signal-head validation | Missing signal-control evidence; missing physical connection evidence; phase cannot be mapped to a lane connection; conflicting signal group assignment; movement-phase mapping uncertain; dummy phase mistaken as control phase; pedestrian phase mapped to vehicle connection; multiple streams create ambiguity | Every signal-controlled connection must have a signal group; signal group must be consistent with stage-phase relationship; signal group must reference a valid control phase; signal group assignment should match the physical movement; pedestrian and vehicle phases should not be confused; multi-stream sites require stream-consistency checking |
+
+## 5. Element Detail: `nodeList.nodes[].delta`
+
+### Definition
+
+`nodeList.nodes[].delta` describes the lane centreline using a sequence of relative node offsets. Each node is encoded relative to the previous node, while the first node is referenced from the intersection `refPoint`.
+
+In simple terms:
+
+```text
+nodeList.nodes[].delta
+= the relative positional offsets used to draw the lane path
+```
+
+This is different from `dWidth`. `delta` describes the x/y position offset of each node, while `dWidth` describes lane-width variation and is outside the current mandatory MVP scope.
+
+### Population Mode
+
+```text
+geometry_derived
+```
+
+### Required Intermediate Facts
+
+| Required fact type | Meaning |
+|---|---|
+| `lane_centreline_nodes` | Candidate centreline points for each lane. |
+| `reference_point` | The MAPEM intersection `refPoint` used as the geometry anchor. |
+| `coordinate_reference_system_evidence` | Evidence that the CAD/GIS geometry can be converted into a real coordinate system. |
+| `lane_geometry_candidate` | Extracted or inferred lane geometry from CAD/drawing. |
+| `georeference_status` | Whether the source geometry is georeferenced, manually aligned, or unknown. |
+| `node_position_offsets` | Relative x/y offsets that can be encoded as `NodeXY.delta`. |
+
+### Source Priority
+
+| Priority | Source category | Source subtype | Use |
+|---|---|---|---|
+| `P1` | `site_plans_and_cad_files` | `cad_drawing` | Primary source for lane centreline geometry. |
+| `P2` | `road_condition_and_lidar_surveys` | `lidar` / `topographic_survey`, if available | Potential high-resolution geometry validation. |
+| `P3` | `site_plans_and_cad_files` | `annotated_drawing_pdf` | Fallback only; may require manual digitisation. |
+| `F` | `gis_data` | OSM / Ordnance Survey, if available | Possible approximate alignment or validation. |
+| `N/A` | `site_configuration_information` | configuration PDF / UTC form / signal specification | Not expected to provide detailed lane centreline nodes. |
+
+### Logic
+
+The program should first attempt to extract lane geometry from CAD/DWG files. If a lane centreline is explicitly available, it can be used directly. If only lane edges or road markings are available, the centreline may need to be inferred. The resulting geometry must then be converted into MAPEM `NodeXY.delta` values relative to the intersection `refPoint`.
+
+### Manual Review Triggers
+
+| Trigger | Meaning |
+|---|---|
+| `cad_coordinate_system_unknown` | CAD geometry exists but has no clear CRS or georeference. |
+| `lane_centreline_broken` | Extracted lane centreline is incomplete or discontinuous. |
+| `lane_geometry_ambiguous` | It is unclear which geometry represents the lane centreline. |
+| `refpoint_missing_or_uncertain` | The upstream refPoint could not be derived or confirmed reliably, so NodeXY.delta cannot be calculated with confidence. |
+| `pdf_digitisation_required` | Only a drawing PDF exists, so manual digitisation may be required. |
+| `node_offset_out_of_range` | A node offset cannot be encoded within the selected NodeXY delta type. |
+
+### Validation Rules
+
+| Rule | Purpose |
+|---|---|
+| `nodes_must_follow_lane_centreline` | Ensure generated nodes represent the intended lane path. |
+| `nodes_must_be_relative_to_refpoint` | Ensure coordinates are encoded correctly in MAPEM. |
+| `lane_geometry_must_not_cross_unintended_conflict_area` | Avoid unrealistic or unsafe lane paths. |
+| `node_offsets_must_be_valid_NodeXY_values` | Ensure ASN.1-compatible encoding. |
+| `geometry_should_be_consistent_with_lane_direction` | Ensure node order follows ingress or egress direction. |
+| `node_count_should_be_minimised_within_quality_limits` | Reduce the number of nodes where possible to limit MAPEM message size, while maintaining the required lane-geometry quality. |
+
+## 6. Element Detail: `connectsTo.connectingLane.lane`
+
+### Definition
+
+`connectsTo.connectingLane.lane` identifies the downstream lane that a given lane connects to. The value is not a road name or a phase label; it is the `laneID` of the target lane.
+
+In simple terms:
+
+```text
+connectsTo.connectingLane.lane
+= the target laneID that this lane can lead to
+```
+
+### Population Mode
+
+```text
+evidence_fused
+```
+
+It can be partly geometry-derived, but for robustness it should be treated as evidence-fused because lane-connection interpretation may require both physical geometry and movement semantics.
+
+### Required Intermediate Facts
+
+| Required fact type | Meaning |
+|---|---|
+| `lane_candidate` | Detected lane objects. |
+| `lane_id_assignment` | Generated `laneID` for each lane. |
+| `lane_connection_candidate` | Candidate connection from one lane to another. |
+| `target_lane_candidate` | Candidate downstream lane. |
+| `movement_direction_candidate` | Movement type or direction, such as left, straight, right, or roundabout circulation. |
+| `lane_direction_candidate` | Whether the lane is ingress, egress, or internal/successive. |
+| `stop_line_candidate` | Stop-line evidence supporting the start of an ingress lane. |
+
+### Source Priority
+
+| Priority | Source category | Source subtype | Use |
+|---|---|---|---|
+| `P1` | `site_plans_and_cad_files` | `cad_drawing` | Primary source for physical lane topology and downstream connections. |
+| `P2` | `site_plans_and_cad_files` | `annotated_drawing_pdf` | Supports movement arrows, road layout and connection interpretation. |
+| `P3` | `site_configuration_information` | `mova_schematic_docx` / `signal_specification_pdf` | Supports movement interpretation, especially where CAD topology is unclear. |
+| `F` | `gis_data` | OSM / Ordnance Survey, if available | Approximate topology support only. |
+| `N/A` | `asset_management_tools` | pole/signal asset exports | Not expected to define lane-to-lane connections directly. |
+
+### Logic
+
+The system should first identify all lanes and assign `laneID`s. It should then infer which ingress lanes connect to which egress or internal lanes using CAD geometry and lane direction. For a simple junction, this may be based on lane alignment and turning movement. For a signalised roundabout, internal lanes and circulating movements may require additional interpretation.
+
+### Manual Review Triggers
+
+| Trigger | Meaning |
+|---|---|
+| `multiple_target_lanes_plausible` | One lane could reasonably connect to more than one downstream lane. |
+| `target_lane_missing` | The inferred target lane does not exist in the generated `laneSet`. |
+| `complex_internal_connection_uncertain` | Internal or complex junction movement, such as roundabout movement, cannot be confidently resolved. |
+| `lane_direction_uncertain` | Ingress/egress direction is unclear. |
+| `movement_arrow_conflicts_with_geometry` | Drawing movement arrow and CAD geometry suggest different connections. |
+| `connection_crosses_invalid_area` | Connection appears to cross an unrealistic or prohibited path. |
+
+### Validation Rules
+
+| Rule | Purpose |
+|---|---|
+| `target_lane_id_must_exist` | `connectingLane.lane` must reference a valid generated `laneID`. |
+| `ingress_lane_should_connect_to_valid_downstream_lane` | Ensure every ingress lane has a downstream connection. |
+| `connection_should_follow_lane_direction` | Avoid reverse or invalid movement connections. |
+| `connection_should_be_consistent_with_topology` | Ensure lane connection is physically plausible. |
+| `complex_connections_should_preserve_circulatory_logic` | Important for signalised roundabout cases. |
+
+## 7. Element Detail: `connectsTo.signalGroup`
+
+### Definition
+
+`connectsTo.signalGroup` identifies the signal group controlling a specific lane connection. It is the key link between MAPEM lane topology and SPATEM signal-state information.
+
+In simple terms:
+
+```text
+connectsTo.signalGroup
+= the signal group / phase controlling this specific lane movement
+```
+
+This element cannot be determined from geometry alone. CAD may show where the lane goes, but the signal group must be derived from signal-control evidence such as phase labels, stage-phase relationships, UTC forms, configuration PDFs, or signal specification documents.
+
+### Population Mode
+
+```text
+evidence_fused
+```
+
+### Required Intermediate Facts
+
+| Required fact type | Meaning |
+|---|---|
+| `phase_label` | Signal phase or group label, such as A, B, C. |
+| `phase_type` | Whether the phase is traffic, pedestrian, dummy, arrow, etc. |
+| `stage_phase_relationship` | Which phases appear in which stages. |
+| `movement_phase_mapping` | Which physical movement is associated with which phase. |
+| `lane_connection_candidate` | Physical lane connection to be controlled. |
+| `signal_group_assignment_candidate` | Candidate signal group for a lane connection. |
+| `control_stream_candidate` | Stream information, especially for complex multi-stream junctions. |
+| `conflict_matrix_evidence` | Supporting evidence for whether movements conflict. |
+
+## Source Priority for `connectsTo.signalGroup`
+
+`connectsTo.signalGroup` requires two evidence groups:
+
+1. **Signal-control evidence**: used to identify the controlling phase or signal group.
+2. **Physical connection evidence**: used to identify the specific lane-to-lane connection to which the signal group should be assigned.
+
+Therefore, source priority is separated into two groups. Each group has its own `P1 / P2 / P3` order. Automatic population of `connectsTo.signalGroup` requires both a resolved signal-control mapping and a resolved physical lane connection.
+
+### A. Signal-control evidence priority
+
+| Priority | Source category | Source subtype | Use / rationale |
+|---|---|---|---|
+| `P1` | `site_configuration_information` | `signal_control_configuration_document` | First-choice source for formal signal-control logic, including phase labels, phase types, phases in stages, streams, conflict/intergreen information and movement descriptions. |
+| `P2` | `site_configuration_information` | `utc_form_docx` | Supporting official metadata and staging/phasing evidence. SCOOT links may help interpret movement/control relationships, but should not normally override P1. |
+| `P3` | `site_configuration_information` | `mova_schematic_docx` | Lower-priority supporting source for movement-to-phase interpretation, especially where the main configuration evidence is incomplete or unclear. |
+
+### B. Physical connection evidence priority
+
+| Priority | Source category | Source subtype | Use / rationale |
+|---|---|---|---|
+| `P1` | `site_plans_and_cad_files` | `cad_drawing` | First-choice source for physical lane topology and lane-to-lane connection candidates. |
+| `P2` | `site_plans_and_cad_files` | `annotated_drawing_pdf` | Supporting source for physical movement interpretation, movement arrows, lane labels, signal-head annotations and layout checks where CAD is unavailable or unclear. |
+| `P3` | `gis_data` | `OSM / Ordnance Survey`, if available | Approximate road-arm or topology support only; not sufficient alone for reliable lane-level `signalGroup` assignment. |
+| `F` | `asset_management_tools` | `pole/signal-head asset export`, if available | Future validation support for signal-head to signal-group checking, not required for the current MVP. |
+
+### Logic
+
+The assignment of `signalGroup` should combine two types of evidence:
+
+```text
+1. Signal-control evidence
+   -> phase labels, stages, streams, stage-phase relationships
+
+2. Physical-movement evidence
+   -> lane connection, movement direction, stop lines, signal-head location
+```
+
+The configuration or signal specification document should be treated as the primary source for signal-control semantics. CAD or drawing data should be used to determine which physical lane connection corresponds to that movement.
+
+### Manual Review Triggers
+
+| Trigger | Meaning |
+|---|---|
+| `phase_cannot_be_mapped_to_lane_connection` | A phase exists, but the corresponding lane movement cannot be identified. |
+| `conflicting_signal_group_assignment` | Different sources suggest different signal groups. |
+| `signal_group_missing_for_controlled_connection` | A signal-controlled connection lacks a signal group. |
+| `movement_phase_mapping_uncertain` | Movement and phase relationship is unclear. |
+| `dummy_phase_mistaken_as_control_phase` | Dummy/all-red phase may have been incorrectly assigned. |
+| `pedestrian_phase_mapped_to_vehicle_connection` | Pedestrian phase is incorrectly assigned to a vehicle lane connection. |
+| `multiple_streams_create_ambiguity` | Complex stream structure makes mapping unclear. |
+
+### Validation Rules
+
+| Rule | Purpose |
+|---|---|
+| `every_signal_controlled_connection_must_have_signal_group` | Ensure all controlled movements are linked to signal information. |
+| `signal_group_must_be_consistent_with_stage_phase_relationship` | Check against phase-stage tables. |
+| `signal_group_should_reference_valid_control_phase` | Avoid assigning dummy or invalid phases. |
+| `signal_group_assignment_should_match_physical_movement` | Ensure the phase controls the relevant lane connection. |
+| `pedestrian_and_vehicle_phases_should_not_be_confused` | Important where crossings are present. |
+| `multi_stream_sites_require_stream_consistency_check` | Important for roundabouts or complex junctions. |
+
