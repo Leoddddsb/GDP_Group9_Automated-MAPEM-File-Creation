@@ -236,17 +236,31 @@ evidence_fused
 | `control_stream_candidate` | Stream information, especially for complex multi-stream junctions. |
 | `conflict_matrix_evidence` | Supporting evidence for whether movements conflict. |
 
-### Source Priority
+## Source Priority for `connectsTo.signalGroup`
 
-| Priority | Source category | Source subtype | Use |
+`connectsTo.signalGroup` requires two evidence groups:
+
+1. **Signal-control evidence**: used to identify the controlling phase or signal group.
+2. **Physical connection evidence**: used to identify the specific lane-to-lane connection to which the signal group should be assigned.
+
+Therefore, source priority is separated into two groups. Each group has its own `P1 / P2 / P3` order. Automatic population of `connectsTo.signalGroup` requires both a resolved signal-control mapping and a resolved physical lane connection.
+
+### A. Signal-control evidence priority
+
+| Priority | Source category | Source subtype | Use / rationale |
 |---|---|---|---|
-| `P1` | `site_configuration_information` | `controller_configuration_pdf` | Primary control evidence for phases, stages and signal operation. |
-| `P1` | `site_configuration_information` | `utc_form_docx` | Official site metadata, staging, phasing and SCOOT links. |
-| `P1` | `site_configuration_information` | `signal_specification_pdf` | Leeds-style phase, stage, stream and movement evidence. |
-| `P2` | `site_configuration_information` | `mova_schematic_docx` | Movement-phase interpretation support. |
-| `P3` | `site_plans_and_cad_files` | `annotated_drawing_pdf` | Physical movement and signal-head annotation support. |
-| `Supporting only` | `site_plans_and_cad_files` | `cad_drawing` | Confirms physical lane connection, but cannot alone determine signal group. |
-| `Future support` | `asset_management_tools` | pole/signal-head asset export, if available | May support signal-head to signal-group validation. |
+| `P1` | `site_configuration_information` | `signal_control_configuration_document` | First-choice source for formal signal-control logic, including phase labels, phase types, phases in stages, streams, conflict/intergreen information and movement descriptions. |
+| `P2` | `site_configuration_information` | `utc_form_docx` | Supporting official metadata and staging/phasing evidence. SCOOT links may help interpret movement/control relationships, but should not normally override P1. |
+| `P3` | `site_configuration_information` | `mova_schematic_docx` | Lower-priority supporting source for movement-to-phase interpretation, especially where the main configuration evidence is incomplete or unclear. |
+
+### B. Physical connection evidence priority
+
+| Priority | Source category | Source subtype | Use / rationale |
+|---|---|---|---|
+| `P1` | `site_plans_and_cad_files` | `cad_drawing` | First-choice source for physical lane topology and lane-to-lane connection candidates. |
+| `P2` | `site_plans_and_cad_files` | `annotated_drawing_pdf` | Supporting source for physical movement interpretation, movement arrows, lane labels, signal-head annotations and layout checks where CAD is unavailable or unclear. |
+| `P3` | `gis_data` | `OSM / Ordnance Survey`, if available | Approximate road-arm or topology support only; not sufficient alone for reliable lane-level `signalGroup` assignment. |
+| `F` | `asset_management_tools` | `pole/signal-head asset export`, if available | Future validation support for signal-head to signal-group checking, not required for the current MVP. |
 
 ### Logic
 
