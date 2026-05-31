@@ -24,9 +24,9 @@ After this overview table is agreed, the same logic can be converted into a mach
 | `MAPEM mandatory element` | The MAPEM field path that must be handled in the MVP. |
 | `Population mode` | How the final value is obtained: constant, configured, extracted, derived, generated or fused. |
 | `Required fact type(s)` | Intermediate facts that need to be extracted before the MAPEM field can be populated. |
-| `P1 source category / subtype` | Primary evidence source for this element. |
-| `P2 supporting source` | Source that can support or validate the primary evidence. |
-| `P3 / fallback` | Lower-confidence source used only if stronger evidence is unavailable. |
+| `P1 source category / subtype` | first choice / highest priority source. |
+| `P2 supporting source` | second choice / supporting or backup source. |
+| `P3 / fallback` | third choice / lower-priority fallback source. |
 | `Manual-review trigger` | Condition where automatic population should stop and ask for review. |
 | `Validation rule` | Rule used to check whether the populated value is structurally or semantically acceptable. |
 
