@@ -202,6 +202,35 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual(configured[("odafc-addon", "win_exec_path")], r"E:\ODA\ODAFileConverter.exe")
         self.assertEqual(calls, ["site.dwg"])
 
+    def test_dwg_parser_recovers_converted_dxf_structure_error(self):
+        calls = []
+
+        class FakeDXFStructureError(Exception):
+            pass
+
+        document = types.SimpleNamespace(modelspace=lambda: [])
+        fake_odafc = types.SimpleNamespace(
+            is_installed=lambda: True,
+            readfile=lambda path: (_ for _ in ()).throw(FakeDXFStructureError("missing ENDSEC tag")),
+            convert=lambda source, destination, replace: calls.append(("convert", source, Path(destination).suffix, replace)),
+        )
+        fake_recover = types.SimpleNamespace(
+            readfile=lambda path: calls.append(("recover", Path(path).suffix)) or (document, object())
+        )
+        fake_addons = types.ModuleType("ezdxf.addons")
+        fake_addons.odafc = fake_odafc
+        fake_ezdxf = types.ModuleType("ezdxf")
+        fake_ezdxf.addons = fake_addons
+        fake_ezdxf.DXFStructureError = FakeDXFStructureError
+        fake_ezdxf.recover = fake_recover
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf, "ezdxf.addons": fake_addons}):
+            with patch.dict(os.environ, {}, clear=True):
+                facts = extract_dwg_facts("site.dwg")
+
+        self.assertEqual(calls, [("convert", "site.dwg", ".dxf", True), ("recover", ".dxf")])
+        self.assertTrue(any(fact["fact_type"] == "cad_entity_counts" for fact in facts))
+
     def test_docx_parser_requires_python_docx(self):
         with patch.dict(sys.modules, {"docx": None}):
             with self.assertRaisesRegex(RuntimeError, "python-docx"):
@@ -272,6 +301,22 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(any(fact["fact_type"] == "lane_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "cad_text_label" and fact["value"] == "Phase A" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "cad_block_reference" and fact["value"] == "HEAD_A" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
+
+    def test_dxf_parser_extracts_classic_polyline_vertices(self):
+        polyline = _Entity("POLYLINE", "LANE_MAIN")
+        polyline.vertices = [
+            types.SimpleNamespace(dxf=types.SimpleNamespace(location=(0, 0))),
+            types.SimpleNamespace(dxf=types.SimpleNamespace(location=(10, 5))),
+        ]
+        fake_ezdxf = types.SimpleNamespace(
+            readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: [polyline])
+        )
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        self.assertTrue(any(fact["fact_type"] == "lane_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
 
     def test_coordinator_continues_after_corrupt_zip(self):

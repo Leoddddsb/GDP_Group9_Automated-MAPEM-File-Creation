@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from collections import Counter
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 
 def extract_dxf_facts(path: str | Path) -> list[dict]:
@@ -30,7 +31,19 @@ def extract_dwg_facts(path: str | Path) -> list[dict]:
             "If it is installed outside the default location, set ODAFC_PATH "
             "to the full path of ODAFileConverter.exe."
         )
-    return _extract_document_facts(odafc.readfile(path))
+    try:
+        document = odafc.readfile(path)
+    except ezdxf.DXFStructureError:
+        from ezdxf import recover
+
+        with NamedTemporaryFile(prefix="mapemgen_dwg_", suffix=".dxf", delete=False) as target:
+            converted_path = Path(target.name)
+        try:
+            odafc.convert(path, converted_path, replace=True)
+            document, _auditor = recover.readfile(converted_path)
+        finally:
+            converted_path.unlink(missing_ok=True)
+    return _extract_document_facts(document)
 
 
 def extract_cad_geometry(dxf_path: str) -> dict:
@@ -52,8 +65,12 @@ def _extract_document_facts(document: object) -> list[dict]:
             geometry = [_xy(entity.dxf.start), _xy(entity.dxf.end)]
             points.extend(geometry)
             facts.append(_fact(_geometry_type(layer), geometry, location, 0.7))
-        elif entity_type in {"LWPOLYLINE", "POLYLINE"}:
+        elif entity_type == "LWPOLYLINE":
             geometry = [_xy(point) for point in entity.get_points()]
+            points.extend(geometry)
+            facts.append(_fact(_geometry_type(layer), geometry, location, 0.75))
+        elif entity_type == "POLYLINE":
+            geometry = [_xy(vertex.dxf.location) for vertex in entity.vertices]
             points.extend(geometry)
             facts.append(_fact(_geometry_type(layer), geometry, location, 0.75))
         elif entity_type in {"TEXT", "MTEXT"}:
