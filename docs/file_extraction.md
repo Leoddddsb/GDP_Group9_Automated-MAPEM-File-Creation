@@ -222,7 +222,21 @@ Dependency failures are handled as follows:
 
 ### Python environment
 
-Run the following commands from the repository root in PowerShell:
+Open PowerShell and replace `<project-root>` with the absolute path of this
+repository on the local machine. It is the folder that contains
+`pyproject.toml`, `README.md`, `src/`, and `tests/`.
+
+Template:
+
+```powershell
+cd "<project-root>"
+python -m venv mapem
+.\mapem\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e .
+```
+
+Example for the current machine:
 
 ```powershell
 cd C:\Users\leovo\Desktop\GDP
@@ -237,7 +251,7 @@ future Python packages for this repository after activating this environment.
 Each time a new PowerShell window is opened, activate it again:
 
 ```powershell
-cd C:\Users\leovo\Desktop\GDP
+cd "<project-root>"
 .\mapem\Scripts\Activate.ps1
 ```
 
@@ -286,7 +300,30 @@ extraction stops with an actionable error.
 
 ### 1. Optional: create a Step 1 site inventory
 
-Run Step 1 for the site folder:
+Run Step 1 for the site folder. Replace every value in angle brackets:
+
+| Placeholder | What to enter |
+| --- | --- |
+| `<project-root>` | Absolute path of the repository root on the local machine |
+| `<site-folder>` | Path of the folder containing all files for one traffic-signal site |
+| `<site-id>` | Site identifier, for example `1003`, `1062`, or `397L` |
+| `<site-name>` | Human-readable site name |
+| `<dataset>` | Data source or local authority, for example `DCIS/Bathnes` or `Leeds` |
+
+Template:
+
+```powershell
+cd "<project-root>"
+.\mapem\Scripts\Activate.ps1
+$env:PYTHONPATH='src'
+python -m mapemgen.cli inventory `
+  --site-folder "<site-folder>" `
+  --site-id "<site-id>" `
+  --site-name "<site-name>" `
+  --dataset "<dataset>"
+```
+
+Example:
 
 ```powershell
 cd C:\Users\leovo\Desktop\GDP
@@ -311,7 +348,24 @@ The Step 1 inventory is a separate output. Step 2 does not read it.
 
 ### 2. Extract MAPEM-relevant facts from the complete site folder
 
-Pass the site folder directly to Step 2:
+Pass the site folder directly to Step 2. Replace every value in angle brackets:
+
+| Placeholder | What to enter |
+| --- | --- |
+| `<site-folder>` | Path of the folder containing all files for one site; nested folders are scanned recursively |
+| `<site-id>` | Site identifier written into `extracted_facts.partial.json` |
+| `<output-folder>` | Folder where `extracted_facts.partial.json` should be written |
+
+Template:
+
+```powershell
+python -m mapemgen.cli extract `
+  --site-folder "<site-folder>" `
+  --site-id "<site-id>" `
+  --out-dir "<output-folder>"
+```
+
+Example:
 
 ```powershell
 python -m mapemgen.cli extract `
