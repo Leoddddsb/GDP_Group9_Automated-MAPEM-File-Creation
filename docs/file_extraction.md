@@ -36,6 +36,47 @@ Each returned fact has:
 }
 ```
 
+### Confidence Scores
+
+`confidence` is a rule-based evidence-strength score in the range `0.0` to
+`1.0`. It is not a statistically calibrated probability and does not mean that
+the candidate has already been accepted as a final MAPEM field. Step 2 uses the
+score to describe how directly the parser observed or derived the fact. A later
+evidence-fusion step must resolve conflicts, compare independent sources, and
+decide whether a candidate is usable.
+
+Use the following interpretation:
+
+| Range | Meaning |
+| --- | --- |
+| `1.0` | Deterministic observation or workflow state, such as a ZIP member, rejected unsafe path, file size, missing PDF text, or required MOVA Tools export |
+| `0.85` to `0.95` | Strong structured evidence read directly from a field, tag, parsed CAD structure, or exact metadata pattern |
+| `0.70` to `0.80` | Structured candidate that still needs semantic interpretation, such as geometry, a table row, CAD label, or filename classification |
+| `0.60` to `0.69` | Heuristic candidate based on a keyword or derived approximation |
+| Below `0.60` | Reserved for future weak heuristics; the current parsers do not emit these scores |
+
+Current defaults:
+
+| Fact source | Confidence | Reason |
+| --- | --- | --- |
+| TXT, DOCX, or PDF keyword candidate | `0.65` | Keyword presence identifies a relevant line, but does not fully interpret its meaning |
+| Exact site description, SCN, or IP pattern | `0.90` | Parsed from an explicit metadata pattern |
+| DOCX or PDF table row | `0.80` | Row content is directly extracted, but column semantics may still require matching |
+| ZIP member or rejected unsafe member | `1.00` | Direct archive observation |
+| ZIP DWG filename classification | `0.80` to `0.85` | Derived from path depth or filename hints |
+| CAD layer names or entity counts | `0.95` | Directly read from parsed DXF structure |
+| CAD geometry, label, or block candidate | `0.70` to `0.80` | Directly extracted structure with unresolved MAPEM semantics |
+| CAD coordinate bounds | `0.90` | Deterministically calculated from extracted geometry |
+| GIS road name | `0.85` | Directly read from a GIS property or OSM tag |
+| GIS geometry | `0.75` | Directly read geometry that still needs semantic matching |
+| GIS coordinate bounds | `0.90` | Deterministically calculated from source geometry |
+| GIS junction centre candidate | `0.60` | Approximation calculated as the centre of the geometry bounds |
+| MOVA export requirement and file size | `1.00` | Direct workflow state and file metadata, not decoded MOVA control facts |
+
+Facts recursively extracted from ZIP members retain the score assigned by the
+inner parser. DWG files are converted with ODA File Converter and then use the
+same confidence rules as DXF files.
+
 The coordinator wraps facts with file-level status:
 
 ```json
