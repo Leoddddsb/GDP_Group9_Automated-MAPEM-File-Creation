@@ -44,6 +44,18 @@ def extract_site_folder_facts(site_folder: str | Path, site_id: str) -> dict:
     return {"site_id": str(site_id), "source_files": [_extract_source_file(source) for source in source_files]}
 
 
+def extract_file_facts(path: str | Path, zip_depth: int = 0) -> list[dict]:
+    target = Path(path)
+    file_type = target.suffix.lower().lstrip(".") or "unknown"
+    parser_entry = PARSERS.get(file_type)
+    if parser_entry is None:
+        return []
+    _, parser = parser_entry
+    if file_type == "zip":
+        return extract_zip_facts(target, depth=zip_depth)
+    return parser(target)
+
+
 def _extract_source_file(source: dict) -> dict:
     file_type = str(source.get("file_type", "")).lower()
     source_file = str(source.get("file_path", ""))
@@ -52,7 +64,7 @@ def _extract_source_file(source: dict) -> dict:
         return {"source_file": source_file, "file_type": file_type, "parser": "manual_review", "status": "unsupported", "extracted_facts": []}
     parser_name, parser = parser_entry
     try:
-        facts = parser(source_file)
+        facts = extract_file_facts(source_file)
     except RuntimeError:
         raise
     except Exception as exc:

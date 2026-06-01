@@ -102,7 +102,7 @@ claim full semantic interpretation of every vendor-specific report.
 
 Add `src/mapemgen/ingestion/zip_packages.py`.
 
-Read the archive member list without extracting files. Emit:
+Read the archive member list and recursively parse supported members. Emit:
 
 - archive member facts
 - root DWG candidates
@@ -110,8 +110,12 @@ Read the archive member list without extracting files. Emit:
 - OS or topographic drawing availability
 - nested parseable-file availability facts
 
-The first version records ZIP members only. It does not extract archives or
-recursively parse archive members.
+Supported members are copied one at a time to temporary files, parsed through
+the same format dispatcher, and removed after parsing. Nested ZIP files are
+parsed recursively. Archive-member paths remain in `evidence_location`.
+
+For safety, the parser rejects absolute paths, `..` path traversal, members over
+100 MB, and ZIP nesting deeper than five levels.
 
 ### DOCX Parser
 

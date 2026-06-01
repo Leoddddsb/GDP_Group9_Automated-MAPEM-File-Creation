@@ -37,14 +37,14 @@ class ExtractionTest(unittest.TestCase):
         self.assertIn("io_allocation_candidate", fact_types)
         self.assertTrue(all(fact["evidence_location"].startswith("line ") for fact in facts))
 
-    def test_zip_parser_classifies_dwg_members_without_extracting(self):
+    def test_zip_parser_classifies_dwg_members_and_removes_temporary_extraction(self):
         path = _test_dir() / "site.zip"
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("T1003 Root.dwg", "root")
             archive.writestr("xref/OS-TOPO.dwg", "xref")
             archive.writestr("notes/readme.txt", "notes")
 
-        facts = extract_zip_facts(path)
+        facts = extract_zip_facts(path, member_parser=lambda _path, _depth: [])
 
         by_type = {}
         for fact in facts:
@@ -53,6 +53,43 @@ class ExtractionTest(unittest.TestCase):
         self.assertIn("xref/OS-TOPO.dwg", by_type["xref_dwg_candidate"])
         self.assertIn("xref/OS-TOPO.dwg", by_type["topographic_drawing_available"])
         self.assertFalse((path.parent / "xref").exists())
+
+    def test_zip_parser_recursively_extracts_supported_members(self):
+        path = _test_dir() / "site.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("notes/controller.txt", "Detector D12")
+
+        facts = extract_zip_facts(path)
+
+        detector = next(fact for fact in facts if fact["fact_type"] == "detector_candidate")
+        self.assertEqual(detector["value"], "Detector D12")
+        self.assertEqual(detector["evidence_location"], "archive member notes/controller.txt -> line 1")
+
+    def test_zip_parser_recursively_extracts_nested_zip_members(self):
+        nested_path = _test_dir() / "nested.zip"
+        with zipfile.ZipFile(nested_path, "w") as archive:
+            archive.writestr("ram/site.8tx", "Phase A")
+        path = _test_dir() / "site.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.write(nested_path, "packages/nested.zip")
+
+        facts = extract_zip_facts(path)
+
+        phase = next(fact for fact in facts if fact["fact_type"] == "phase_candidate")
+        self.assertEqual(
+            phase["evidence_location"],
+            "archive member packages/nested.zip -> archive member ram/site.8tx -> line 1",
+        )
+
+    def test_zip_parser_rejects_path_traversal_member(self):
+        path = _test_dir() / "site.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("../outside.txt", "Detector D12")
+
+        facts = extract_zip_facts(path)
+
+        rejected = next(fact for fact in facts if fact["fact_type"] == "archive_member_rejected")
+        self.assertEqual(rejected["value"], "../outside.txt")
 
     def test_mova_parser_reports_shallow_extraction(self):
         path = _test_dir() / "site.mova"
