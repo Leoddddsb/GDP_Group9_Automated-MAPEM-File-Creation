@@ -31,10 +31,26 @@ Each returned fact has:
 {
   "fact_type": "phase_label",
   "value": "A",
-  "evidence_location": "table 2 row 4",
+  "evidence_location": "site-folder/forms/1062_UTCForm_Jan24.docx -> table 2 row 4",
   "confidence": 0.9
 }
 ```
+
+`evidence_location` is a provenance chain. The coordinator prefixes every fact
+with the source-file path discovered under the site folder. Parsers then append
+their format-specific internal location, such as a page, line, paragraph, table
+row, CAD entity, GIS feature, or ZIP member.
+
+Examples:
+
+```text
+site-folder/reports/config.pdf -> page 1 line 16
+site-folder/packages/drawings.zip -> archive member xref/OS-TOPO.dwg -> modelspace
+```
+
+This duplicates some information from the file-level `source_file` field
+intentionally: a fact remains traceable when it is inspected, filtered, or
+copied independently from its wrapper.
 
 ### Confidence Scores
 
@@ -105,7 +121,8 @@ Responsibilities:
 - validate the site folder path
 - scan all nested source files recursively
 - dispatch by file type
-- preserve provenance and deterministic ordering
+- preserve full source-file and internal-location provenance with deterministic
+  ordering
 - record `parser_error` for an individual corrupt or malformed file
 - allow required dependency errors to propagate with a clear installation
   message

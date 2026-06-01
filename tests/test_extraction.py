@@ -287,6 +287,33 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual(by_name["site.txt"]["status"], "parsed")
         self.assertEqual(by_name["broken.zip"]["status"], "parser_error")
 
+    def test_coordinator_prefixes_fact_location_with_source_file(self):
+        folder = _test_dir()
+        text_path = folder / "nested" / "site.txt"
+        text_path.parent.mkdir()
+        text_path.write_text("Detector D1", encoding="utf-8")
+
+        output = extract_site_folder_facts(folder, site_id="1003")
+
+        fact = output["source_files"][0]["extracted_facts"][0]
+        self.assertEqual(fact["evidence_location"], f"{text_path.as_posix()} -> line 1")
+
+    def test_coordinator_preserves_archive_member_provenance_after_source_file_prefix(self):
+        folder = _test_dir()
+        zip_path = folder / "packages" / "site.zip"
+        zip_path.parent.mkdir()
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr("notes/controller.txt", "Detector D12")
+
+        output = extract_site_folder_facts(folder, site_id="1003")
+
+        facts = output["source_files"][0]["extracted_facts"]
+        detector = next(fact for fact in facts if fact["fact_type"] == "detector_candidate")
+        self.assertEqual(
+            detector["evidence_location"],
+            f"{zip_path.as_posix()} -> archive member notes/controller.txt -> line 1",
+        )
+
     def test_extract_cli_scans_site_folder_without_inventory(self):
         folder = _test_dir()
         nested = folder / "nested"

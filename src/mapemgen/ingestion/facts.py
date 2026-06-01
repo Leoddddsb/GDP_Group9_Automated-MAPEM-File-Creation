@@ -76,4 +76,19 @@ def _extract_source_file(source: dict) -> dict:
             "error": str(exc),
             "extracted_facts": [],
         }
-    return {"source_file": source_file, "file_type": file_type, "parser": parser_name, "status": "parsed", "extracted_facts": facts}
+    return {
+        "source_file": source_file,
+        "file_type": file_type,
+        "parser": parser_name,
+        "status": "parsed",
+        "extracted_facts": _prefix_source_file(facts, source_file),
+    }
+
+
+def _prefix_source_file(facts: list[dict], source_file: str) -> list[dict]:
+    prefixed: list[dict] = []
+    for fact in facts:
+        item = dict(fact)
+        item["evidence_location"] = f"{source_file} -> {fact['evidence_location']}"
+        prefixed.append(item)
+    return prefixed
