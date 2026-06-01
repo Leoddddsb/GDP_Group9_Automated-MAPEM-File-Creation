@@ -306,6 +306,17 @@ Example when the executable is stored in `E:\ODA`:
 python -c "from ezdxf.addons import odafc; odafc.win_exec_path = r'E:\ODA\ODAFileConverter.exe'; print(odafc.is_installed())"
 ```
 
+The Python assignment above only applies to that single check command. Before
+running `mapemgen extract`, set `ODAFC_PATH` in the same PowerShell session:
+
+```powershell
+$env:ODAFC_PATH="E:\ODA\ODAFileConverter.exe"
+python -m mapemgen.cli extract `
+  --site-folder "<site-folder>" `
+  --site-id "<site-id>" `
+  --out-dir "<output-folder>"
+```
+
 The successful command must print:
 
 ```text

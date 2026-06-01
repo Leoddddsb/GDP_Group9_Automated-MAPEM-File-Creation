@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -19,8 +20,15 @@ def extract_dwg_facts(path: str | Path) -> list[dict]:
         from ezdxf.addons import odafc
     except ImportError as exc:
         raise RuntimeError("DWG extraction requires 'ezdxf' and ODA File Converter.") from exc
+    configured_path = os.environ.get("ODAFC_PATH")
+    if configured_path:
+        odafc.win_exec_path = configured_path
     if not odafc.is_installed():
-        raise RuntimeError("DWG extraction requires ODA File Converter to be installed.")
+        raise RuntimeError(
+            "DWG extraction requires ODA File Converter to be installed. "
+            "If it is installed outside the default location, set ODAFC_PATH "
+            "to the full path of ODAFileConverter.exe."
+        )
     return _extract_document_facts(odafc.readfile(path))
 
 
@@ -76,4 +84,3 @@ def _xy(value: object) -> tuple[float, float]:
 
 def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
     return {"fact_type": fact_type, "value": value, "evidence_location": location, "confidence": confidence}
-

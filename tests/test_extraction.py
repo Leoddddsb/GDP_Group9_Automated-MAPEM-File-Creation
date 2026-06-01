@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import types
 import unittest
@@ -130,6 +131,25 @@ class ExtractionTest(unittest.TestCase):
 
         self.assertEqual(calls, ["site.dwg"])
         self.assertTrue(any(fact["fact_type"] == "cad_entity_counts" for fact in facts))
+
+    def test_dwg_parser_uses_odafc_path_environment_variable(self):
+        calls = []
+        fake_odafc = types.SimpleNamespace(
+            win_exec_path="default.exe",
+            is_installed=lambda: fake_odafc.win_exec_path == r"E:\ODA\ODAFileConverter.exe",
+            readfile=lambda path: calls.append(path) or types.SimpleNamespace(modelspace=lambda: []),
+        )
+        fake_addons = types.ModuleType("ezdxf.addons")
+        fake_addons.odafc = fake_odafc
+        fake_ezdxf = types.ModuleType("ezdxf")
+        fake_ezdxf.addons = fake_addons
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf, "ezdxf.addons": fake_addons}):
+            with patch.dict(os.environ, {"ODAFC_PATH": r"E:\ODA\ODAFileConverter.exe"}):
+                extract_dwg_facts("site.dwg")
+
+        self.assertEqual(fake_odafc.win_exec_path, r"E:\ODA\ODAFileConverter.exe")
+        self.assertEqual(calls, ["site.dwg"])
 
     def test_docx_parser_requires_python_docx(self):
         with patch.dict(sys.modules, {"docx": None}):
