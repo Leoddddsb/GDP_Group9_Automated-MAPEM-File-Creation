@@ -537,6 +537,47 @@ The output is:
 outputs/1003_LondonRdClevelandBridge/extracted_facts.partial.json
 ```
 
+A shortened output example:
+
+```json
+{
+  "site_id": "1003",
+  "source_files": [
+    {
+      "source_file": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf",
+      "file_type": "pdf",
+      "parser": "pdf_parser",
+      "status": "parsed",
+      "extracted_facts": [
+        {
+          "fact_type": "phase_candidate",
+          "value": "Phase A",
+          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
+          "confidence": 0.65
+        }
+      ]
+    },
+    {
+      "source_file": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip",
+      "file_type": "zip",
+      "parser": "zip_inventory_parser",
+      "status": "parsed",
+      "extracted_facts": [
+        {
+          "fact_type": "cad_layer_names",
+          "value": ["DUCTS", "LOOPS", "SIGNALS"],
+          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace",
+          "confidence": 0.95
+        }
+      ]
+    }
+  ]
+}
+```
+
+The real file contains all scanned source files and all extracted facts. The
+example above is intentionally shortened.
+
 ## Data Flow
 
 ```text
