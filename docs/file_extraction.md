@@ -110,6 +110,31 @@ The coordinator wraps facts with file-level status:
 }
 ```
 
+## Retained Data by File Format
+
+Step 2 keeps extracted facts and provenance, not a second copy of each original
+file. The following table describes the data retained by the current parsers.
+Candidate facts are intentionally conservative: Step 3 will match, deduplicate,
+and fuse them into MAPEM fields.
+
+| File format | Data scanned | Data retained in `extracted_facts.partial.json` | Why it is retained |
+| --- | --- | --- | --- |
+| TXT, 8TX | Decoded non-empty text lines | Keyword candidates for phase, stage, stream, intergreen, detector, I/O allocation, SCOOT, timing, override, and control; exact site description, SCN, and IP matches | Controller and RAM reports often expose useful control evidence as text |
+| PDF | Extractable page text and tables | Keyword and metadata candidates; complete non-empty table rows; `needs_future_recognition` for pages without extractable text | Configuration reports, schedules, and drawings may contain both text tables and image-only pages |
+| DOCX | Paragraph text and tables | Keyword and metadata candidates; complete non-empty table rows | UTC forms and supporting notes contain structured site and control information |
+| DXF | Modelspace entities, layers, geometry, text, and block inserts | Layer names; entity counts; line and polyline geometry candidates; text labels; block references; coordinate bounds | CAD structure provides later lane, stop-line, crossing, and signal-head evidence |
+| DWG | DWG converted to DXF through ODA File Converter, then scanned as DXF | The same facts as DXF | DWG is binary; ODA conversion exposes the CAD structure for the Python parser |
+| GeoJSON, JSON | GIS features, properties, and coordinates | Road-name candidates; geometry candidates; coordinate bounds; approximate bounds-centre junction candidate | GIS data provides road names and map geometry |
+| OSM | Nodes, ways, and way tags | Road-name candidates; coordinate bounds; approximate bounds-centre junction candidate | OSM data provides reference road names and coordinates |
+| Shapefile, GeoPackage | GIS features, properties, and coordinates through Fiona | Road-name candidates; geometry candidates; coordinate bounds; approximate bounds-centre junction candidate | Structured GIS files provide spatial reference evidence |
+| ZIP | Archive paths and supported nested members | Archive-member facts; rejected unsafe paths; nested parseable-file availability; root and xref DWG candidates; topographic drawing availability; recursively extracted inner facts | ZIP is a container; retaining the member chain preserves the original source provenance |
+| MOVA | File path, executable configuration, and file size | `mova_tools_manual_export_required`; file-size metadata | `.mova` is a proprietary binary dataset; full control facts must come from files exported by MOVA Tools |
+| Unsupported extension | File path and extension | File-level `status: "unsupported"` with no extracted facts | The file remains visible for manual review without guessing its contents |
+
+Every retained fact includes an `evidence_location` chain. For example, a CAD
+fact extracted from a DWG inside a ZIP keeps the ZIP path, archive-member path,
+and modelspace entity location.
+
 ## Components
 
 ### Extraction Coordinator
