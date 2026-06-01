@@ -91,15 +91,26 @@ class ExtractionTest(unittest.TestCase):
         rejected = next(fact for fact in facts if fact["fact_type"] == "archive_member_rejected")
         self.assertEqual(rejected["value"], "../outside.txt")
 
-    def test_mova_parser_reports_shallow_extraction(self):
+    def test_mova_parser_requires_mova_tools(self):
         path = _test_dir() / "site.mova"
-        path.write_bytes(b"\x00DETECTOR D12\x00MOVA CONTROL\xff")
+        path.write_bytes(b"\x00binary mova dataset\xff")
 
-        facts = extract_mova_facts(path)
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "MOVA Tools"):
+                extract_mova_facts(path)
 
-        self.assertEqual(facts[0]["fact_type"], "mova_shallow_extraction_limitation")
-        self.assertTrue(any(fact["fact_type"] == "detector_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_type"] == "control_candidate" for fact in facts))
+    def test_mova_parser_records_official_export_requirement(self):
+        folder = _test_dir()
+        path = folder / "site.mova"
+        executable = folder / "MOVATools.exe"
+        path.write_bytes(b"\x00binary mova dataset\xff")
+        executable.write_bytes(b"synthetic executable placeholder")
+
+        with patch.dict(os.environ, {"MOVA_TOOLS_PATH": str(executable)}):
+            facts = extract_mova_facts(path)
+
+        self.assertEqual(facts[0]["fact_type"], "mova_tools_manual_export_required")
+        self.assertEqual(facts[1]["value"], {"file_size_bytes": path.stat().st_size})
 
     def test_geojson_parser_extracts_bounds_and_reference_point(self):
         path = _test_dir() / "roads.geojson"

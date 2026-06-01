@@ -195,22 +195,43 @@ warnings or silent fallbacks.
 
 Add `src/mapemgen/ingestion/mova.py`.
 
-MOVA is proprietary and may be binary. The first version performs bounded
-shallow extraction:
+`.mova` is a proprietary binary dataset format used by the official MOVA Tools
+application. Full extraction must use MOVA Tools as an external conversion
+boundary, in the same way that DWG extraction uses ODA File Converter:
 
-- file metadata
-- printable text fragments
-- detector and control keyword candidates
+```text
+.mova binary dataset
+        |
+        v
+official MOVA Tools export
+        |
+        v
+exported text / report files
+        |
+        v
+Python parser
+        |
+        v
+detector, control, phase, stage, stream, timing, and plan facts
+```
 
-The parser must identify its output as shallow extraction. It must not imply
-complete decoding of proprietary binary fields.
+The external tool is required because the repository samples are opaque binary
+files, the binary schema is not published, and guessing byte offsets would
+produce unreliable MAPEM evidence. TRL describes MOVA Tools as the official
+program for creating, editing, and converting MOVA dataset files.
+
+The Python integration must read a `MOVA_TOOLS_PATH` environment variable that
+points to the installed MOVA Tools executable. The exact automated export
+command must be confirmed against the installed MOVA Tools version before it is
+enabled. If that version provides only a graphical export workflow, export the
+files manually and place them in the site folder for the Python parsers.
 
 ## Dependency Policy
 
 Add the libraries required by the implemented parsers to `pyproject.toml`.
 
-Python packages are ordinary project dependencies. ODA File Converter remains an
-external application and must be documented in the README.
+Python packages are ordinary project dependencies. ODA File Converter and MOVA
+Tools are external applications and must be documented in the README.
 
 Dependency failures are handled as follows:
 
@@ -218,9 +239,10 @@ Dependency failures are handled as follows:
 | --- | --- |
 | Required Python package missing | Stop with an actionable error |
 | `.dwg` encountered without ODA File Converter | Stop with an actionable error |
+| `.mova` encountered without MOVA Tools | Stop full MOVA extraction with an actionable error |
 | Individual source file is corrupt or malformed | Record file-level `parser_error` and continue |
 | PDF page has no extractable text | Emit `needs_future_recognition` |
-| MOVA binary content cannot be decoded fully | Return shallow facts and an explicit limitation fact |
+| MOVA Tools version has no confirmed CLI export command | Require manual export from MOVA Tools and parse the exported files |
 
 ## Installation
 
@@ -281,8 +303,9 @@ cd C:\Users\leovo\Desktop\GDP
 | `fiona` | Shapefile and GeoPackage parsing |
 | `pyproj` | British National Grid to WGS84 coordinate conversion |
 
-TXT, 8TX, ZIP, GeoJSON, JSON, OSM, and shallow MOVA extraction use Python
-standard-library modules and do not need additional parser packages.
+TXT, 8TX, ZIP, GeoJSON, JSON, and OSM extraction use Python standard-library
+modules and do not need additional parser packages. Full MOVA extraction
+additionally requires the external MOVA Tools application described below.
 
 To install the parser packages explicitly instead of installing the project:
 
@@ -336,6 +359,41 @@ True
 
 If a site folder contains `.dwg` and ODA File Converter is unavailable,
 extraction stops with an actionable error.
+
+### MOVA Tools for MOVA datasets
+
+Install the official [MOVA Tools](https://trlsoftware.com/products/traffic-control/mova/mova-downloads/)
+application from TRL Software. Python cannot reliably decode `.mova` binary
+datasets directly because the binary schema is proprietary and not published.
+MOVA Tools is the official application for creating, editing, and converting
+these datasets.
+
+After installation, replace `<path-to-MOVATools.exe>` with the actual path of
+the installed executable:
+
+```powershell
+Test-Path "<path-to-MOVATools.exe>"
+$env:MOVA_TOOLS_PATH="<path-to-MOVATools.exe>"
+```
+
+Example path:
+
+```powershell
+Test-Path "E:\MOVA Tools\MOVATools.exe"
+$env:MOVA_TOOLS_PATH="E:\MOVA Tools\MOVATools.exe"
+```
+
+`Test-Path` must print:
+
+```text
+True
+```
+
+Important: the public MOVA Tools download page does not document command-line
+export arguments. Confirm the export options exposed by the installed version.
+If it only supports graphical export, open the `.mova` file in MOVA Tools,
+export the available text or report files, and place those exported files in the
+same site folder before running `mapemgen extract`.
 
 ## Usage
 
@@ -443,7 +501,7 @@ facts extraction coordinator
         +-- DXF parser
         +-- DWG -> ODA File Converter -> DXF parser
         +-- GIS parser
-        +-- MOVA shallow parser
+        +-- MOVA -> official MOVA Tools export -> exported-file parser
         |
         v
 extracted_facts.partial.json
@@ -463,7 +521,7 @@ Add synthetic, non-confidential tests for:
 - DWG ODA invocation boundary using a mock
 - GeoJSON, JSON, OSM, Shapefile, and GeoPackage parsing
 - required dependency errors
-- MOVA shallow text extraction and limitation reporting
+- MOVA Tools configuration and exported-file parsing
 - corrupt individual files producing `parser_error` while other files continue
 
 Tests must use generated synthetic fixtures under `outputs/` or temporary test
@@ -474,7 +532,7 @@ directories. Do not commit confidential raw source files.
 Step 2 does not:
 
 - run OCR or computer vision on scanned PDF drawings
-- fully reverse-engineer proprietary MOVA binary data
+- directly decode or reverse-engineer proprietary MOVA binary data without MOVA Tools
 - match facts to MAPEM fields
 - fuse evidence into `SiteModel`
 - generate MAPEM JSON or ASN.1 output

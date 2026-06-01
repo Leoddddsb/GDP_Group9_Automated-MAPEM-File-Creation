@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
-
-from mapemgen.ingestion.text_facts import extract_keyword_facts, printable_fragments
 
 
 def extract_mova_facts(path: str | Path) -> list[dict]:
     target = Path(path)
-    fragments = printable_fragments(target.read_bytes())
-    facts = [
+    configured_path = os.environ.get("MOVA_TOOLS_PATH")
+    if not configured_path or not Path(configured_path).is_file():
+        raise RuntimeError(
+            "MOVA extraction requires the official MOVA Tools application. "
+            "Set MOVA_TOOLS_PATH to the full path of the installed MOVATools.exe. "
+            "Use MOVA Tools to export text or report files into the site folder "
+            "before running extraction."
+        )
+    return [
         {
-            "fact_type": "mova_shallow_extraction_limitation",
-            "value": "MOVA binary fields are not fully decoded; printable text extraction only.",
+            "fact_type": "mova_tools_manual_export_required",
+            "value": (
+                "MOVA binary fields are not decoded directly. Use the official MOVA Tools "
+                "application to export text or report files into the site folder."
+            ),
             "evidence_location": "file",
             "confidence": 1.0,
         },
@@ -22,6 +31,3 @@ def extract_mova_facts(path: str | Path) -> list[dict]:
             "confidence": 1.0,
         },
     ]
-    facts.extend(extract_keyword_facts(fragments, location_prefix="printable fragment"))
-    return facts
-

@@ -27,7 +27,7 @@ PARSERS: dict[str, tuple[str, Parser]] = {
     "osm": ("gis_parser", extract_gis_facts),
     "shp": ("gis_parser", extract_gis_facts),
     "gpkg": ("gis_parser", extract_gis_facts),
-    "mova": ("mova_availability_recorder", extract_mova_facts),
+    "mova": ("mova_tools_export_boundary", extract_mova_facts),
 }
 
 

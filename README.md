@@ -78,6 +78,11 @@ File Converter and then applies the same fact extraction logic used for DXF
 files. PDF image-only pages are recorded as `needs_future_recognition`; Step 2
 does not run OCR.
 
+Full MOVA dataset extraction requires the official
+[MOVA Tools](https://trlsoftware.com/products/traffic-control/mova/mova-downloads/)
+application. `.mova` files are proprietary binary datasets, so Python should
+parse files exported by MOVA Tools instead of guessing the binary schema.
+
 ## Planned Outputs
 
 - `mapem.json`: MAPEM-like JSON representation for inspection and schema checks.
