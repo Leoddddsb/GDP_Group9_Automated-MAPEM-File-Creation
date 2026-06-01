@@ -17,12 +17,13 @@ def extract_dxf_facts(path: str | Path) -> list[dict]:
 
 def extract_dwg_facts(path: str | Path) -> list[dict]:
     try:
+        import ezdxf
         from ezdxf.addons import odafc
     except ImportError as exc:
         raise RuntimeError("DWG extraction requires 'ezdxf' and ODA File Converter.") from exc
     configured_path = os.environ.get("ODAFC_PATH")
     if configured_path:
-        odafc.win_exec_path = configured_path
+        ezdxf.options.set("odafc-addon", "win_exec_path", configured_path)
     if not odafc.is_installed():
         raise RuntimeError(
             "DWG extraction requires ODA File Converter to be installed. "

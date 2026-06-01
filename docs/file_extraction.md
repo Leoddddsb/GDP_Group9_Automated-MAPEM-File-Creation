@@ -303,18 +303,18 @@ path used by `ezdxf`:
 python -c "from ezdxf.addons import odafc; print(odafc.is_installed())"
 ```
 
-If ODA File Converter was installed in a different folder, explicitly set
-`odafc.win_exec_path`. Replace `<path-to-ODAFileConverter.exe>` with the actual
-path of the executable:
+If ODA File Converter was installed in a different folder, explicitly set the
+`ezdxf` option `odafc-addon.win_exec_path`. Replace
+`<path-to-ODAFileConverter.exe>` with the actual path of the executable:
 
 ```powershell
-python -c "from ezdxf.addons import odafc; odafc.win_exec_path = r'<path-to-ODAFileConverter.exe>'; print(odafc.is_installed())"
+python -c "import ezdxf; from ezdxf.addons import odafc; ezdxf.options.set('odafc-addon', 'win_exec_path', r'<path-to-ODAFileConverter.exe>'); print(odafc.is_installed())"
 ```
 
 Example when the executable is stored in `E:\ODA`:
 
 ```powershell
-python -c "from ezdxf.addons import odafc; odafc.win_exec_path = r'E:\ODA\ODAFileConverter.exe'; print(odafc.is_installed())"
+python -c "import ezdxf; from ezdxf.addons import odafc; ezdxf.options.set('odafc-addon', 'win_exec_path', r'E:\ODA\ODAFileConverter.exe'); print(odafc.is_installed())"
 ```
 
 The Python assignment above only applies to that single check command. Before
