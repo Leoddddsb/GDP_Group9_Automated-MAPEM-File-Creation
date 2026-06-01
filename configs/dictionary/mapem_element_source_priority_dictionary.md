@@ -20,6 +20,7 @@ For each element, the dictionary identifies:
 6. which validation rule should be applied; and
 7. why the rule is appropriate.
 
+
 ## 2. Table columns
 
 | Column | Meaning |
@@ -63,7 +64,144 @@ The three source dictionaries used mixed `map` and `mapData` prefixes and mixed
 `laneSet` and `laneSet[]` notation. This overview standardises them to
 `map.intersections[].laneSet[]...`.
 
-## 4. Complete mandatory element dictionary
+## 4. Data source framework
+
+### 4.1 Source category and subtype
+
+The dictionary ranks a source category together with a source subtype. A source
+category is the top-level information family defined by the project brief. A
+source subtype records the actual kind of document or file received within that
+family.
+
+| Level | Meaning | Example |
+|---|---|---|
+| `file_format` | Technical file extension only; not sufficient for assigning priority. | `PDF`, `DOCX`, `DWG`, `TXT`, `8TX`, `MOVA` |
+| `source_category` | Top-level family describing the kind of project information. | `site_configuration_information` |
+| `source_subtype` | Actual document or file type within the source category. | `controller_configuration_pdf` |
+| `actual_source_file` | A specific site file used by an extractor. This is deployment-specific and is not hard-coded into the dictionary. | `5040_2500Config_Nov22.pdf` |
+
+For example:
+
+```text
+site_configuration_information
+    -> controller_configuration_pdf
+        -> 5040_2500Config_Nov22.pdf
+```
+
+The priority table therefore uses entries such as
+`site_configuration_information -> controller_configuration_pdf`, rather than
+generic entries such as `PDF`.
+
+### 4.2 Top-level source categories
+
+| Source category | Meaning in this project | Current status |
+|---|---|---|
+| `site_plans_and_cad_files` | Site layout drawings and vector geometry sources. | Confirmed in supplied data |
+| `gis_data` | Public or authoritative geographic data, such as OSM or Ordnance Survey. | Potential source; not yet confirmed in supplied data |
+| `site_configuration_information` | Signal-control, phase, stage, stream and official site metadata. | Confirmed in supplied data |
+| `asset_management_tools` | Pole or signal-equipment location records. | Potential source; independent export not yet confirmed |
+| `road_condition_and_lidar_surveys` | Topographic or high-resolution geometry evidence. | Potential source; not yet confirmed |
+| `project_or_client_configuration` | Information that cannot safely be inferred from ordinary site files. | Required for certain mandatory fields |
+
+The dictionary also uses `system_configuration` for MAPEM profile constants
+such as `header.protocolVersion` and `header.messageID`. This is a system-level
+configuration namespace, not a site evidence category. The subtype
+`package_handling_only -> cad_manifest_txt` can be registered for package
+processing, but it must not be treated as MAPEM evidence.
+
+### 4.3 Registered source subtypes
+
+| Source category | Source subtype | Confirmed example | Main evidence content |
+|---|---|---|---|
+| `site_plans_and_cad_files` | `cad_drawing` | Leeds DWG; `T5040 Whitecross.dwg`; `5040 Whitecross.dwg` | Vector geometry and physical layout |
+| `site_plans_and_cad_files` | `annotated_drawing_pdf` | `5040_Drawing.pdf` | Layout, detector/pole/head annotations and movement interpretation |
+| `site_plans_and_cad_files` | `embedded_layout_in_specification_pdf` | Layout pages in the 337L specification PDF | Supporting visual layout evidence |
+| `site_configuration_information` | `signal_specification_pdf` | `337L RODLEY RBOUT SPEC 15_6_15.pdf` | Site identity, streams, phases, stages and stage-phase relationships |
+| `site_configuration_information` | `controller_configuration_pdf` | `5040_2500Config_Nov22.pdf` | Controller configuration, phases, stages, streams and conflict data |
+| `site_configuration_information` | `utc_form_docx` | `5040_UTCForm_Sep22.docx` | Junction description, SCN, phasing, staging and SCOOT links |
+| `site_configuration_information` | `mova_schematic_docx` | `5040_MOVADrawing_Oct22.docx` | Movement/phase and detector-supporting schematic |
+| `site_configuration_information` | `ram_8tx` | `5040_RAMData_Nov25.8TX` | Potential changed/override evidence; parser not yet confirmed |
+| `site_configuration_information` | `mova_proprietary_file` | `5040_MOVATools_Oct22.mova` | Potential control support; parser not yet confirmed |
+| `package_handling_only` | `cad_manifest_txt` | `T5040 Whitecross.txt` | Root DWG and external-reference identification only |
+
+## 5. Population modes
+
+Before assigning source priority, each mandatory MAPEM element is classified by
+how its final value should be obtained.
+
+| Population mode | Definition | Example mandatory elements |
+|---|---|---|
+| `constant` | Fixed according to MAPEM message or profile requirements. | `header.protocolVersion`, `header.messageID` |
+| `client_configured` | Must be provided or confirmed by client or deployment configuration. | `header.stationID`, `map.intersections[].id.region` |
+| `project_managed` | Maintained by the MAPEM lifecycle or versioning process. | `map.msgIssueRevision`, `map.intersections[].revision` |
+| `directly_extracted` | Can be read directly from official source content. | `map.intersections[].id.id` |
+| `geometry_derived` | Calculated or inferred from spatial or geometry evidence. | `refPoint`, `nodeList.nodes[].delta`, approaches |
+| `system_generated` | Assigned by the prototype after the relevant objects have been extracted. | `laneID` |
+| `evidence_fused` | Requires combined evidence from multiple source types. | `laneType`, `connectingLane.lane`, `signalGroup` |
+
+Population mode is assigned before source priority because not every MAPEM
+element should be extracted from a site file. For example:
+
+| MAPEM element | Incorrect assumption | Correct treatment |
+|---|---|---|
+| `map.intersections[].revision` | Copy a PDF or drawing issue number. | Manage as a MAPEM topology revision. |
+| `map.intersections[].laneSet[].laneID` | Look for a lane ID in CAD. | Generate a stable ID after lane extraction. |
+| `map.intersections[].laneSet[].connectsTo[].signalGroup` | Infer from geometry alone. | Fuse phase/control evidence with resolved physical connection evidence. |
+
+## 6. Source priority, review and validation
+
+### 6.1 Element-specific source priority
+
+Source priority is assigned separately for each MAPEM element. The same source
+subtype may be primary for one element, supporting for another and irrelevant
+for a third.
+
+| Priority code | Meaning |
+|---|---|
+| `P1` | Primary source: preferred for automatic population when its conditions are satisfied. |
+| `P2` | Supporting source: confirms or complements P1 evidence. |
+| `P3` | Fallback source: used when stronger evidence is unavailable, usually with lower confidence or review. |
+| `MANUAL` | Value must be supplied or confirmed through manual review. |
+| `N/A` | Source is not relevant to the element. |
+
+A P1 source is not automatically accepted. For example,
+`site_plans_and_cad_files -> cad_drawing` is P1 for `refPoint.lat` and
+`refPoint.long` only when the CAD drawing is georeferenced or its coordinate
+reference system is reliably known.
+
+### 6.2 Required facts
+
+`Required fact type(s)` define the intermediate evidence that extractors must
+produce. Extractors should return facts such as `phase_label`,
+`lane_connection_candidate` or `coordinate_reference_system_evidence`; they
+should not prematurely claim that the final MAPEM value has been resolved.
+
+### 6.3 Manual-review triggers and validation rules
+
+`Manual-review trigger` identifies conditions where automatic population must
+stop or be escalated. `Validation rule` checks whether the populated field is
+structurally and semantically acceptable after population.
+
+For example, a CAD drawing with an unknown coordinate system triggers review
+for `refPoint`, while a resolved `connectingLane.lane` value must validate that
+its target `laneID` exists.
+
+## 7. Excluded optional extensions
+
+The active dictionary covers mandatory MVP elements only. The following fields
+may be documented later but are intentionally excluded from the first active
+dictionary.
+
+| Optional or extension element | MVP treatment |
+|---|---|
+| `laneWidth` | Exclude from active mandatory dictionary. |
+| `speedLimits` | Exclude from active mandatory dictionary. |
+| `restrictionList` | Exclude from active mandatory dictionary. |
+| `regional.signalHeadLocations` | Record as a possible future extension. |
+| `connectsTo.connectingLane.maneuver` | Possible future enhancement. |
+| `GenericLane.maneuvers` | Must not be used under the adopted C-Roads modelling rule. |
+
+## 8. Complete mandatory element dictionary
 
 | MAPEM mandatory element | Population mode | Required fact type(s) | P1 source category / subtype | P2 supporting source | P3 / fallback | Manual-review trigger | Validation rule | Short rationale / notes |
 |---|---|---|---|---|---|---|---|---|
@@ -86,4 +224,3 @@ The three source dictionaries used mixed `map` and `mapData` prefixes and mixed
 | `map.intersections[].laneSet[].nodeList.nodes[].delta` | `geometry_derived` | `lane_geometry_candidate`; `lane_centreline_nodes`; `upstream_refPoint`; `coordinate_reference_system_evidence`; `georeference_status`; `node_position_offsets` | `site_plans_and_cad_files -> cad_drawing` | `road_condition_and_lidar_surveys -> lidar / topographic_survey`, if supplied | `site_plans_and_cad_files -> annotated_drawing_pdf` manual digitisation; GIS for approximate support only | CAD CRS unknown; centreline broken; geometry ambiguous; refPoint uncertain; PDF digitisation required; offset out of range | Nodes must follow lane centreline, use valid relative offsets, and remain consistent with lane direction | Represents lane centreline geometry relative to refPoint. |
 | `map.intersections[].laneSet[].connectsTo[].connectingLane.lane` | `evidence_fused` | `lane_candidate`; `lane_id_assignment`; `lane_connection_candidate`; `target_lane_candidate`; `movement_direction_candidate`; `lane_direction_candidate`; `stop_line_candidate` | `site_plans_and_cad_files -> cad_drawing` | `site_plans_and_cad_files -> annotated_drawing_pdf` | `site_configuration_information -> mova_schematic_docx / signal_specification_pdf`; GIS approximate support only | Multiple targets plausible; target missing; internal connection uncertain; direction uncertain; drawing conflicts with geometry | Target lane ID must exist and connection must follow valid topology | Value is the downstream laneID, not a road name or phase label. |
 | `map.intersections[].laneSet[].connectsTo[].signalGroup` | `evidence_fused` | `phase_label`; `phase_type`; `stage_phase_relationship`; `movement_phase_mapping`; `lane_connection_candidate`; `target_lane_candidate`; `signal_group_assignment_candidate`; `control_stream_candidate`; `conflict_matrix_evidence` | Control: `site_configuration_information -> signal_control_configuration_document`; physical connection: `site_plans_and_cad_files -> cad_drawing` | Control: `utc_form_docx`; physical connection: `annotated_drawing_pdf` | Control: `mova_schematic_docx`; physical support: GIS road-arm approximation only | Missing control or physical evidence; phase cannot map to lane connection; assignments conflict; dummy/pedestrian phase confusion; multi-stream ambiguity | Every controlled connection needs a valid signal group consistent with stages, phases, movement, and stream | Requires both control semantics and resolved physical connection evidence. |
-
