@@ -50,12 +50,33 @@ The briefing material states that site data must be treated in confidence. Raw P
 ## Quick Start
 
 ```powershell
-python -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e .
+python -m pip install -e .
 python -m mapemgen.cli validate --input examples/site_model.example.json
 python -m mapemgen.cli generate --input examples/site_model.example.json --out-dir outputs/demo
 ```
+
+## File Extraction
+
+Step 2 scans the complete site folder recursively and writes MAPEM-relevant
+candidate facts:
+
+```powershell
+python -m mapemgen.cli extract `
+  --site-folder <site-folder> `
+  --site-id <site-id> `
+  --out-dir outputs/<site>
+```
+
+Step 2 is independent from the Step 1 `site_inventory.partial.json` output. The
+output file is `extracted_facts.partial.json`.
+
+DWG extraction requires [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
+to be installed locally. The Python code uses `ezdxf.addons.odafc` to invoke ODA
+File Converter and then applies the same fact extraction logic used for DXF
+files. PDF image-only pages are recorded as `needs_future_recognition`; Step 2
+does not run OCR.
 
 ## Planned Outputs
 

@@ -1,0 +1,24 @@
+                             IC4 View Differences Report
+
+
+IC4 Handset Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+433   IPX 4    3.6                4.4                Detector Input Extension Time
+373   DFS 5    0                  1                  DFM Suspended
+
+IC4 Junction Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+
+
+Other Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+371   DET 12   2                  0                  Detector Override (0=Force Inactive, 1=Force Active, 2=Normal)
+365   CFE 2    0                  1                  Conditioning Facility Enable
+323   CKA      00-XXX-00          20-MAR-22          BST Advance Date
+324   CKR      00-XXX-00          24-OCT-21          BST Retard Date

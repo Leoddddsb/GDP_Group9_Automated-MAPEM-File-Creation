@@ -1,0 +1,56 @@
+Transmittal Report:
+Created by AutoCAD eTransmit 13 May 2026, 09:45.
+
+Drawing:
+This is a transmittal based on T1003 Cleveland Place.dwg.
+
+Files:
+
+Root Drawing:
+	T1003 Cleveland Place.dwg
+
+AutoCAD Drawing (External) References:
+	1018_Snow Hill_Overlay.dwg
+	OS-TOPO.dwg
+	1003_Cleveland Place_2023Version_Overlay.dwg
+	1065_1068_1067_1071 Sydney_Gdn_Overlay.dwg
+	1037_Bathwick St_overlay.dwg
+	1018_Snow Hill_Overlay_Aug24.dwg
+
+The following files were excluded from the transmittal:
+	acad.fmp
+	Fonts\simplex.shx
+	Fonts\txt.shx
+	Fonts\arial.ttf
+	Fonts\romans.shx
+	Fonts\tahoma.ttf
+	Fonts\rdmarkp.shx
+	PlotCfgs\acad.ctb
+	PlotCfgs\DWG To PDF.pc3
+	PlotCfgs\CCK Plotter (New Driver).pc3
+	Fonts\romans__.ttf
+	Fonts\calibri.ttf
+	Fonts\ARIALN.TTF
+	Fonts\GOTHIC.TTF
+	Fonts\romanc.shx
+	Fonts\times.ttf
+	Fonts\romant.shx
+	1003_Cleveland Place_Overlay.dwg
+
+The following files could not be located:
+	WORKING.(shx,ttf)
+	STANDARD.(shx,ttf)
+	ITALICS.(shx,ttf)
+	tmodelf.(shx,ttf)
+
+
+Notes for distribution:
+
+.DWG external reference files:
+External reference (xref) paths may be present.  Make sure these paths work or that the root drawing is using the correct references.
+eTransmit does not include files required by xrefs unless they are also required by the root drawing.  In particular, plot style tables and overlay xrefs that are not used by the root drawing are omitted
+
+The AutoCAD variable FONTALT was set to:
+C:\Users\tennisp\appdata\roaming\autodesk\autocad 2023\r24.2\enu\support\simplex.shx
+Please make sure that the FONTALT variable is set to this file or an equivalent before opening any drawings.  All text styles with missing fonts are automatically set to this font.
+
