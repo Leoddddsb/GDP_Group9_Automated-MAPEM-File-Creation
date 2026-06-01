@@ -176,6 +176,7 @@ mandatory_fields:
     rule:   config
     config_key: region_code
     confidence: high
+    c_roads_mandatory: true
     note:   |
       C-Roads scheme: 2-digit country + 3-digit authority.
       United Kingdom = 50. Leeds authority code TBD (client confirmation).
@@ -260,6 +261,7 @@ mandatory_fields:
         transform: [cluster_by_direction, assign_approach_id]
         confidence: medium
     confidence_floor: medium
+    c_roads_mandatory: true
     note: |
       Group unidirectional ingress lanes per intersection arm.
       Successive/internal lanes (e.g., roundabout circulation) get their own ID.
@@ -267,6 +269,7 @@ mandatory_fields:
 
   - target: laneSet[].egressApproach
     sources: "mirror of ingressApproach for egress lanes"
+    c_roads_mandatory: true
 
   - target: laneSet[].laneAttributes.directionalUse
     sources:
@@ -299,7 +302,10 @@ mandatory_fields:
         name: pedestrianTraffic
         reason: "C-Roads: use bit 6 (pedestriansTraffic) instead"
     encoding: BIT STRING(10)
-    c_roads_mandatory: true
+    asn1_mandatory: true
+    note: |
+      Structurally mandatory in ASN.1 (no OPTIONAL in LaneAttributes SEQUENCE).
+      The encoder will reject a message missing sharedWith.
 
   - target: laneSet[].laneAttributes.laneType
     sources:
@@ -345,6 +351,21 @@ mandatory_fields:
   # -----------------------------------------------------------------------------
   # 3.5 Connection (per ingress lane → connectsTo)
   # -----------------------------------------------------------------------------
+
+  # The connectsTo CONTAINER must exist (and be non-empty) for every ingress lane.
+  # ASN.1 marks connectsTo as OPTIONAL, but C-Roads requires it.
+  - target: laneSet[].connectsTo
+    rule: must_exist
+    applies_when: "lane.directionalUse contains ingress"
+    c_roads_mandatory: true
+    fallback: manual_review
+    note: |
+      Handbook §3.3.5 (line 1472): "Each ingress lane of an intersection
+      must be connected to an egress or ingress lane".
+      Engine MUST check this — the ASN.1 encoder will not catch a missing
+      connectsTo (it is OPTIONAL in ASN.1). If empty for an ingress lane,
+      add to manual_review_items.
+
   - target: laneSet[].connectsTo[].connectingLane.lane
     applies_when: "lane.directionalUse contains ingress"
     sources:
@@ -358,8 +379,12 @@ mandatory_fields:
         transform: [pair_ingress_egress_by_geometry]
         confidence: medium
     confidence_floor: medium
-    c_roads_mandatory: true
-    note: "Every ingress lane MUST connect to ≥1 egress/ingress lane"
+    asn1_mandatory: true
+    note: |
+      Structurally mandatory inside a Connection (no OPTIONAL).
+      The encoder will reject any Connection missing 'lane'.
+      The "every ingress must have a connection" rule is on the parent
+      connectsTo container — see rule for laneSet[].connectsTo below.
 
   - target: laneSet[].connectsTo[].connectingLane.maneuver
     sources:
