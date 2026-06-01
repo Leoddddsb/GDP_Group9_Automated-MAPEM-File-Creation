@@ -1,0 +1,462 @@
+# =============================================================================
+# MAPEM Field Matching Rules
+# =============================================================================
+# Maps extracted facts (PDF/DWG/GIS/manual) → MAPEM fields, with confidence
+# and provenance. Used by the matching engine to produce mapped_evidence.partial.json.
+#
+# Sources:
+#   - C-ITS EU Handbook for MAPEM/SPATEM 3.2.0
+#   - ETSI TS 103 301 ASN.1 (via forge.etsi.org)
+#
+# Conventions:
+#   - target:          MAPEM dotted path (e.g. intersections[].refPoint.lat)
+#   - sources:         list of fact types that can feed this field, in priority
+#                      order (1 = preferred)
+#   - transform:       named pipeline (implementations in transforms.py)
+#   - confidence_floor: minimum acceptable confidence; below this → manual_review
+#   - rule:            const | config | project_managed | auto_number | default
+# =============================================================================
+
+version: "1.0"
+schema_for: "MAPEM 3.2.0 (C-Roads profile)"
+description: |
+  Field-by-field matching rules from extracted facts to MAPEM fields.
+  Output: mapped_evidence.partial.json (per-field value + source facts +
+  confidence + rule_applied).
+
+# -----------------------------------------------------------------------------
+# 1. Per-site config (overridden by site_config.yaml)
+# -----------------------------------------------------------------------------
+config:
+  protocol_version:   2          # MAPEM header.protocolVersion (fixed by std)
+  message_id_mapem:   5          # MAPEM header.messageID (fixed by std)
+  default_station_id: 100        # MAPEM header.stationID (project-configurable)
+  default_lane_width_m: 3.5      # used when laneWidth not derivable from CAD
+  region_code:        50         # UK; final value = 50 + 3-digit Leeds code (TBD)
+  crs_source:         EPSG:27700 # BNG (verify per site)
+  crs_target:         EPSG:4326  # WGS84
+  bng_to_wgs84:       OSTN15     # NOT generic PROJ; OSTN15 gives <0.1m error
+
+# -----------------------------------------------------------------------------
+# 2. Transform pipeline definitions (functions implemented in transforms.py)
+# -----------------------------------------------------------------------------
+transforms:
+
+  # --- coordinate transforms ---
+  bng_to_wgs84_OSTN15:
+    desc: BNG (EPSG:27700) → WGS84 via OSTN15 .gsb grid
+    in:   "Point(east_m, north_m)"
+    out:  "Point(lat_deg, long_deg)"
+
+  wgs84_to_int_1e7:
+    desc: WGS84 degrees → integer 1/10^7 deg (ASN.1 Latitude/Longitude unit)
+    in:   "float deg"
+    out:  "int (≈ deg * 1e7)"
+
+  relative_to_refpoint:
+    desc: Convert absolute WGS84 point to (east_m, north_m) offset from refPoint
+    in:   "Point(lat, long), refPoint(lat, long)"
+    out:  "Point(d_east_m, d_north_m)"
+
+  # --- geometry helpers ---
+  polyline_centroid:
+    desc: Centroid of polyline vertices (used for refPoint candidate from conflict-area polygon)
+  polygon_centroid:
+    desc: Centroid of polygon (used for conflict-area polygon)
+  sample_polyline_at_intervals:
+    desc: Resample a polyline to N control points (lane centerline → nodes)
+    params: { min_nodes: 2, max_nodes: 12, spacing_m: 5.0 }
+  compute_centerline_from_edges:
+    desc: Given two parallel polylines (lane left/right edges), compute centerline
+  pair_ingress_egress_by_geometry:
+    desc: Match an ingress lane endpoint to the closest egress lane start point
+    params: { max_match_dist_m: 8.0 }
+  cluster_by_direction:
+    desc: Group lane centerlines by bearing from refPoint → produces approach IDs
+    params: { bearing_tolerance_deg: 25 }
+
+  # --- NodeXY delta encoding ---
+  choose_node_xy_precision:
+    desc: Pick NodeOffsetPointXY CHOICE based on max abs offset of any node
+    rules:
+      - if_max_abs_m_le: 5.11
+        use: node-XY1
+      - if_max_abs_m_le: 10.23
+        use: node-XY2
+      - if_max_abs_m_le: 20.47
+        use: node-XY3
+      - if_max_abs_m_le: 32.767
+        use: node-XY4
+      - if_max_abs_m_le: 163.83
+        use: node-XY5
+      - if_max_abs_m_le: 327.67
+        use: node-XY6
+      - else:
+        use: node-LatLon
+  delta_to_cm:
+    desc: Convert offset (m) to cm integer (ASN.1 unit)
+
+  # --- semantic transforms ---
+  phase_letter_to_signal_group:
+    desc: Map phase letter A..T → signalGroupID 1..N, excluding dummy phases
+    inputs: [phase_letter, dummy_phase_set]
+    rule:   "letter A → 1, B → 2, ... ; skip letters in dummy_phase_set"
+  arrow_to_maneuver:
+    desc: PDF stage diagram arrow → maneuver enum
+    mapping:
+      straight_up:    straight
+      left_arrow:     leftTurn
+      right_arrow:    rightTurn
+      u_turn:         uTurn
+  maneuver_from_angle_change:
+    desc: Compute maneuver from angle between ingress and egress lane bearings
+    rules:
+      - "|Δθ| <= 30°   → straight"
+      - "30° < Δθ ≤ 150° (CCW) → leftTurn"
+      - "-150° ≤ Δθ < -30° (CW) → rightTurn"
+      - "|Δθ| > 150° → uTurn"
+  phase_type_to_lanetype:
+    desc: PDF phase type letter → laneType
+    mapping:
+      T: vehicle          # Traffic
+      F: vehicle          # Filter
+      I: vehicle          # Indicative
+      P: crosswalkLane    # Pedestrian
+      L: trackedVehicle   # LRT (light rail)
+      S: vehicle          # Switched-sign
+      # D (Dummy) excluded entirely
+  layer_name_to_lanetype:
+    desc: CAD layer name heuristic → laneType (fallback when no PDF phase data)
+    mapping_examples:
+      contains("CARRIAGEWAY|TRAFFIC|ROAD"): vehicle
+      contains("CROSS|ZEBRA|PED_CROSS"):    crosswalkLane
+      contains("CYCLE|BIKE"):               bikeLane
+      contains("FOOTWAY|PAVEMENT"):         sideWalk
+      contains("MEDIAN|ISLAND"):            medianLane
+
+# =============================================================================
+# 3. FIELD-LEVEL MATCHING RULES (organised by MAPEM hierarchy)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 3.1 MAPEM top + header
+# -----------------------------------------------------------------------------
+mandatory_fields:
+
+  - target: header.protocolVersion
+    rule:   const
+    value:  2
+    note:   "Fixed by ETSI TS 103 301: shall be set to 2"
+
+  - target: header.messageID
+    rule:   const
+    value:  5
+    note:   "mapem(5)"
+
+  - target: header.stationID
+    rule:   config
+    config_key: station_id
+    confidence: high
+    note:   "Project-configured ITS-S identifier"
+
+  # -----------------------------------------------------------------------------
+  # 3.2 MapData
+  # -----------------------------------------------------------------------------
+  - target: map.msgIssueRevision
+    rule:   project_managed
+    initial: 1
+    note:   |
+      MAPEM message version (NOT the PDF 'Issue'). Increment when message
+      structure changes. ASN.1 type MsgCount (INTEGER 0..127).
+
+  # -----------------------------------------------------------------------------
+  # 3.3 IntersectionGeometry
+  # -----------------------------------------------------------------------------
+  - target: intersections[].id.region
+    rule:   config
+    config_key: region_code
+    confidence: high
+    note:   |
+      C-Roads scheme: 2-digit country + 3-digit authority.
+      United Kingdom = 50. Leeds authority code TBD (client confirmation).
+      ASN.1: OPTIONAL, but C-Roads needs it for SPATEM matching.
+
+  - target: intersections[].id.id
+    sources:
+      - fact_type: pdf.site_id
+        priority: 1
+        transform: [extract_int_from_site_code]
+        confidence: high
+        example: "337L → 337"
+      - fact_type: folder.name
+        priority: 2
+        transform: [extract_digits]
+        confidence: medium
+      - fact_type: manual.intersection_id
+        priority: 0   # highest (manual override)
+        confidence: high
+    confidence_floor: high
+    asn1_type: IntersectionID (INTEGER 0..65535)
+
+  - target: intersections[].revision
+    rule:   project_managed
+    initial: 1
+    note:   "Topology version of this intersection. Must equal SPATEM revision."
+
+  - target: intersections[].refPoint.lat
+    sources:
+      - fact_type: manual.refpoint
+        priority: 0
+        transform: [wgs84_to_int_1e7, take_lat]
+        confidence: high
+      - fact_type: cad.conflict_area_polygon
+        priority: 1
+        transform: [polygon_centroid, bng_to_wgs84_OSTN15, wgs84_to_int_1e7, take_lat]
+        confidence: medium
+      - fact_type: cad.intersection_block
+        priority: 2
+        transform: [block_position, bng_to_wgs84_OSTN15, wgs84_to_int_1e7, take_lat]
+        confidence: medium
+      - fact_type: gis.osm.intersection_node
+        priority: 3
+        transform: [wgs84_to_int_1e7, take_lat]
+        confidence: medium
+    confidence_floor: medium
+    asn1_type: Latitude (INTEGER, unit 1/10^7 deg)
+
+  - target: intersections[].refPoint.long
+    sources: "same chain as refPoint.lat, but take_long instead of take_lat"
+    confidence_floor: medium
+    asn1_type: Longitude (INTEGER, unit 1/10^7 deg)
+    note: "ASN.1 field name is 'long', NOT 'lon'"
+
+  - target: intersections[].laneWidth
+    sources:
+      - fact_type: cad.lane_edge_spacing
+        priority: 1
+        transform: [median_spacing_cm]
+        confidence: medium
+      - fact_type: pdf.lane_width_note
+        priority: 2
+        confidence: medium
+    rule_fallback: default
+    default_value_cm: 350      # 3.5 m
+    optional: true
+    note: "ASN.1 OPTIONAL; recommended; unit cm"
+
+  # -----------------------------------------------------------------------------
+  # 3.4 GenericLane (per lane)
+  # -----------------------------------------------------------------------------
+  - target: laneSet[].laneID
+    rule:   auto_number
+    start:  1
+    asn1_type: LaneID (INTEGER 0..255)
+
+  - target: laneSet[].ingressApproach
+    sources:
+      - fact_type: cad.lane_centerline
+        condition: "lane.directionalUse == ingress"
+        priority: 1
+        transform: [cluster_by_direction, assign_approach_id]
+        confidence: medium
+    confidence_floor: medium
+    note: |
+      Group unidirectional ingress lanes per intersection arm.
+      Successive/internal lanes (e.g., roundabout circulation) get their own ID.
+      C-Roads: lanes shall be grouped into approaches (at least 1 per arm).
+
+  - target: laneSet[].egressApproach
+    sources: "mirror of ingressApproach for egress lanes"
+
+  - target: laneSet[].laneAttributes.directionalUse
+    sources:
+      - fact_type: cad.lane_centerline_direction
+        priority: 1
+        transform: [direction_relative_to_refpoint, encode_bit_string_2]
+        confidence: high
+      - fact_type: pdf.lane_direction_label
+        priority: 2
+        confidence: medium
+    encoding: BIT STRING(2)
+    rules:
+      "ingress only":    "10"   # bit 0 set
+      "egress only":     "01"   # bit 1 set
+      "bidirectional":   "11"   # pedestrian lanes
+      "impassable":      "00"   # median/curb modelled as lane
+    asn1_mandatory: true
+
+  - target: laneSet[].laneAttributes.sharedWith
+    rule:   default
+    default_value: "0000000000"   # 10 bits, all 0 (not shared)
+    overrides:
+      - fact_type: cad.lane_shared_tag
+        rule: set_bits_per_tag
+    forbidden_bits:
+      - bit: 1
+        name: multipleLanesTreatedAsOneLane
+        reason: "C-Roads: shall not be used"
+      - bit: 9
+        name: pedestrianTraffic
+        reason: "C-Roads: use bit 6 (pedestriansTraffic) instead"
+    encoding: BIT STRING(10)
+    c_roads_mandatory: true
+
+  - target: laneSet[].laneAttributes.laneType
+    sources:
+      - fact_type: pdf.phase_type
+        priority: 1
+        transform: [phase_type_to_lanetype]
+        confidence: high
+      - fact_type: cad.layer_name
+        priority: 2
+        transform: [layer_name_to_lanetype]
+        confidence: medium
+      - fact_type: manual.lanetype
+        priority: 0
+        confidence: high
+    allowed_values: [vehicle, crosswalkLane, bikeLane, sideWalk, medianLane, trackedVehicle]
+    encoding: CHOICE
+    asn1_mandatory: true
+
+  - target: laneSet[].nodeList.nodes[]
+    sources:
+      - fact_type: cad.lane_centerline_polyline
+        priority: 1
+        transform:
+          - sample_polyline_at_intervals    # N control points (typ. 3–8)
+          - bng_to_wgs84_OSTN15             # per node
+          - relative_to_refpoint            # delta in m
+          - delta_to_cm                     # ASN.1 unit
+          - choose_node_xy_precision        # pick XY1..6 for the whole lane
+        confidence: high
+      - fact_type: cad.lane_edge_pair
+        priority: 2
+        transform:
+          - compute_centerline_from_edges
+          - (same downstream as priority 1)
+        confidence: medium
+    constraints:
+      - first_node_ingress: "at stop line (from cad.stop_line)"
+      - first_node_egress:  "at conflict-area boundary"
+      - min_nodes: 2
+      - never_cross_conflict_zone: true
+    asn1_mandatory: true
+
+  # -----------------------------------------------------------------------------
+  # 3.5 Connection (per ingress lane → connectsTo)
+  # -----------------------------------------------------------------------------
+  - target: laneSet[].connectsTo[].connectingLane.lane
+    applies_when: "lane.directionalUse contains ingress"
+    sources:
+      - fact_type: pdf.stage_table_row
+        priority: 1
+        transform: [resolve_egress_lane_from_stage]
+        confidence: high
+        note: "Structured table; most reliable for which-lane-connects-where"
+      - fact_type: cad.geometry
+        priority: 2
+        transform: [pair_ingress_egress_by_geometry]
+        confidence: medium
+    confidence_floor: medium
+    c_roads_mandatory: true
+    note: "Every ingress lane MUST connect to ≥1 egress/ingress lane"
+
+  - target: laneSet[].connectsTo[].connectingLane.maneuver
+    sources:
+      - fact_type: pdf.stage_arrow_diagram
+        priority: 1
+        transform: [arrow_to_maneuver]
+        confidence: medium
+        note: "Stage arrow images; CV-based; medium confidence"
+      - fact_type: cad.geometry
+        priority: 2
+        transform: [maneuver_from_angle_change]
+        confidence: medium
+    optional: true
+    note: "Maneuver can also be implied by the relative geometry of the two lanes"
+
+  - target: laneSet[].connectsTo[].signalGroup
+    sources:
+      - fact_type: pdf.phase_letter
+        priority: 1
+        transform: [phase_letter_to_signal_group]
+        confidence: high
+    excluded_when:
+      - "fact.phase_type == D (Dummy)"
+      - "fact.location_text contains any of [Dummy, DA, Max Timer, Pre-time]"
+    confidence_floor: high
+    c_roads_mandatory: true
+    note: |
+      Each non-dummy phase letter → signalGroupID. signalGroup +
+      intersectionReferenceID tuple MUST also exist in the SPATEM.
+      For 337L: phases A-T are real → signal groups; U-A2 are Type=D (dummy)
+      and MUST be excluded.
+
+# =============================================================================
+# 4. FORBIDDEN ELEMENTS (must NOT appear in output)
+# =============================================================================
+forbidden:
+
+  - target: laneSet[].maneuvers
+    layer: GenericLane (lane-level)
+    reason: |
+      C-Roads §3.3.3: "this data element shall not be used... explicitly
+      prohibited". Use connectsTo.connectingLane.maneuver instead.
+
+  - target: laneSet[].laneAttributes.sharedWith.bit_1
+    name: multipleLanesTreatedAsOneLane
+    reason: "C-Roads: shall not be used; describe every lane individually"
+
+  - target: laneSet[].laneAttributes.sharedWith.bit_9
+    name: pedestrianTraffic
+    reason: "C-Roads: use bit 6 pedestriansTraffic"
+
+  - target: intersections[].regional
+    conditional: "when MapData.roadSegments is present"
+    reason: "C-Roads: regional shall not be used when roadSegments is used"
+
+# =============================================================================
+# 5. CONFLICT RESOLUTION
+# =============================================================================
+conflict_resolution:
+
+  primary_rule: priority_order
+  description: |
+    When multiple fact sources feed the same target field, take the
+    highest-priority source (lowest 'priority' number) whose confidence
+    meets confidence_floor. Lower-priority sources become 'corroborating'
+    evidence (logged but not used as the value).
+
+  fallback: manual_review
+  fallback_note: |
+    If no source meets confidence_floor, set target value to null and add
+    an entry to manual_review_items.json with all candidate sources, so a
+    human can decide.
+
+  log_destination: validation_report.json
+  log_entries:
+    - target field
+    - chosen source (rule_applied)
+    - chosen value
+    - rejected sources (with reason)
+    - confidence
+    - any constraint violations
+
+# =============================================================================
+# 6. EXPECTED OUTPUT SCHEMA (mapped_evidence.partial.json)
+# =============================================================================
+expected_output_schema:
+  type: list of per-field records
+  record:
+    target_path:    "string (e.g. intersections[0].refPoint.lat)"
+    value:          "any (final matched value)"
+    rule_applied:   "string (which rule from this file)"
+    source_facts:   "list of fact_ids from extracted_facts.partial.json"
+    transforms_run: "list of transform names"
+    confidence:     "high | medium | low"
+    notes:          "string (optional human-readable notes/caveats)"
+    corroborating:  "list of lower-priority sources that also matched"
+
+# =============================================================================
+# END
+# =============================================================================
