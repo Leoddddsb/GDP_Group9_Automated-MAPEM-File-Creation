@@ -259,6 +259,13 @@ cd "<project-root>"
 .\mapem313\Scripts\Activate.ps1
 ```
 
+Example for the current machine:
+
+```powershell
+cd C:\Users\leovo\Desktop\GDP
+.\mapem313\Scripts\Activate.ps1
+```
+
 `python -m pip install -e .` installs the packages declared in
 `pyproject.toml`:
 
