@@ -50,9 +50,9 @@ The briefing material states that site data must be treated in confidence. Raw P
 ## Quick Start
 
 ```powershell
-python -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e .
+python -m pip install -e .
 python -m mapemgen.cli validate --input examples/site_model.example.json
 python -m mapemgen.cli generate --input examples/site_model.example.json --out-dir outputs/demo
 ```

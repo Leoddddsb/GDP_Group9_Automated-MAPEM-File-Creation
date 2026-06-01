@@ -226,12 +226,16 @@ Open PowerShell and replace `<project-root>` with the absolute path of this
 repository on the local machine. It is the folder that contains
 `pyproject.toml`, `README.md`, `src/`, and `tests/`.
 
+On Windows, use Python 3.13. Fiona currently provides a Windows wheel for
+CPython 3.13, but not for CPython 3.14. Using Python 3.14 makes pip attempt a
+local Fiona build that requires a separate GDAL development installation.
+
 Template:
 
 ```powershell
 cd "<project-root>"
-python -m venv mapem
-.\mapem\Scripts\Activate.ps1
+py -3.13 -m venv mapem313
+.\mapem313\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
@@ -240,19 +244,19 @@ Example for the current machine:
 
 ```powershell
 cd C:\Users\leovo\Desktop\GDP
-python -m venv mapem
-.\mapem\Scripts\Activate.ps1
+py -3.13 -m venv mapem313
+.\mapem313\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-`mapem` is the dedicated virtual environment for this project. Install all
+`mapem313` is the dedicated virtual environment for this project. Install all
 future Python packages for this repository after activating this environment.
 Each time a new PowerShell window is opened, activate it again:
 
 ```powershell
 cd "<project-root>"
-.\mapem\Scripts\Activate.ps1
+.\mapem313\Scripts\Activate.ps1
 ```
 
 `python -m pip install -e .` installs the packages declared in
@@ -281,19 +285,34 @@ DWG is not decoded by a pure Python package. Install
 [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
 on the local machine. The code calls it through `ezdxf.addons.odafc`.
 
-Verify the installation after activating the virtual environment:
+After activating the virtual environment, first check the default installation
+path used by `ezdxf`:
 
 ```powershell
 python -c "from ezdxf.addons import odafc; print(odafc.is_installed())"
 ```
 
-The command must print:
+If ODA File Converter was installed in a different folder, explicitly set
+`odafc.win_exec_path`. Replace `<path-to-ODAFileConverter.exe>` with the actual
+path of the executable:
+
+```powershell
+python -c "from ezdxf.addons import odafc; odafc.win_exec_path = r'<path-to-ODAFileConverter.exe>'; print(odafc.is_installed())"
+```
+
+Example when the executable is stored in `E:\ODA`:
+
+```powershell
+python -c "from ezdxf.addons import odafc; odafc.win_exec_path = r'E:\ODA\ODAFileConverter.exe'; print(odafc.is_installed())"
+```
+
+The successful command must print:
 
 ```text
 True
 ```
 
-If a site inventory contains `.dwg` and ODA File Converter is unavailable,
+If a site folder contains `.dwg` and ODA File Converter is unavailable,
 extraction stops with an actionable error.
 
 ## Usage
@@ -314,7 +333,7 @@ Template:
 
 ```powershell
 cd "<project-root>"
-.\mapem\Scripts\Activate.ps1
+.\mapem313\Scripts\Activate.ps1
 $env:PYTHONPATH='src'
 python -m mapemgen.cli inventory `
   --site-folder "<site-folder>" `
@@ -327,7 +346,7 @@ Example:
 
 ```powershell
 cd C:\Users\leovo\Desktop\GDP
-.\mapem\Scripts\Activate.ps1
+.\mapem313\Scripts\Activate.ps1
 $env:PYTHONPATH='src'
 python -m mapemgen.cli inventory `
   --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
