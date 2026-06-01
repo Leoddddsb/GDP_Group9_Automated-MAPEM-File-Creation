@@ -537,13 +537,6 @@ The output is:
 outputs/1003_LondonRdClevelandBridge/extracted_facts.partial.json
 ```
 
-### 3. Run the tests
-
-```powershell
-$env:PYTHONPATH='src'
-python -m unittest discover -s tests -v
-```
-
 ## Data Flow
 
 ```text
