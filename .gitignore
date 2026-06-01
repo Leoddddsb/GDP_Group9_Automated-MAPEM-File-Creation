@@ -10,6 +10,7 @@ Leeds City Council cite data/
 data/raw/
 data/processed/
 outputs/
+docs/file_extraction_ch.md
 
 # Python
 __pycache__/

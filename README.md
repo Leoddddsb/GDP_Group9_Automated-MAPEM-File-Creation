@@ -57,6 +57,24 @@ python -m mapemgen.cli validate --input examples/site_model.example.json
 python -m mapemgen.cli generate --input examples/site_model.example.json --out-dir outputs/demo
 ```
 
+## File Extraction
+
+Step 2 reads a Step 1 file inventory and writes MAPEM-relevant candidate facts:
+
+```powershell
+python -m mapemgen.cli extract `
+  --inventory outputs/<site>/site_inventory.partial.json `
+  --out-dir outputs/<site>
+```
+
+The output file is `extracted_facts.partial.json`.
+
+DWG extraction requires [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
+to be installed locally. The Python code uses `ezdxf.addons.odafc` to invoke ODA
+File Converter and then applies the same fact extraction logic used for DXF
+files. PDF image-only pages are recorded as `needs_future_recognition`; Step 2
+does not run OCR.
+
 ## Planned Outputs
 
 - `mapem.json`: MAPEM-like JSON representation for inspection and schema checks.
