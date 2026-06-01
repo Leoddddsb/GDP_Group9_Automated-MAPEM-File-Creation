@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from mapemgen.ingestion.inventory import build_site_inventory
-from mapemgen.ingestion.facts import extract_inventory_facts
+from mapemgen.ingestion.facts import extract_site_folder_facts
 from mapemgen.io import read_json, write_json, write_text
 from mapemgen.models import SiteModel
 from mapemgen.pipeline import generate_outputs, validate_site
@@ -29,7 +29,8 @@ def build_parser() -> argparse.ArgumentParser:
     inventory_parser.add_argument("--dataset", default="")
 
     extract_parser = subparsers.add_parser("extract")
-    extract_parser.add_argument("--inventory", required=True)
+    extract_parser.add_argument("--site-folder", required=True)
+    extract_parser.add_argument("--site-id", required=True)
     extract_parser.add_argument("--out-dir", required=True)
 
     return parser
@@ -52,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "extract":
-        facts = extract_inventory_facts(read_json(args.inventory))
+        facts = extract_site_folder_facts(args.site_folder, site_id=args.site_id)
         output_path = Path(args.out_dir) / "extracted_facts.partial.json"
         write_json(output_path, facts)
         print(f"Wrote extracted facts to {output_path}")

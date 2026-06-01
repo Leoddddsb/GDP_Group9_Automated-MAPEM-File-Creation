@@ -31,14 +31,17 @@ PARSERS: dict[str, tuple[str, Parser]] = {
 }
 
 
-def extract_inventory_facts(inventory: dict) -> dict:
-    if not inventory.get("site_id"):
-        raise ValueError("Inventory must contain site_id")
-    source_files = inventory.get("source_files")
-    if not isinstance(source_files, list):
-        raise ValueError("Inventory must contain a source_files list")
-    results = [_extract_source_file(source) for source in source_files]
-    return {"site_id": str(inventory["site_id"]), "source_files": results}
+def extract_site_folder_facts(site_folder: str | Path, site_id: str) -> dict:
+    folder = Path(site_folder)
+    if not folder.exists():
+        raise FileNotFoundError(f"Site folder does not exist: {folder}")
+    if not folder.is_dir():
+        raise ValueError(f"Site folder must be a directory: {folder}")
+    source_files = [
+        {"file_path": path.as_posix(), "file_type": path.suffix.lower().lstrip(".") or "unknown"}
+        for path in sorted((path for path in folder.rglob("*") if path.is_file()), key=lambda path: path.as_posix())
+    ]
+    return {"site_id": str(site_id), "source_files": [_extract_source_file(source) for source in source_files]}
 
 
 def _extract_source_file(source: dict) -> dict:
@@ -62,4 +65,3 @@ def _extract_source_file(source: dict) -> dict:
             "extracted_facts": [],
         }
     return {"source_file": source_file, "file_type": file_type, "parser": parser_name, "status": "parsed", "extracted_facts": facts}
-

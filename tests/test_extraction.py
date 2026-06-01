@@ -10,7 +10,7 @@ from unittest.mock import patch
 from mapemgen.cli import main
 from mapemgen.ingestion.cad import extract_dwg_facts, extract_dxf_facts
 from mapemgen.ingestion.docx_tables import extract_docx_facts
-from mapemgen.ingestion.facts import extract_inventory_facts
+from mapemgen.ingestion.facts import extract_site_folder_facts
 from mapemgen.ingestion.gis import extract_gis_facts
 from mapemgen.ingestion.mova import extract_mova_facts
 from mapemgen.ingestion.pdf_tables import extract_pdf_facts
@@ -209,43 +209,58 @@ class ExtractionTest(unittest.TestCase):
         zip_path = folder / "broken.zip"
         text_path.write_text("Detector D1", encoding="utf-8")
         zip_path.write_bytes(b"not a zip")
-        inventory = {
-            "site_id": "1003",
-            "input_folder_path": folder.as_posix(),
-            "source_files": [
-                {"file_path": text_path.as_posix(), "file_type": "txt"},
-                {"file_path": zip_path.as_posix(), "file_type": "zip"},
-            ],
-        }
 
-        output = extract_inventory_facts(inventory)
+        output = extract_site_folder_facts(folder, site_id="1003")
 
-        self.assertEqual(output["source_files"][0]["status"], "parsed")
-        self.assertEqual(output["source_files"][1]["status"], "parser_error")
+        by_name = {Path(source["source_file"]).name: source for source in output["source_files"]}
+        self.assertEqual(by_name["site.txt"]["status"], "parsed")
+        self.assertEqual(by_name["broken.zip"]["status"], "parser_error")
 
-    def test_extract_cli_writes_extracted_facts_partial_json(self):
+    def test_extract_cli_scans_site_folder_without_inventory(self):
         folder = _test_dir()
-        text_path = folder / "site.txt"
-        inventory_path = folder / "site_inventory.partial.json"
+        nested = folder / "nested"
+        nested.mkdir()
+        (folder / "site.txt").write_text("Phase A", encoding="utf-8")
+        (nested / "site.8tx").write_text("Detector D1", encoding="utf-8")
         out_dir = folder / "out"
-        text_path.write_text("Phase A", encoding="utf-8")
-        inventory_path.write_text(
-            json.dumps(
-                {
-                    "site_id": "397L",
-                    "input_folder_path": folder.as_posix(),
-                    "source_files": [{"file_path": text_path.as_posix(), "file_type": "txt"}],
-                }
-            ),
-            encoding="utf-8",
-        )
 
-        exit_code = main(["extract", "--inventory", str(inventory_path), "--out-dir", str(out_dir)])
+        exit_code = main(
+            [
+                "extract",
+                "--site-folder",
+                str(folder),
+                "--site-id",
+                "397L",
+                "--out-dir",
+                str(out_dir),
+            ]
+        )
 
         output = json.loads((out_dir / "extracted_facts.partial.json").read_text(encoding="utf-8"))
         self.assertEqual(exit_code, 0)
         self.assertEqual(output["site_id"], "397L")
-        self.assertEqual(output["source_files"][0]["status"], "parsed")
+        self.assertEqual(
+            [Path(source["source_file"]).name for source in output["source_files"]],
+            ["site.8tx", "site.txt"],
+        )
+
+    def test_extract_cli_requires_site_folder(self):
+        with self.assertRaises(SystemExit):
+            main(["extract", "--site-id", "397L", "--out-dir", str(_test_dir())])
+
+    def test_extract_cli_rejects_inventory_argument(self):
+        with self.assertRaises(SystemExit):
+            main(
+                [
+                    "extract",
+                    "--inventory",
+                    "site_inventory.partial.json",
+                    "--site-id",
+                    "397L",
+                    "--out-dir",
+                    str(_test_dir()),
+                ]
+            )
 
 
 def _test_dir() -> Path:

@@ -59,15 +59,18 @@ python -m mapemgen.cli generate --input examples/site_model.example.json --out-d
 
 ## File Extraction
 
-Step 2 reads a Step 1 file inventory and writes MAPEM-relevant candidate facts:
+Step 2 scans the complete site folder recursively and writes MAPEM-relevant
+candidate facts:
 
 ```powershell
 python -m mapemgen.cli extract `
-  --inventory outputs/<site>/site_inventory.partial.json `
+  --site-folder <site-folder> `
+  --site-id <site-id> `
   --out-dir outputs/<site>
 ```
 
-The output file is `extracted_facts.partial.json`.
+Step 2 is independent from the Step 1 `site_inventory.partial.json` output. The
+output file is `extracted_facts.partial.json`.
 
 DWG extraction requires [ODA File Converter](https://www.opendesign.com/guestfiles/oda_file_converter)
 to be installed locally. The Python code uses `ezdxf.addons.odafc` to invoke ODA

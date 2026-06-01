@@ -2,9 +2,10 @@
 
 ## Goal
 
-Implement Step 2 of the MAPEM pipeline: read a Step 1 `site_inventory.partial.json`,
+Implement Step 2 of the MAPEM pipeline: recursively scan a complete site folder,
 dispatch every source file to a format-specific parser, and write a unified
-`extracted_facts.partial.json`.
+`extracted_facts.partial.json`. Step 2 is independent from the Step 1
+`site_inventory.partial.json` output.
 
 The first version extracts MAPEM-relevant candidates and provenance. It does not
 map candidates to final MAPEM fields, fuse evidence, or perform OCR on scanned
@@ -13,9 +14,9 @@ PDF drawings.
 ## Architecture
 
 Use a unified extraction coordinator with independent parser modules. The
-coordinator reads the inventory, selects a parser by file type, catches
-file-specific parsing errors, and returns one result per source file in stable
-input order.
+coordinator scans the complete site folder, selects a parser by file type,
+catches file-specific parsing errors, and returns one result per source file in
+stable path order.
 
 Each parser implements the same conceptual boundary:
 
@@ -60,8 +61,8 @@ Add `src/mapemgen/ingestion/facts.py`.
 
 Responsibilities:
 
-- validate the Step 1 inventory structure
-- resolve source file paths
+- validate the site folder path
+- scan all nested source files recursively
 - dispatch by file type
 - preserve provenance and deterministic ordering
 - record `parser_error` for an individual corrupt or malformed file
@@ -72,7 +73,8 @@ Add an `extract` CLI command:
 
 ```powershell
 python -m mapemgen.cli extract `
-  --inventory <site_inventory.partial.json> `
+  --site-folder <site-folder> `
+  --site-id <site-id> `
   --out-dir <output-folder>
 ```
 
@@ -282,7 +284,7 @@ extraction stops with an actionable error.
 
 ## Usage
 
-### 1. Create a site inventory
+### 1. Optional: create a Step 1 site inventory
 
 Run Step 1 for the site folder:
 
@@ -305,13 +307,16 @@ outputs/1003_LondonRdClevelandBridge/site_inventory.partial.json
 
 Use `--out-dir <folder>` to choose another inventory output directory.
 
-### 2. Extract MAPEM-relevant facts
+The Step 1 inventory is a separate output. Step 2 does not read it.
 
-Pass the Step 1 inventory to Step 2:
+### 2. Extract MAPEM-relevant facts from the complete site folder
+
+Pass the site folder directly to Step 2:
 
 ```powershell
 python -m mapemgen.cli extract `
-  --inventory "outputs/1003_LondonRdClevelandBridge/site_inventory.partial.json" `
+  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
+  --site-id "1003" `
   --out-dir "outputs/1003_LondonRdClevelandBridge"
 ```
 
@@ -331,7 +336,7 @@ python -m unittest discover -s tests -v
 ## Data Flow
 
 ```text
-site_inventory.partial.json
+site folder
         |
         v
 facts extraction coordinator
