@@ -135,6 +135,27 @@ Every retained fact includes an `evidence_location` chain. For example, a CAD
 fact extracted from a DWG inside a ZIP keeps the ZIP path, archive-member path,
 and modelspace entity location.
 
+### Fact Names for Future MAPEM Matching
+
+The final `fact_type` in `extracted_facts.partial.json` should use the `Fact
+Name` column from `configs/MAPEM Dictionary.xlsx`, sheet `Fact`, whenever a
+parser output can be safely mapped to that dictionary. This prepares Step 3
+without implementing MAPEM field matching yet.
+
+When a parser's older internal name is renamed, the output keeps:
+
+```json
+{
+  "fact_type": "phase_label_from_ram_8tx",
+  "legacy_fact_type": "phase_candidate",
+  "source_role": "ram_8tx"
+}
+```
+
+This preserves compatibility and makes the rename auditable. Facts that do not
+yet have a safe dictionary equivalent keep their current parser-level name until
+the matcher rules are defined.
+
 ## Components
 
 ### Extraction Coordinator
@@ -575,7 +596,9 @@ A shortened output example:
       "status": "parsed",
       "extracted_facts": [
         {
-          "fact_type": "phase_candidate",
+          "fact_type": "phase_label_from_controller_config",
+          "legacy_fact_type": "phase_candidate",
+          "source_role": "controller_config",
           "value": "Phase A",
           "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
           "confidence": 0.65
@@ -589,10 +612,12 @@ A shortened output example:
       "status": "parsed",
       "extracted_facts": [
         {
-          "fact_type": "cad_layer_names",
-          "value": ["DUCTS", "LOOPS", "SIGNALS"],
-          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace",
-          "confidence": 0.95
+          "fact_type": "lane_geometry_candidate_from_cad",
+          "legacy_fact_type": "lane_candidate",
+          "source_role": "cad_drawing",
+          "value": [[0.0, 0.0], [10.0, 5.0]],
+          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace entity 1 layer LANE_MAIN",
+          "confidence": 0.70
         }
       ]
     }

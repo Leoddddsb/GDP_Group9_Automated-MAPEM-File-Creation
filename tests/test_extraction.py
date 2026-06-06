@@ -359,6 +359,73 @@ class ExtractionTest(unittest.TestCase):
             f"{zip_path.as_posix()} -> archive member notes/controller.txt -> line 1",
         )
 
+    def test_coordinator_renames_ram_facts_to_dictionary_fact_names(self):
+        folder = _test_dir()
+        path = folder / "1003_RAMData_Jan26.8tx"
+        path.write_text("Phase A\nStage 2\n", encoding="utf-8")
+
+        output = extract_site_folder_facts(folder, site_id="1003")
+
+        facts = output["source_files"][0]["extracted_facts"]
+        self.assertTrue(
+            any(
+                fact["fact_type"] == "phase_label_from_ram_8tx"
+                and fact["legacy_fact_type"] == "phase_candidate"
+                and fact["source_role"] == "ram_8tx"
+                for fact in facts
+            )
+        )
+        self.assertTrue(
+            any(
+                fact["fact_type"] == "stage_phase_relationship_from_ram_8tx"
+                and fact["legacy_fact_type"] == "stage_candidate"
+                for fact in facts
+            )
+        )
+
+    def test_coordinator_renames_controller_config_pdf_facts_to_dictionary_fact_names(self):
+        folder = _test_dir()
+        path = folder / "1003_2500Config_Mar24.pdf"
+        path.write_bytes(b"%PDF synthetic")
+        page = types.SimpleNamespace(
+            extract_text=lambda: "Phase A\nStage 2",
+            extract_tables=lambda: [],
+        )
+        fake_pdfplumber = types.SimpleNamespace(open=lambda _path: _ContextManager(types.SimpleNamespace(pages=[page])))
+
+        with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
+            output = extract_site_folder_facts(folder, site_id="1003")
+
+        facts = output["source_files"][0]["extracted_facts"]
+        self.assertTrue(
+            any(
+                fact["fact_type"] == "phase_label_from_controller_config"
+                and fact["legacy_fact_type"] == "phase_candidate"
+                and fact["source_role"] == "controller_config"
+                for fact in facts
+            )
+        )
+
+    def test_coordinator_renames_cad_facts_to_dictionary_fact_names(self):
+        folder = _test_dir()
+        path = folder / "site.dxf"
+        path.write_text("synthetic", encoding="utf-8")
+        entities = [_Entity("LINE", "LANE_MAIN", start=(0, 0), end=(10, 5))]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            output = extract_site_folder_facts(folder, site_id="1003")
+
+        facts = output["source_files"][0]["extracted_facts"]
+        self.assertTrue(
+            any(
+                fact["fact_type"] == "lane_geometry_candidate_from_cad"
+                and fact["legacy_fact_type"] == "lane_candidate"
+                and fact["source_role"] == "cad_drawing"
+                for fact in facts
+            )
+        )
+
     def test_extract_cli_scans_site_folder_without_inventory(self):
         folder = _test_dir()
         nested = folder / "nested"
