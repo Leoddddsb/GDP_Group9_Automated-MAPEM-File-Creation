@@ -37,10 +37,6 @@ def extract_pdf_facts(path: str | Path) -> list[dict]:
     return facts
 
 
-def extract_phase_tables(pdf_path: str) -> dict:
-    return {"extracted_facts": extract_pdf_facts(pdf_path)}
-
-
 def _source_role(path: str | Path) -> str | None:
     name = Path(path).name.lower()
     if any(token in name for token in ("2500", "config", "configuration")):

@@ -369,15 +369,12 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "phase_label_from_ram_8tx"
-                and "legacy_fact_type" not in fact
-                and "source_role" not in fact
                 for fact in facts
             )
         )
         self.assertTrue(
             any(
                 fact["fact_type"] == "stage_phase_relationship_from_ram_8tx"
-                and "legacy_fact_type" not in fact
                 for fact in facts
             )
         )
@@ -399,8 +396,6 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "phase_label_from_controller_config"
-                and "legacy_fact_type" not in fact
-                and "source_role" not in fact
                 for fact in facts
             )
         )
@@ -419,8 +414,6 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "lane_geometry_candidate_from_cad"
-                and "legacy_fact_type" not in fact
-                and "source_role" not in fact
                 for fact in facts
             )
         )

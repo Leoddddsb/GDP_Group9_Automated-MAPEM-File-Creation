@@ -101,11 +101,6 @@ def extract_metadata_facts(lines: Iterable[str], location_prefix: str = "line", 
     return facts
 
 
-def printable_fragments(data: bytes, minimum_length: int = 4) -> list[str]:
-    pattern = rb"[\x20-\x7e]{" + str(minimum_length).encode("ascii") + rb",}"
-    return [match.decode("ascii") for match in re.findall(pattern, data)]
-
-
 def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
     return {
         "fact_type": fact_type,

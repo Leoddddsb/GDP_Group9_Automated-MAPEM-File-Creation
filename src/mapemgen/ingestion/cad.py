@@ -46,10 +46,6 @@ def extract_dwg_facts(path: str | Path) -> list[dict]:
     return _extract_document_facts(document)
 
 
-def extract_cad_geometry(dxf_path: str) -> dict:
-    return {"extracted_facts": extract_dxf_facts(dxf_path)}
-
-
 def _extract_document_facts(document: object) -> list[dict]:
     modelspace = document.modelspace()
     entities = list(modelspace)
