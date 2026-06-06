@@ -14,12 +14,13 @@ def extract_pdf_facts(path: str | Path) -> list[dict]:
         raise RuntimeError("PDF extraction requires the 'pdfplumber' package.") from exc
 
     facts: list[dict] = []
+    source_role = _source_role(path)
     with pdfplumber.open(path) as document:
         for page_number, page in enumerate(document.pages, start=1):
             text = (page.extract_text() or "").strip()
             if text:
                 lines = text.splitlines()
-                facts.extend(extract_keyword_facts(lines, f"page {page_number} line"))
+                facts.extend(extract_keyword_facts(lines, f"page {page_number} line", source_role=source_role))
                 facts.extend(extract_metadata_facts(lines, f"page {page_number} line"))
             else:
                 facts.append(_fact("needs_future_recognition", "PDF page has no extractable text", f"page {page_number}", 1.0))
@@ -31,13 +32,20 @@ def extract_pdf_facts(path: str | Path) -> list[dict]:
                     value = " | ".join(cells)
                     location = f"page {page_number} table {table_number} row {row_number}"
                     facts.append(_fact("pdf_table_row", value, location, 0.8))
-                    facts.extend(extract_keyword_facts([value], location, exact_location=True))
+                    facts.extend(extract_keyword_facts([value], location, exact_location=True, source_role=source_role))
                     facts.extend(extract_metadata_facts([value], location, exact_location=True))
     return facts
 
 
 def extract_phase_tables(pdf_path: str) -> dict:
     return {"extracted_facts": extract_pdf_facts(pdf_path)}
+
+
+def _source_role(path: str | Path) -> str | None:
+    name = Path(path).name.lower()
+    if any(token in name for token in ("2500", "config", "configuration")):
+        return "controller_config"
+    return None
 
 
 def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:

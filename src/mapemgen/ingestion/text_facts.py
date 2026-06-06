@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-KEYWORD_FACTS = {
+DEFAULT_KEYWORD_FACTS = {
     "phase": "phase_candidate",
     "stage": "stage_candidate",
     "stream": "stream_candidate",
@@ -17,6 +17,34 @@ KEYWORD_FACTS = {
     "timing": "timing_candidate",
     "override": "ram_override_candidate",
     "control": "control_candidate",
+}
+
+ROLE_KEYWORD_FACTS = {
+    "ram_8tx": {
+        **DEFAULT_KEYWORD_FACTS,
+        "phase": "phase_label_from_ram_8tx",
+        "stage": "stage_phase_relationship_from_ram_8tx",
+        "intergreen": "stage_phase_relationship_from_ram_8tx",
+        "timing": "stage_phase_relationship_from_ram_8tx",
+        "override": "movement_phase_mapping_from_ram_8tx",
+        "control": "movement_phase_mapping_from_ram_8tx",
+    },
+    "utc_form": {
+        **DEFAULT_KEYWORD_FACTS,
+        "phase": "phase_label_from_utc_form",
+        "stage": "stage_phase_relationship_from_utc_form",
+        "intergreen": "stage_phase_relationship_from_utc_form",
+        "timing": "stage_phase_relationship_from_utc_form",
+        "control": "movement_phase_mapping_from_utc_form",
+    },
+    "controller_config": {
+        **DEFAULT_KEYWORD_FACTS,
+        "phase": "phase_label_from_controller_config",
+        "stage": "stage_phase_relationship_from_controller_config",
+        "intergreen": "stage_phase_relationship_from_controller_config",
+        "timing": "stage_phase_relationship_from_controller_config",
+        "control": "movement_phase_mapping_from_controller_config",
+    },
 }
 
 IP_ADDRESS_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
@@ -34,15 +62,21 @@ def read_text_with_fallback(path: str | Path) -> str:
     raise UnicodeDecodeError("utf-8", data, 0, len(data), "No supported text encoding")
 
 
-def extract_keyword_facts(lines: Iterable[str], location_prefix: str = "line", exact_location: bool = False) -> list[dict]:
+def extract_keyword_facts(
+    lines: Iterable[str],
+    location_prefix: str = "line",
+    exact_location: bool = False,
+    source_role: str | None = None,
+) -> list[dict]:
     facts: list[dict] = []
+    keyword_facts = ROLE_KEYWORD_FACTS.get(source_role or "", DEFAULT_KEYWORD_FACTS)
     for index, raw_line in enumerate(lines, start=1):
         line = " ".join(raw_line.split())
         if not line:
             continue
         lowered = line.lower()
         emitted: set[str] = set()
-        for keyword, fact_type in KEYWORD_FACTS.items():
+        for keyword, fact_type in keyword_facts.items():
             if keyword in lowered and fact_type not in emitted:
                 location = location_prefix if exact_location else f"{location_prefix} {index}"
                 facts.append(_fact(fact_type, line, location, 0.65))

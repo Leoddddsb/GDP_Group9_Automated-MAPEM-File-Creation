@@ -88,12 +88,12 @@ def _extract_document_facts(document: object) -> list[dict]:
 def _geometry_type(layer: str) -> str:
     lowered = layer.lower()
     if "stop" in lowered:
-        return "stop_line_candidate"
+        return "stop_line_from_cad"
     if "cross" in lowered:
-        return "crossing_candidate"
+        return "lane_facility_geometry_candidate_from_cad"
     if "signal" in lowered or "head" in lowered:
-        return "signal_head_candidate"
-    return "lane_candidate" if "lane" in lowered else "cad_geometry_candidate"
+        return "lane_facility_geometry_candidate_from_cad"
+    return "lane_geometry_candidate_from_cad" if "lane" in lowered else "lane_geometry_candidate_from_cad"
 
 
 def _xy(value: object) -> tuple[float, float]:

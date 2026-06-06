@@ -5,7 +5,6 @@ from typing import Callable
 
 from mapemgen.ingestion.cad import extract_dwg_facts, extract_dxf_facts
 from mapemgen.ingestion.docx_tables import extract_docx_facts
-from mapemgen.ingestion.fact_names import apply_dictionary_fact_name
 from mapemgen.ingestion.gis import extract_gis_facts
 from mapemgen.ingestion.mova import extract_mova_facts
 from mapemgen.ingestion.pdf_tables import extract_pdf_facts
@@ -91,5 +90,5 @@ def _prefix_source_file(facts: list[dict], source_file: str) -> list[dict]:
     for fact in facts:
         item = dict(fact)
         item["evidence_location"] = f"{source_file} -> {fact['evidence_location']}"
-        prefixed.append(apply_dictionary_fact_name(item, source_file))
+        prefixed.append(item)
     return prefixed

@@ -7,4 +7,6 @@ from mapemgen.ingestion.text_facts import extract_keyword_facts, extract_metadat
 
 def extract_ram_text_facts(path: str | Path) -> list[dict]:
     lines = read_text_with_fallback(path).splitlines()
-    return extract_keyword_facts(lines) + extract_metadata_facts(lines)
+    name = Path(path).name.lower()
+    source_role = "ram_8tx" if Path(path).suffix.lower() == ".8tx" or "ram" in name else None
+    return extract_keyword_facts(lines, source_role=source_role) + extract_metadata_facts(lines)

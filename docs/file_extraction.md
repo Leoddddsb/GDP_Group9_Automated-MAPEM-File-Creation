@@ -142,19 +142,17 @@ Name` column from `configs/MAPEM Dictionary.xlsx`, sheet `Fact`, whenever a
 parser output can be safely mapped to that dictionary. This prepares Step 3
 without implementing MAPEM field matching yet.
 
-When a parser's older internal name is renamed, the output keeps:
+Parsers should emit the dictionary fact name directly. For example:
 
 ```json
 {
-  "fact_type": "phase_label_from_ram_8tx",
-  "legacy_fact_type": "phase_candidate",
-  "source_role": "ram_8tx"
+  "fact_type": "phase_label_from_ram_8tx"
 }
 ```
 
-This preserves compatibility and makes the rename auditable. Facts that do not
-yet have a safe dictionary equivalent keep their current parser-level name until
-the matcher rules are defined.
+Facts that do not yet have a safe dictionary equivalent keep their current
+parser-level name until the matcher rules are defined. The extraction output
+does not add a separate legacy-name mapping layer.
 
 ## Components
 
@@ -597,8 +595,6 @@ A shortened output example:
       "extracted_facts": [
         {
           "fact_type": "phase_label_from_controller_config",
-          "legacy_fact_type": "phase_candidate",
-          "source_role": "controller_config",
           "value": "Phase A",
           "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
           "confidence": 0.65
@@ -613,8 +609,6 @@ A shortened output example:
       "extracted_facts": [
         {
           "fact_type": "lane_geometry_candidate_from_cad",
-          "legacy_fact_type": "lane_candidate",
-          "source_role": "cad_drawing",
           "value": [[0.0, 0.0], [10.0, 5.0]],
           "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace entity 1 layer LANE_MAIN",
           "confidence": 0.70

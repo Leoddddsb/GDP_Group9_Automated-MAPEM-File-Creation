@@ -39,10 +39,10 @@ def _extract_geojson(path: Path) -> list[dict]:
         properties = feature.get("properties") or {}
         name = properties.get("name") or properties.get("ref")
         if name:
-            facts.append(_fact("road_name", name, f"feature {index} properties.name", 0.85))
+            facts.append(_fact("road_direction_from_ordnance_survey", name, f"feature {index} properties.name", 0.85))
         geometry = feature.get("geometry")
         if geometry:
-            facts.append(_fact("gis_geometry_candidate", geometry, f"feature {index} geometry", 0.75))
+            facts.append(_fact("lane_geometry_candidate_from_ordnance_survey", geometry, f"feature {index} geometry", 0.75))
             points.extend(_coordinate_pairs(geometry.get("coordinates", [])))
     return facts + _bounds_and_centre(points, "GeoJSON geometries")
 
@@ -57,8 +57,8 @@ def _extract_osm(path: Path) -> list[dict]:
     for way in root.findall("way"):
         tags = {tag.attrib.get("k"): tag.attrib.get("v") for tag in way.findall("tag")}
         if tags.get("name"):
-            facts.append(_fact("road_name", tags["name"], f"way {way.attrib.get('id')} tag name", 0.85))
-    return facts + _bounds_and_centre(list(nodes.values()), "OSM nodes")
+            facts.append(_fact("road_direction_from_open_street_map", tags["name"], f"way {way.attrib.get('id')} tag name", 0.85))
+    return facts + _bounds_and_centre(list(nodes.values()), "OSM nodes", "open_street_map")
 
 
 def _extract_fiona(path: Path) -> list[dict]:
@@ -73,11 +73,11 @@ def _extract_fiona(path: Path) -> list[dict]:
             properties = dict(feature.get("properties") or {})
             name = properties.get("name") or properties.get("ref")
             if name:
-                facts.append(_fact("road_name", name, f"feature {index} properties.name", 0.85))
+                facts.append(_fact("road_direction_from_ordnance_survey", name, f"feature {index} properties.name", 0.85))
             geometry = feature.get("geometry")
             if geometry:
                 geometry_dict = dict(geometry)
-                facts.append(_fact("gis_geometry_candidate", geometry_dict, f"feature {index} geometry", 0.75))
+                facts.append(_fact("lane_geometry_candidate_from_ordnance_survey", geometry_dict, f"feature {index} geometry", 0.75))
                 points.extend(_coordinate_pairs(geometry_dict.get("coordinates", [])))
     return facts + _bounds_and_centre(points, "GIS geometries")
 
@@ -90,16 +90,20 @@ def _coordinate_pairs(value: object) -> Iterable[tuple[float, float]]:
             yield from _coordinate_pairs(child)
 
 
-def _bounds_and_centre(points: list[tuple[float, float]], location: str) -> list[dict]:
+def _bounds_and_centre(points: list[tuple[float, float]], location: str, source_role: str = "ordnance_survey") -> list[dict]:
     if not points:
         return []
     xs = [point[0] for point in points]
     ys = [point[1] for point in points]
     bounds = {"min_x": min(xs), "min_y": min(ys), "max_x": max(xs), "max_y": max(ys)}
     centre = {"lon": (bounds["min_x"] + bounds["max_x"]) / 2, "lat": (bounds["min_y"] + bounds["max_y"]) / 2}
-    return [_fact("coordinate_bounds", bounds, location, 0.9), _fact("junction_centre_candidate", centre, location, 0.6)]
+    centre_type = (
+        "junction_centre_from_open_street_map"
+        if source_role == "open_street_map"
+        else "junction_centre_from_ordnance_survey"
+    )
+    return [_fact("coordinate_bounds", bounds, location, 0.9), _fact(centre_type, centre, location, 0.6)]
 
 
 def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
     return {"fact_type": fact_type, "value": value, "evidence_location": location, "confidence": confidence}
-

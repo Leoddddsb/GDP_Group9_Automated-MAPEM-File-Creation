@@ -30,9 +30,8 @@ class ExtractionTest(unittest.TestCase):
         facts = extract_ram_text_facts(path)
 
         fact_types = {fact["fact_type"] for fact in facts}
-        self.assertIn("phase_candidate", fact_types)
-        self.assertIn("stage_candidate", fact_types)
-        self.assertIn("intergreen_candidate", fact_types)
+        self.assertIn("phase_label_from_ram_8tx", fact_types)
+        self.assertIn("stage_phase_relationship_from_ram_8tx", fact_types)
         self.assertIn("detector_candidate", fact_types)
         self.assertIn("io_allocation_candidate", fact_types)
         self.assertTrue(all(fact["evidence_location"].startswith("line ") for fact in facts))
@@ -75,7 +74,7 @@ class ExtractionTest(unittest.TestCase):
 
         facts = extract_zip_facts(path)
 
-        phase = next(fact for fact in facts if fact["fact_type"] == "phase_candidate")
+        phase = next(fact for fact in facts if fact["fact_type"] == "phase_label_from_ram_8tx")
         self.assertEqual(
             phase["evidence_location"],
             "archive member packages/nested.zip -> archive member ram/site.8tx -> line 1",
@@ -136,11 +135,11 @@ class ExtractionTest(unittest.TestCase):
         facts = extract_gis_facts(path)
 
         self.assertIn(
-            {"fact_type": "road_name", "value": "London Road", "evidence_location": "feature 1 properties.name", "confidence": 0.85},
+            {"fact_type": "road_direction_from_ordnance_survey", "value": "London Road", "evidence_location": "feature 1 properties.name", "confidence": 0.85},
             facts,
         )
         self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
-        self.assertTrue(any(fact["fact_type"] == "junction_centre_candidate" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "junction_centre_from_ordnance_survey" for fact in facts))
 
     def test_osm_parser_extracts_way_name_and_bounds(self):
         path = _test_dir() / "roads.osm"
@@ -152,7 +151,7 @@ class ExtractionTest(unittest.TestCase):
 
         facts = extract_gis_facts(path)
 
-        self.assertTrue(any(fact["fact_type"] == "road_name" and fact["value"] == "Oak Street" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "road_direction_from_open_street_map" and fact["value"] == "Oak Street" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
 
     def test_dxf_parser_requires_ezdxf(self):
@@ -266,10 +265,10 @@ class ExtractionTest(unittest.TestCase):
         fake_docx = types.SimpleNamespace(Document=lambda _path: fake_document)
 
         with patch.dict(sys.modules, {"docx": fake_docx}):
-            facts = extract_docx_facts("site.docx")
+            facts = extract_docx_facts("1003_UTCForm_May24.docx")
 
-        self.assertTrue(any(fact["fact_type"] == "phase_candidate" and fact["evidence_location"] == "paragraph 1" for fact in facts))
-        self.assertTrue(any(fact["fact_type"] == "intergreen_candidate" and fact["evidence_location"] == "table 1 row 1" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "phase_label_from_utc_form" and fact["evidence_location"] == "paragraph 1" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "stage_phase_relationship_from_utc_form" and fact["evidence_location"] == "table 1 row 1" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "site_description" and fact["value"] == "London Rd / Morrisons" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "scn" and fact["value"] == "J04121" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "ip_address" and fact["value"] == "172.16.52.53" for fact in facts))
@@ -298,7 +297,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
             facts = extract_dxf_facts("site.dxf")
 
-        self.assertTrue(any(fact["fact_type"] == "lane_candidate" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "lane_geometry_candidate_from_cad" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "cad_text_label" and fact["value"] == "Phase A" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "cad_block_reference" and fact["value"] == "HEAD_A" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
@@ -316,7 +315,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
             facts = extract_dxf_facts("site.dxf")
 
-        self.assertTrue(any(fact["fact_type"] == "lane_candidate" for fact in facts))
+        self.assertTrue(any(fact["fact_type"] == "lane_geometry_candidate_from_cad" for fact in facts))
         self.assertTrue(any(fact["fact_type"] == "coordinate_bounds" for fact in facts))
 
     def test_coordinator_continues_after_corrupt_zip(self):
@@ -359,7 +358,7 @@ class ExtractionTest(unittest.TestCase):
             f"{zip_path.as_posix()} -> archive member notes/controller.txt -> line 1",
         )
 
-    def test_coordinator_renames_ram_facts_to_dictionary_fact_names(self):
+    def test_coordinator_emits_ram_dictionary_fact_names(self):
         folder = _test_dir()
         path = folder / "1003_RAMData_Jan26.8tx"
         path.write_text("Phase A\nStage 2\n", encoding="utf-8")
@@ -370,20 +369,20 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "phase_label_from_ram_8tx"
-                and fact["legacy_fact_type"] == "phase_candidate"
-                and fact["source_role"] == "ram_8tx"
+                and "legacy_fact_type" not in fact
+                and "source_role" not in fact
                 for fact in facts
             )
         )
         self.assertTrue(
             any(
                 fact["fact_type"] == "stage_phase_relationship_from_ram_8tx"
-                and fact["legacy_fact_type"] == "stage_candidate"
+                and "legacy_fact_type" not in fact
                 for fact in facts
             )
         )
 
-    def test_coordinator_renames_controller_config_pdf_facts_to_dictionary_fact_names(self):
+    def test_coordinator_emits_controller_config_pdf_dictionary_fact_names(self):
         folder = _test_dir()
         path = folder / "1003_2500Config_Mar24.pdf"
         path.write_bytes(b"%PDF synthetic")
@@ -400,13 +399,13 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "phase_label_from_controller_config"
-                and fact["legacy_fact_type"] == "phase_candidate"
-                and fact["source_role"] == "controller_config"
+                and "legacy_fact_type" not in fact
+                and "source_role" not in fact
                 for fact in facts
             )
         )
 
-    def test_coordinator_renames_cad_facts_to_dictionary_fact_names(self):
+    def test_coordinator_emits_cad_dictionary_fact_names(self):
         folder = _test_dir()
         path = folder / "site.dxf"
         path.write_text("synthetic", encoding="utf-8")
@@ -420,8 +419,8 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(
             any(
                 fact["fact_type"] == "lane_geometry_candidate_from_cad"
-                and fact["legacy_fact_type"] == "lane_candidate"
-                and fact["source_role"] == "cad_drawing"
+                and "legacy_fact_type" not in fact
+                and "source_role" not in fact
                 for fact in facts
             )
         )
