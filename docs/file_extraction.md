@@ -8,8 +8,8 @@ dispatch every source file to a format-specific parser, and write a unified
 `site_inventory.partial.json` output.
 
 The first version extracts MAPEM-relevant candidates and provenance. It does not
-map candidates to final MAPEM fields, fuse evidence, or perform OCR on scanned
-PDF drawings.
+map candidates to final MAPEM fields or fuse evidence. For scanned PDF pages, it
+can run optional OCR/CV and records the result as low-confidence candidate facts.
 
 ## Architecture
 
@@ -67,9 +67,9 @@ Use the following interpretation:
 | --- | --- |
 | `1.0` | Deterministic observation or workflow state, such as a ZIP member, rejected unsafe path, file size, missing PDF text, or required MOVA Tools export |
 | `0.85` to `0.95` | Strong structured evidence read directly from a field, tag, parsed CAD structure, or exact metadata pattern |
-| `0.70` to `0.80` | Structured candidate that still needs semantic interpretation, such as geometry, a table row, CAD label, or filename classification |
+| `0.70` to `0.80` | Structured candidate that still needs semantic interpretation, such as geometry, a table row, PDF image-page feature, CAD label, or filename classification |
 | `0.60` to `0.69` | Heuristic candidate based on a keyword or derived approximation |
-| Below `0.60` | Reserved for future weak heuristics; the current parsers do not emit these scores |
+| Below `0.60` | Weak image-derived or OCR-derived candidates that require corroboration or manual review |
 
 Current defaults:
 
@@ -78,6 +78,12 @@ Current defaults:
 | TXT, DOCX, or PDF keyword candidate | `0.65` | Keyword presence identifies a relevant line, but does not fully interpret its meaning |
 | Exact site description, SCN, or IP pattern | `0.90` | Parsed from an explicit metadata pattern |
 | DOCX or PDF table row | `0.80` | Row content is directly extracted, but column semantics may still require matching |
+| PDF image-page feature summary | `0.80` | Page size and embedded-image boxes are directly observed, but no road feature has been recognised yet |
+| PDF vector page summary | `0.85` | Vector drawing object counts are directly read from the PDF page |
+| PDF vector line, curve, or rectangle candidate | `0.70` to `0.75` | Geometry is directly read from PDF drawing objects, but not yet classified as road semantics |
+| PDF drawing semantic candidate | `0.40` to `0.45` | Low-confidence road marking, lane line, stop line, crossing, arrow, or signal-head symbol candidate derived from drawing geometry |
+| PDF OCR text candidate | `0.55` | Text was recognised from rendered page pixels, so it is weaker than native PDF text |
+| PDF CV line candidate | `0.50` | Line segment was detected from pixels and has not yet been classified as lane, marking, stop line, or drawing noise |
 | ZIP member or rejected unsafe member | `1.00` | Direct archive observation |
 | ZIP DWG filename classification | `0.80` to `0.85` | Derived from path depth or filename hints |
 | CAD layer names or entity counts | `0.95` | Directly read from parsed DXF structure |
@@ -120,7 +126,7 @@ and fuse them into MAPEM fields.
 | File format | Data scanned | Data retained in `extracted_facts.partial.json` | Why it is retained |
 | --- | --- | --- | --- |
 | TXT, 8TX | Decoded non-empty text lines | Keyword candidates for phase, stage, stream, intergreen, detector, I/O allocation, SCOOT, timing, override, and control; exact site description, SCN, and IP matches | Controller and RAM reports often expose useful control evidence as text |
-| PDF | Extractable page text and tables | Keyword and metadata candidates; complete non-empty table rows; `needs_future_recognition` for pages without extractable text | Configuration reports, schedules, and drawings may contain both text tables and image-only pages |
+| PDF | Extractable page text, tables, page-level image objects, vector drawing objects, and rendered page pixels for pages with images | Keyword and metadata candidates; complete non-empty table rows; `needs_future_recognition` for pages without text; `pdf_image_page_candidate` for pages with images; OCR text candidates; CV line candidates; `pdf_vector_page_candidate`; vector line, curve, and rectangle candidates; low-confidence drawing semantic candidates | Configuration reports, schedules, and drawings may contain text tables, raster images, and vector drawing geometry |
 | DOCX | Paragraph text and tables | Keyword and metadata candidates; complete non-empty table rows | UTC forms and supporting notes contain structured site and control information |
 | DXF | Modelspace entities, layers, geometry, text, and block inserts | Layer names; entity counts; line and polyline geometry candidates; text labels; block references; coordinate bounds | CAD structure provides later lane, stop-line, crossing, and signal-head evidence |
 | DWG | DWG converted to DXF through ODA File Converter, then scanned as DXF | The same facts as DXF | DWG is binary; ODA conversion exposes the CAD structure for the Python parser |
@@ -245,11 +251,107 @@ Use `pdfplumber` to read extractable page content and tables. Emit:
 - page text candidates relevant to control data
 - phase, stage, stream, detector and timing candidates
 - table row facts with page and table location
-- `needs_future_recognition` when a page has no usable text and is likely a
-  scanned drawing or image page
+- `needs_future_recognition` when a page has no usable text
+- `pdf_image_page_candidate` with page size, embedded image count, and image
+  bounding boxes for any page that contains embedded image objects
+- `pdf_ocr_text_candidate` and OCR keyword candidates from rendered pages with
+  images
+- `pdf_cv_line_candidate` for line segments detected from rendered pages with
+  images
+- `pdf_vector_page_candidate`, `pdf_vector_line_candidate`,
+  `pdf_vector_curve_candidate`, and `pdf_vector_rect_candidate` for vector PDF
+  drawing objects such as lines, curves, and rectangles
+- low-confidence drawing semantic candidates such as
+  `road_marking_candidate_from_pdf_vector`, `lane_line_candidate_from_pdf_vector`,
+  `stop_line_candidate_from_pdf_vector`, `crossing_candidate_from_pdf_vector`,
+  `arrow_candidate_from_pdf_vector`, `signal_head_symbol_candidate_from_pdf_vector`,
+  `road_marking_candidate_from_pdf_cv`, and `lane_line_candidate_from_pdf_cv`
 
-Do not add OCR in Step 2. `src/mapemgen/ingestion/pdf_cv.py` remains the future
-boundary for image-based recognition.
+Step 2 runs OCR/CV for any PDF page that contains image objects, even when the
+same page also has extractable text or tables. Missing OCR/CV packages are
+treated as required dependency errors when a PDF page with images needs
+recognition. Vector PDF drawing objects are extracted directly from the PDF page
+structure and do not require OCR/CV packages.
+
+### PDF OCR and Computer-vision Implementation Plan
+
+Many local authorities may only provide a PDF as the final fallback. For those
+sites, one-shot extraction from a scanned drawing is not realistic. The planned
+approach is feature extraction plus spatial filtering:
+
+1. Prefer CAD first when available. DWG/DXF geometry is treated as the strongest
+   source for lanes, stop lines, road markings, and signal-head positions.
+2. Use GIS/OSM/Ordnance Survey geometry as a coarse spatial filter. Road names,
+   junction bounds, and approximate centre points narrow the candidate area and
+   reduce unrelated clusters or secondary drawing information.
+3. Convert PDF pages with embedded images to rendered images. `needs_future_recognition`
+   means the page lacks extractable text; `pdf_image_page_candidate` means the
+   page contains image objects and should go through OCR/CV.
+4. Run OCR on cropped title blocks, notes, labels, phase/stage tables, and road
+   labels. These outputs become text candidates with lower confidence than
+   native PDF text unless they are corroborated by CAD/GIS.
+5. Run computer vision and vector-geometry heuristics on drawing regions to
+   produce low-confidence candidates for road markings, lane lines, arrows,
+   stop lines, crossings, and signal-head symbols. Detected features stay as
+   candidate facts until matched against CAD/GIS context.
+6. Assign initial Step 2 confidence conservatively. CAD-confirmed geometry,
+   OCR corroboration, and GIS spatial filtering are not applied in Step 2; they
+   are Step 3 / evidence-fusion responsibilities.
+7. For vector PDFs, read drawing objects directly from `pdfplumber` page
+   structures. Lines, curves, and rectangles are retained as vector candidates
+   before they are matched against CAD/GIS context.
+
+This keeps PDF fallback useful without pretending that scanned drawings can
+directly produce final MAPEM fields. The Step 2 output records the image page,
+OCR text candidates, and raw CV line candidates; later matching/fusion must
+decide whether they support MAPEM fields.
+
+#### Current Image-recognition Process
+
+The implementation is in `src/mapemgen/ingestion/pdf_cv.py`. It is a rule-based
+fallback for PDF drawings, not a trained object-detection model.
+
+Goal:
+
+- keep useful drawing evidence when CAD is unavailable
+- separate directly observed geometry from guessed road semantics
+- mark every guessed semantic feature as requiring later CAD/GIS context match
+
+Path A: vector PDF objects
+
+1. Read `page.lines`, `page.curves`, and `page.rects` from `pdfplumber`.
+2. Emit raw vector facts:
+   `pdf_vector_page_candidate`, `pdf_vector_line_candidate`,
+   `pdf_vector_curve_candidate`, and `pdf_vector_rect_candidate`.
+3. Preserve PDF coordinates such as `x0`, `top`, `x1`, `bottom`, `width`,
+   `height`, and `linewidth`.
+4. Apply simple geometry rules to create low-confidence semantic candidates:
+   lane lines, stop lines, crossings, arrows, road markings, and signal-head
+   symbols.
+
+Path B: raster image pages
+
+1. Render the page to pixels with `pymupdf` / `fitz`.
+2. Run OCR with `pytesseract` and emit non-empty text as
+   `pdf_ocr_text_candidate`.
+3. Scan OCR text for control keywords such as `phase`, `stage`, `detector`,
+   `timing`, and `control`.
+4. Run OpenCV line detection on the rendered pixels:
+   grayscale -> Otsu threshold -> morphology close -> Canny edges ->
+   probabilistic Hough lines.
+5. Emit raw pixel line facts as `pdf_cv_line_candidate`.
+6. Derive low-confidence semantic candidates from those lines, such as
+   `road_marking_candidate_from_pdf_cv`, `lane_line_candidate_from_pdf_cv`, and
+   `stop_line_candidate_from_pdf_cv`.
+
+Output rule:
+
+- vector geometry is stronger than pixel CV because it comes from the PDF
+  drawing structure
+- OCR text is weaker than native PDF text because it comes from rendered pixels
+- CV line detection only proves that a line-like shape was found; it does not
+  prove the line is a road marking
+- semantic drawing candidates always include `requires_context_match: true`
 
 ### DXF and DWG Parser
 
@@ -344,6 +446,8 @@ Dependency failures are handled as follows:
 | `.mova` encountered without MOVA Tools | Stop full MOVA extraction with an actionable error |
 | Individual source file is corrupt or malformed | Record file-level `parser_error` and continue |
 | PDF page has no extractable text | Emit `needs_future_recognition` |
+| PDF page contains image objects | Emit `pdf_image_page_candidate`, run OCR/CV, and require the optional `cv` packages |
+| PDF page contains vector drawing objects | Emit `pdf_vector_page_candidate` and vector drawing candidates without OCR/CV packages |
 | MOVA Tools version has no confirmed CLI export command | Require manual export from MOVA Tools and parse the exported files |
 
 ## Installation
@@ -414,6 +518,29 @@ To install the parser packages explicitly instead of installing the project:
 ```powershell
 python -m pip install "python-docx>=1.1" "pdfplumber>=0.11" "ezdxf>=1.3" "fiona>=1.10" "pyproj>=3.7"
 ```
+
+OCR/CV for scanned PDF drawings uses optional packages:
+
+```powershell
+python -m pip install -e ".[cv]"
+```
+
+This installs `opencv-python`, `pytesseract`, and `pymupdf`. Tesseract OCR also
+requires the external Tesseract executable on the machine before
+`pytesseract` can run OCR. These packages are required when Step 2 encounters a
+PDF page that contains image objects and must be recognised from pixels.
+
+Training a local PDF object detector uses another optional dependency group:
+
+```powershell
+python -m pip install -e ".[train]"
+```
+
+This installs `ultralytics` plus the PDF image-recognition packages. The
+training command does not download or create human annotations. It uses the
+current PDF vector/CV semantic candidates as weak pseudo-labels and trains a
+local YOLO detector from those generated labels. Missing training packages stop
+the command with a clear error.
 
 ### ODA File Converter for DWG
 
@@ -594,8 +721,10 @@ A shortened output example:
       "status": "parsed",
       "extracted_facts": [
         {
-          "fact_type": "phase_label_from_controller_config",
-          "value": "Phase A",
+          "fact_name": "phase_label_from_controller_config",
+          "payload": {
+            "value": "Phase A"
+          },
           "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
           "confidence": 0.65
         }
@@ -608,8 +737,10 @@ A shortened output example:
       "status": "parsed",
       "extracted_facts": [
         {
-          "fact_type": "lane_geometry_candidate_from_cad",
-          "value": [[0.0, 0.0], [10.0, 5.0]],
+          "fact_name": "lane_geometry_candidate_from_cad",
+          "payload": {
+            "value": [[0.0, 0.0], [10.0, 5.0]]
+          },
           "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace entity 1 layer LANE_MAIN",
           "confidence": 0.70
         }
@@ -621,6 +752,55 @@ A shortened output example:
 
 The real file contains all scanned source files and all extracted facts. The
 example above is intentionally shortened.
+
+### 3. Optional: train a local PDF drawing detector
+
+Use this when the current site folder contains PDF drawings and you want to
+bootstrap an object detector from the low-confidence PDF drawing candidates.
+Replace every value in angle brackets:
+
+| Placeholder | What to enter |
+| --- | --- |
+| `<site-folder>` | Path of the folder containing all files for one site |
+| `<training-output-folder>` | Empty or new folder where the generated YOLO dataset, manifest, and training runs should be written |
+
+Template:
+
+```powershell
+python -m mapemgen.cli train-pdf-detector `
+  --site-folder "<site-folder>" `
+  --out-dir "<training-output-folder>"
+```
+
+Example:
+
+```powershell
+python -m mapemgen.cli train-pdf-detector `
+  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
+  --out-dir "outputs/1003_LondonRdClevelandBridge_pdf_training"
+```
+
+To only generate and inspect the weak-label YOLO dataset without training:
+
+```powershell
+python -m mapemgen.cli train-pdf-detector `
+  --site-folder "<site-folder>" `
+  --out-dir "<training-output-folder>" `
+  --dataset-only
+```
+
+Main outputs:
+
+```text
+<training-output-folder>/pdf_training_manifest.json
+<training-output-folder>/weak_pdf_yolo_dataset/data.yaml
+<training-output-folder>/weak_pdf_yolo_dataset/images/train/*.png
+<training-output-folder>/weak_pdf_yolo_dataset/labels/train/*.txt
+<training-output-folder>/training_runs/weak_pdf_yolo/
+```
+
+The dataset output directory must be empty or new. The command refuses to
+overwrite an existing non-empty generated dataset directory.
 
 ## Data Flow
 
@@ -667,7 +847,7 @@ directories. Do not commit confidential raw source files.
 
 Step 2 does not:
 
-- run OCR or computer vision on scanned PDF drawings
+- treat OCR/CV output as final MAPEM geometry or signal semantics
 - directly decode or reverse-engineer proprietary MOVA binary data without MOVA Tools
 - match facts to MAPEM fields
 - fuse evidence into `SiteModel`
