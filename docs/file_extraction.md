@@ -328,6 +328,9 @@ Path A: vector PDF objects
 4. Apply simple geometry rules to create low-confidence semantic candidates:
    lane lines, stop lines, crossings, arrows, road markings, and signal-head
    symbols.
+5. Do not promote obvious page borders, full-page lines, full-page rectangles,
+   or generic decorative curves to semantic road candidates. These objects stay
+   available as raw vector facts only.
 
 Path B: raster image pages
 
@@ -352,6 +355,7 @@ Output rule:
 - CV line detection only proves that a line-like shape was found; it does not
   prove the line is a road marking
 - semantic drawing candidates always include `requires_context_match: true`
+- when in doubt, keep raw geometry and suppress the guessed semantic candidate
 
 ### DXF and DWG Parser
 
@@ -821,7 +825,76 @@ facts extraction coordinator
         |
         v
 extracted_facts.partial.json
+        |
+        v
+geometry assignment
+        |
+        v
+geometry_assignments.partial.json
 ```
+
+## Geometry Assignment
+
+Geometry assignment is the step after parsing and before MAPEM field matching.
+It does not choose MAPEM fields, build `SiteModel`, or decide final lane
+connectivity. Its only job is to add spatial scope to geometry evidence so that
+multi-lane sites do not merge all geometry into one undifferentiated fact pool.
+
+Input:
+
+```text
+extracted_facts.partial.json
+```
+
+Output:
+
+```text
+geometry_assignments.partial.json
+```
+
+Run it with:
+
+```powershell
+python -m mapemgen.cli assign-geometry `
+  --input "outputs/1003_LondonRdClevelandBridge/extracted_facts.partial.json" `
+  --out-dir "outputs/1003_LondonRdClevelandBridge"
+```
+
+The output contains:
+
+| Field | Meaning |
+| --- | --- |
+| `intersections[]` | Intersection references inferred from junction-centre facts, or a default site intersection when no centre is available |
+| `lanes[]` | Stable `lane_ref` values created from lane-like geometry facts |
+| `assigned_facts[]` | Geometry facts with `target_scope.intersection_ref` and, when possible, `target_scope.lane_ref` |
+| `geometry_summary` | Centroid, bounds, coordinate space, and PDF page reference when applicable |
+
+Example:
+
+```json
+{
+  "fact_id": "fact_00123",
+  "fact_name": "stop_line_from_cad",
+  "target_scope": {
+    "intersection_ref": "intersection_1",
+    "lane_ref": "lane_3"
+  },
+  "assignment_method": "nearest_lane_centroid",
+  "distance_to_lane": 1.7
+}
+```
+
+Rules:
+
+- CAD and GIS geometry can be assigned by nearest geometry centroid.
+- PDF page-space geometry is assigned only to lanes on the same PDF page and
+  source file. It is not mixed with CAD modelspace or GIS coordinates.
+- Facts that cannot be converted to points, bounds, or centroids remain
+  unassigned.
+- Raw geometry remains available; assignment adds scope but does not remove or
+  rewrite parser facts.
+- Later matching/fusion must still decide which assigned facts fill MAPEM
+  fields such as `laneSet[].nodeList`, `connectsTo`, or `signalGroup`.
 
 ## Testing
 
