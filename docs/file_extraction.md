@@ -757,55 +757,6 @@ A shortened output example:
 The real file contains all scanned source files and all extracted facts. The
 example above is intentionally shortened.
 
-### 3. Optional: train a local PDF drawing detector
-
-Use this when the current site folder contains PDF drawings and you want to
-bootstrap an object detector from the low-confidence PDF drawing candidates.
-Replace every value in angle brackets:
-
-| Placeholder | What to enter |
-| --- | --- |
-| `<site-folder>` | Path of the folder containing all files for one site |
-| `<training-output-folder>` | Empty or new folder where the generated YOLO dataset, manifest, and training runs should be written |
-
-Template:
-
-```powershell
-python -m mapemgen.cli train-pdf-detector `
-  --site-folder "<site-folder>" `
-  --out-dir "<training-output-folder>"
-```
-
-Example:
-
-```powershell
-python -m mapemgen.cli train-pdf-detector `
-  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
-  --out-dir "outputs/1003_LondonRdClevelandBridge_pdf_training"
-```
-
-To only generate and inspect the weak-label YOLO dataset without training:
-
-```powershell
-python -m mapemgen.cli train-pdf-detector `
-  --site-folder "<site-folder>" `
-  --out-dir "<training-output-folder>" `
-  --dataset-only
-```
-
-Main outputs:
-
-```text
-<training-output-folder>/pdf_training_manifest.json
-<training-output-folder>/weak_pdf_yolo_dataset/data.yaml
-<training-output-folder>/weak_pdf_yolo_dataset/images/train/*.png
-<training-output-folder>/weak_pdf_yolo_dataset/labels/train/*.txt
-<training-output-folder>/training_runs/weak_pdf_yolo/
-```
-
-The dataset output directory must be empty or new. The command refuses to
-overwrite an existing non-empty generated dataset directory.
-
 ## Data Flow
 
 ```text
