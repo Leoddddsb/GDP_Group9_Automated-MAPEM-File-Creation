@@ -1,0 +1,190 @@
+"""
+transforms_overlay.py
+=====================
+Wraps the teammate's transforms.py WITHOUT editing it. It re-exports everything,
+then (a) implements functions the teammate left as stubs, (b) adds small helpers
+the matching engine needs, and (c) extends the TRANSFORMS registry.
+
+The engine loads THIS module (it exposes a TRANSFORMS dict just like transforms.py).
+When the teammate updates transforms.py, these overrides still apply on top.
+
+Sync note: the implementations below (resolve_egress_lane_from_stage, the approach
+lookups) are integration additions — share them with the transforms author so they
+can fold them back into transforms.py if desired.
+"""
+from typing import Any, Mapping, Sequence
+
+import transforms as _base
+from transforms import *  # noqa: F401,F403  (re-export teammate's functions)
+
+# start from the teammate's registry, then override/extend
+TRANSFORMS = dict(getattr(_base, "TRANSFORMS", {}))
+
+
+# ---------------------------------------------------------------------------
+# (B3 fix) resolve_egress_lane_from_stage — was a stub returning None.
+# A stage row alone cannot name a target lane, but lane geometry can: we pair
+# each ingress lane to its nearest egress lane by geometry (the teammate already
+# implemented pair_ingress_egress_by_geometry). This resolves connectingLane.lane.
+# ---------------------------------------------------------------------------
+def resolve_egress_lane_from_stage(value: Any,
+                                   scope: Mapping[str, Any] | None = None,
+                                   resolved: Mapping[str, Any] | None = None,
+                                   **_ignore: Any):
+    """Resolve the target (egress) lane id for a connection.
+
+    Strategy: use the precomputed geometry pairing in resolved['lane_pairs']
+    (built by the engine prepass via pair_ingress_egress_by_geometry), keyed by
+    the current ingress lane (scope['lane']). Returns the target lane id, or None
+    if no confident geometric match exists (→ engine marks manual_review).
+    """
+    pairs = (resolved or {}).get("lane_pairs", {})
+    lane = (scope or {}).get("lane")
+    if lane is not None and lane in pairs:
+        return pairs[lane].get("target_lane_id")
+    # fallback: value may already carry an explicit target lane id
+    if isinstance(value, Mapping):
+        return value.get("target_lane_id") or value.get("connecting_lane")
+    if isinstance(value, int):
+        return value
+    return None
+
+
+# ---------------------------------------------------------------------------
+# (B2 fix) approach-id lookups — ingress/egress approach is a CROSS-LANE result
+# (lanes are clustered by bearing around the junction). The engine prepass runs
+# the clustering once and stores per-lane results in resolved['approach']; these
+# transforms just read the right one for the current lane (scope['lane']).
+# ---------------------------------------------------------------------------
+def _approach_for(scope, resolved, want_dir):
+    appr = (resolved or {}).get("approach", {})
+    lane = (scope or {}).get("lane")
+    info = appr.get(lane)
+    if not info or info.get("dir") != want_dir:
+        return None
+    return assign_approach_id(info["id"])  # noqa: F405 (from teammate via *)
+
+
+def ingress_approach_id(value: Any, scope=None, resolved=None, **_ignore):
+    return _approach_for(scope, resolved, "ingress")
+
+
+def egress_approach_id(value: Any, scope=None, resolved=None, **_ignore):
+    return _approach_for(scope, resolved, "egress")
+
+
+# ---------------------------------------------------------------------------
+# Small extractors for the payload contract (see payload_contract.md).
+# Let a pipeline pull the geometry list out of a wrapper payload dict.
+# ---------------------------------------------------------------------------
+def take_polyline(value: Any, **_ignore):
+    """Return a list of points from a payload that may wrap geometry."""
+    if isinstance(value, Mapping):
+        for k in ("polyline", "vertices", "points", "geometry"):
+            if k in value:
+                return value[k]
+    return value
+
+
+def take_label(value: Any, **_ignore):
+    """Return the label string from a payload that may wrap it."""
+    if isinstance(value, Mapping):
+        for k in ("label", "text", "value", "phase_label", "phase_letter"):
+            if k in value:
+                return value[k]
+    return value
+
+
+TRANSFORMS.update({
+    "resolve_egress_lane_from_stage": resolve_egress_lane_from_stage,
+    "ingress_approach_id": ingress_approach_id,
+    "egress_approach_id": egress_approach_id,
+    "take_polyline": take_polyline,
+    "take_label": take_label,
+})
+
+
+# ---------------------------------------------------------------------------
+# (v3 rules) Names referenced by matching_rules v3 that map onto existing
+# functions, plus two small new ones. Direct references preserve each function's
+# signature, so the engine's signature-aware runner still passes the right
+# context kwargs (dummy_phase_set, phase_order, output, ref_point).
+# ---------------------------------------------------------------------------
+
+# 1. extract_int_from_identifier  (site/scn/intersection identifier -> int)
+extract_int_from_identifier = extract_int_from_site_code          # noqa: F405
+
+# 2. phase_label_to_signal_group  (== existing phase_letter_to_signal_group)
+phase_label_to_signal_group = phase_letter_to_signal_group        # noqa: F405
+
+# 3. phase_type_to_lane_type  (== existing phase_type_to_lanetype)
+phase_type_to_lane_type = phase_type_to_lanetype                  # noqa: F405
+
+# 4. layer_or_marking_to_lane_type  (general label/layer/marking -> lane type)
+layer_or_marking_to_lane_type = lane_type_from_label             # noqa: F405
+
+
+# 5. geometry_bounds_centre  (coordinate_bounds -> Point at the centre)
+def geometry_bounds_centre(value, **_ignore):
+    """Centre of a bounding box. Accepts {min_x,min_y,max_x,max_y} / {minx,...},
+    a 4-tuple (minx,miny,maxx,maxy), or [[minx,miny],[maxx,maxy]]."""
+    v = value
+    if isinstance(v, Mapping):
+        if "value" in v and not any(k in v for k in ("min_x", "minx", "bounds")):
+            v = v["value"]
+    if isinstance(v, Mapping):
+        b = v.get("bounds", v)
+        if isinstance(b, Mapping):
+            minx = b.get("min_x", b.get("minx", b.get("xmin")))
+            miny = b.get("min_y", b.get("miny", b.get("ymin")))
+            maxx = b.get("max_x", b.get("maxx", b.get("xmax")))
+            maxy = b.get("max_y", b.get("maxy", b.get("ymax")))
+            return ((minx + maxx) / 2.0, (miny + maxy) / 2.0)
+        v = b
+    if isinstance(v, Sequence) and len(v) == 4 and all(
+            isinstance(x, (int, float)) for x in v):
+        minx, miny, maxx, maxy = v
+        return ((minx + maxx) / 2.0, (miny + maxy) / 2.0)
+    if isinstance(v, Sequence) and len(v) == 2:        # [[minx,miny],[maxx,maxy]]
+        (minx, miny), (maxx, maxy) = v[0], v[1]
+        return ((minx + maxx) / 2.0, (miny + maxy) / 2.0)
+    raise TransformError(f"Cannot read coordinate_bounds from: {value!r}")  # noqa: F405
+
+
+# 6. infer_lane_direction  (lane geometry + refPoint -> ingress|egress|both)
+def infer_lane_direction(value, ref_point=None, **_ignore):
+    """Classify a lane as ingress/egress relative to the reference point.
+    Needs ref_point in the SAME CRS as the lane geometry; if absent or
+    indeterminate, returns 'both' (safe default)."""
+    poly = take_polyline(value)
+    if ref_point is None or not isinstance(poly, (list, tuple)) or len(poly) < 2:
+        return "both"
+    try:
+        d = direction_relative_to_refpoint(poly, ref_point)   # noqa: F405
+    except Exception:
+        return "both"
+    return d if d in ("ingress", "egress") else "both"
+
+
+TRANSFORMS.update({
+    "extract_int_from_identifier": extract_int_from_identifier,
+    "phase_label_to_signal_group": phase_label_to_signal_group,
+    "phase_type_to_lane_type": phase_type_to_lane_type,
+    "layer_or_marking_to_lane_type": layer_or_marking_to_lane_type,
+    "geometry_bounds_centre": geometry_bounds_centre,
+    "infer_lane_direction": infer_lane_direction,
+})
+
+
+# ---------------------------------------------------------------------------
+# (B1 helper) OSTN15 grid availability check — surfaces the silent-degradation.
+# ---------------------------------------------------------------------------
+def ostn15_grid_available() -> bool:
+    """True if pyproj can use the high-accuracy OSTN15 grid for 27700→4326."""
+    try:
+        from pyproj.transformer import TransformerGroup
+        g = TransformerGroup("EPSG:27700", "EPSG:4326")
+        # if the best op needs a grid that's unavailable, it lands here
+        return len(g.unavailable_operations) == 0
+    except Exception:
+        return False

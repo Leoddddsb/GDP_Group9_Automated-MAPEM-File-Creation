@@ -1,0 +1,32 @@
+{
+  "facts": [
+    {"fact_id": "f01", "fact_name": "official_intersection_id_from_cad", "confidence": "high",
+     "payload": "337L", "source_file": "337L_layout.dwg"},
+
+    {"fact_id": "f02", "fact_name": "lane_centreline_geometry_from_cad", "confidence": "high",
+     "payload": [[429157, 434672], [429160, 434680], [429150, 434690]],
+     "source_file": "337L_layout.dwg"},
+    {"fact_id": "f03", "fact_name": "coordinate_reference_system_evidence_from_cad", "confidence": "high",
+     "payload": {"crs": "EPSG:27700"}, "source_file": "337L_layout.dwg"},
+    {"fact_id": "f04", "fact_name": "junction_centre_from_open_street_map", "confidence": "medium",
+     "payload": {"lat": 53.8076, "long": -1.5587}, "source_file": "osm_export.geojson"},
+
+    {"fact_id": "L1dir", "fact_name": "lane_direction_from_cad", "confidence": "high",
+     "payload": {"intersection_ref": "I1", "lane_ref": "L1", "polyline": [[429100, 434600], [429150, 434660]]},
+     "source_file": "337L_layout.dwg"},
+    {"fact_id": "L2dir", "fact_name": "lane_direction_from_cad", "confidence": "high",
+     "payload": {"intersection_ref": "I1", "lane_ref": "L2", "polyline": [[429220, 434720], [429165, 434668]]},
+     "source_file": "337L_layout.dwg"},
+
+    {"fact_id": "L1type", "fact_name": "lane_use_label_from_cad", "confidence": "high",
+     "payload": {"intersection_ref": "I1", "lane_ref": "L1", "label": "left turn"},
+     "source_file": "337L_layout.dwg"},
+
+    {"fact_id": "ph_A", "fact_name": "phase_label_from_controller_config", "confidence": "high",
+     "payload": {"intersection_ref": "I1", "lane_ref": "L1", "connection_ref": "C1", "phase_label": "A"},
+     "source_file": "337L_controller.pdf"},
+    {"fact_id": "ph_U", "fact_name": "phase_label_from_controller_config", "confidence": "high",
+     "payload": {"intersection_ref": "I1", "lane_ref": "L2", "connection_ref": "C2", "phase_label": "U"},
+     "source_file": "337L_controller.pdf"}
+  ]
+}
