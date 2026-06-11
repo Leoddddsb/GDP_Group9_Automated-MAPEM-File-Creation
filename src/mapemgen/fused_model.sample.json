@@ -1,0 +1,69 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "intersections": [
+      {
+        "id": {
+          "region": 50050,
+          "id": 337
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": null,
+          "long": null
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "laneID": 1,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "both",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 1
+              }
+            ]
+          },
+          {
+            "laneID": 2,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "both",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 2
+              }
+            ]
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": null
+          }
+        ]
+      }
+    ]
+  }
+}
