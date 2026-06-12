@@ -1,34 +1,28 @@
-from __future__ import annotations
-
 import json
 import re
 from collections.abc import Mapping
-from typing import Any
 
-from mapemgen.generators.json_mapem import MapemSource, generate_json_mapem
+try:
+    from .json_mapem import generate_json_mapem
+except ImportError:
+    from json_mapem import generate_json_mapem
 
 
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9-]*$")
 
 
-def generate_asn1_mapem(source: MapemSource) -> str:
-    """Generate the project's ASN.1-style MAPEM text.
-
-    This is a readable draft encoder for the project's MAPEM workflow, not a
-    DER/UPER encoder. It accepts both legacy ``SiteModel`` objects and the newer
-    ``fusion/fused_model.json`` dicts.
-    """
+def generate_asn1_mapem(source):
     model = generate_json_mapem(source)
-    sections: list[str] = []
+    sections = []
 
-    if header := model.get("header"):
-        sections.append(f"ItsPduHeader ::= {_format_value(header, 0)}")
+    if model.get("header"):
+        sections.append(f"ItsPduHeader ::= {_format_value(model['header'], 0)}")
 
     sections.append(f"MapData ::= {_format_value(model['mapData'], 0)}")
     return "\n\n".join(sections) + "\n"
 
 
-def _format_value(value: Any, indent: int) -> str:
+def _format_value(value, indent):
     if isinstance(value, Mapping):
         return _format_mapping(value, indent)
     if isinstance(value, list):
@@ -36,23 +30,24 @@ def _format_value(value: Any, indent: int) -> str:
     return _format_scalar(value)
 
 
-def _format_mapping(value: Mapping[str, Any], indent: int) -> str:
+def _format_mapping(value, indent):
     if not value:
         return "{ }"
 
     child_indent = indent + 2
-    lines: list[str] = []
+    lines = []
     items = list(value.items())
+
     for index, (key, item) in enumerate(items):
-        field = f"{' ' * child_indent}{key} {_format_value(item, child_indent)}"
+        line = f"{' ' * child_indent}{key} {_format_value(item, child_indent)}"
         if index < len(items) - 1:
-            field += ","
-        lines.append(field)
+            line += ","
+        lines.append(line)
 
     return "{\n" + "\n".join(lines) + f"\n{' ' * indent}" + "}"
 
 
-def _format_list(value: list[Any], indent: int) -> str:
+def _format_list(value, indent):
     if not value:
         return "{ }"
 
@@ -60,16 +55,18 @@ def _format_list(value: list[Any], indent: int) -> str:
         return "{ " + ", ".join(_format_scalar(item) for item in value) + " }"
 
     child_indent = indent + 2
-    lines: list[str] = []
+    lines = []
+
     for index, item in enumerate(value):
-        entry = f"{' ' * child_indent}{_format_value(item, child_indent)}"
+        line = f"{' ' * child_indent}{_format_value(item, child_indent)}"
         if index < len(value) - 1:
-            entry += ","
-        lines.append(entry)
+            line += ","
+        lines.append(line)
+
     return "{\n" + "\n".join(lines) + f"\n{' ' * indent}" + "}"
 
 
-def _format_scalar(value: Any) -> str:
+def _format_scalar(value):
     if value is None:
         return "NULL -- unresolved"
     if isinstance(value, bool):
