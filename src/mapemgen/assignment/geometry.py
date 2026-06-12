@@ -2,18 +2,29 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-LANE_FACT_NAMES = {
-    "lane_geometry_candidate_from_cad",
-    "lane_facility_geometry_candidate_from_cad",
-    "lane_geometry_candidate_from_ordnance_survey",
-    "lane_line_candidate_from_pdf_vector",
-    "lane_line_candidate_from_pdf_cv",
-}
+LANE_DEFINING_TIERS = [
+    {
+        "lane_geometry_candidate_from_cad",
+        "lane_facility_geometry_candidate_from_cad",
+    },
+    {
+        "lane_geometry_candidate_from_ordnance_survey",
+    },
+    {
+        "lane_line_candidate_from_pdf_vector",
+        "lane_line_candidate_from_pdf_cv",
+    },
+]
+
+LANE_FACT_NAMES = set().union(*LANE_DEFINING_TIERS)
+PDF_LANE_MERGE_DISTANCE = 2.0
+PDF_LANE_ANGLE_TOLERANCE_DEG = 20.0
 
 ASSIGNABLE_GEOMETRY_FACT_NAMES = {
     "lane_geometry_candidate_from_cad",
@@ -36,6 +47,21 @@ INTERSECTION_CENTRE_FACT_NAMES = {
     "junction_centre_from_ordnance_survey",
     "junction_centre_from_open_street_map",
 }
+
+SEMANTIC_FACT_NAME_PATTERNS = (
+    "phase",
+    "stage",
+    "stream",
+    "detector",
+    "signal",
+    "label",
+    "road_name",
+    "movement",
+    "scoot",
+    "timing",
+    "intergreen",
+    "control",
+)
 
 
 @dataclass(frozen=True)
@@ -64,18 +90,27 @@ def assign_geometry_to_lanes(extracted_facts: dict[str, Any]) -> dict[str, Any]:
 
     facts = _flatten_facts(extracted_facts)
     intersections = _build_intersections(extracted_facts, facts)
-    lane_items = _build_lanes(facts, intersections)
+    lane_items, lane_tier = _build_lanes(facts, intersections)
     assigned_facts = _assign_facts(facts, intersections, lane_items)
+    semantic_assignments = _assign_semantic_facts(facts, intersections)
     return {
         "site_id": str(extracted_facts.get("site_id", "")),
         "intersections": intersections,
         "lanes": [_lane_output(lane) for lane in lane_items],
         "assigned_facts": assigned_facts,
+        "semantic_assignments": semantic_assignments,
+        "lane_source_tier": lane_tier,
         "unassigned_fact_count": _unassigned_geometry_count(facts, assigned_facts),
+        "unassigned_geometry_fact_count": _unassigned_geometry_count(facts, assigned_facts),
+        "unassigned_semantic_fact_count": _unassigned_semantic_count(facts, semantic_assignments),
         "notes": [
-            "Geometry assignment adds intersection_ref and lane_ref only.",
+            "Geometry assignment adds intersection_ref and lane_ref to spatial facts.",
+            "Semantic assignment adds phase_ref, stage_ref, detector_ref, signal_group_ref, approach_ref, or label_ref to non-geometry facts when the reference is directly visible.",
+            "Non-geometry facts are not forced onto a lane; lane_ref remains null unless a reliable geometry anchor is available.",
             "It does not choose MAPEM fields or build SiteModel.",
             "PDF page-space geometry is assigned only within the same PDF page coordinate space.",
+            "Lanes are defined by the highest-priority available source: CAD, then Ordnance Survey, then PDF fallback.",
+            "When PDF is the only lane source, similar lane-line segments are clustered into lane corridors.",
         ],
     }
 
@@ -122,14 +157,31 @@ def _build_intersections(extracted_facts: dict[str, Any], facts: list[dict[str, 
     ]
 
 
-def _build_lanes(facts: list[dict[str, Any]], intersections: list[dict[str, Any]]) -> list[LaneItem]:
-    lanes: list[LaneItem] = []
+def _select_lane_tier(facts: list[dict[str, Any]]) -> tuple[set[str] | None, int]:
+    for tier_index, tier in enumerate(LANE_DEFINING_TIERS):
+        if any(fact.get("fact_name") in tier for fact in facts):
+            return tier, tier_index
+    return None, -1
+
+
+def _build_lanes(facts: list[dict[str, Any]], intersections: list[dict[str, Any]]) -> tuple[list[LaneItem], int]:
+    tier, tier_index = _select_lane_tier(facts)
+    if tier is None:
+        return [], -1
+
+    items: list[GeometryItem] = []
     for fact in facts:
-        if fact.get("fact_name") not in LANE_FACT_NAMES:
+        if fact.get("fact_name") not in tier:
             continue
         item = _geometry_item(fact)
-        if item is None:
-            continue
+        if item is not None:
+            items.append(item)
+
+    if tier_index == 2:
+        items = _cluster_pdf_lane_lines(items, intersections)
+
+    lanes: list[LaneItem] = []
+    for item in items:
         intersection_ref = _nearest_intersection_ref(item, intersections)
         lane_index = len(lanes) + 1
         lanes.append(
@@ -140,7 +192,94 @@ def _build_lanes(facts: list[dict[str, Any]], intersections: list[dict[str, Any]
                 lane_index=lane_index,
             )
         )
-    return lanes
+    return lanes, tier_index
+
+
+def _cluster_pdf_lane_lines(items: list[GeometryItem], intersections: list[dict[str, Any]]) -> list[GeometryItem]:
+    grouped: dict[tuple[str, str, str | None], list[GeometryItem]] = {}
+    for item in items:
+        key = (_nearest_intersection_ref(item, intersections), item.coordinate_space, item.page_ref)
+        grouped.setdefault(key, []).append(item)
+    clustered: list[GeometryItem] = []
+    for group in grouped.values():
+        clustered.extend(_cluster_lane_line_group(group))
+    return clustered
+
+
+def _cluster_lane_line_group(
+    items: list[GeometryItem],
+    merge_distance: float = PDF_LANE_MERGE_DISTANCE,
+    angle_tolerance: float = PDF_LANE_ANGLE_TOLERANCE_DEG,
+) -> list[GeometryItem]:
+    clusters: list[dict[str, Any]] = []
+    for item in items:
+        angle = _segment_orientation(item)
+        placed = False
+        for cluster in clusters:
+            if _angle_close(angle, cluster["angle"], angle_tolerance) and _distance(item.centroid, cluster["centroid"]) <= merge_distance:
+                cluster["members"].append(item)
+                cluster["centroid"] = _mean_centroid(cluster["members"])
+                cluster["angle"] = _mean_angle(cluster["members"])
+                placed = True
+                break
+        if not placed:
+            clusters.append({"members": [item], "centroid": item.centroid, "angle": angle})
+    return [_merge_lane_cluster(cluster["members"]) for cluster in clusters]
+
+
+def _segment_orientation(item: GeometryItem) -> float:
+    points = _geometry_item_points(item)
+    if len(points) < 2:
+        return 0.0
+    dx = points[-1][0] - points[0][0]
+    dy = points[-1][1] - points[0][1]
+    if dx == 0 and dy == 0:
+        return 0.0
+    return math.degrees(math.atan2(dy, dx)) % 180.0
+
+
+def _geometry_item_points(item: GeometryItem) -> list[tuple[float, float]]:
+    value = _fact_value(item.fact)
+    if isinstance(value, dict) and isinstance(value.get("geometry"), dict):
+        value = value["geometry"]
+    return _geometry_points(value)
+
+
+def _angle_close(first: float, second: float, tolerance: float) -> bool:
+    difference = abs(first - second) % 180.0
+    return min(difference, 180.0 - difference) <= tolerance
+
+
+def _mean_centroid(items: list[GeometryItem]) -> tuple[float, float]:
+    return (
+        sum(item.centroid[0] for item in items) / len(items),
+        sum(item.centroid[1] for item in items) / len(items),
+    )
+
+
+def _mean_angle(items: list[GeometryItem]) -> float:
+    return sum(_segment_orientation(item) for item in items) / len(items)
+
+
+def _merge_lane_cluster(items: list[GeometryItem]) -> GeometryItem:
+    bounds = {
+        "min_x": min(item.bounds["min_x"] for item in items),
+        "min_y": min(item.bounds["min_y"] for item in items),
+        "max_x": max(item.bounds["max_x"] for item in items),
+        "max_y": max(item.bounds["max_y"] for item in items),
+    }
+    base = items[0]
+    merged_fact = dict(base.fact)
+    member_ids = [item.fact.get("fact_id") for item in items]
+    merged_fact["fact_id"] = "lane_cluster_" + stable_assignment_id(*member_ids)
+    merged_fact["clustered_from"] = member_ids
+    return GeometryItem(
+        fact=merged_fact,
+        centroid=_mean_centroid(items),
+        bounds=bounds,
+        coordinate_space=base.coordinate_space,
+        page_ref=base.page_ref,
+    )
 
 
 def _assign_facts(
@@ -180,6 +319,69 @@ def _assign_facts(
             assignment["geometry_summary"]["page_ref"] = item.page_ref
         assigned.append(assignment)
     return assigned
+
+
+def _assign_semantic_facts(facts: list[dict[str, Any]], intersections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    assigned: list[dict[str, Any]] = []
+    for fact in facts:
+        if not _is_semantic_fact(fact):
+            continue
+        target_scope = _semantic_target_scope(fact, intersections)
+        if target_scope is None:
+            continue
+        assignment = {
+            "assignment_id": stable_assignment_id(fact.get("fact_id"), target_scope),
+            "fact_id": fact.get("fact_id"),
+            "fact_name": fact.get("fact_name"),
+            "source_file": fact.get("source_file"),
+            "evidence_location": fact.get("evidence_location"),
+            "confidence": fact.get("confidence"),
+            "target_scope": target_scope,
+            "assignment_method": _semantic_assignment_method(target_scope),
+            "assignment_basis": "direct_text_reference" if len(target_scope) > 2 else "source_level_semantic_context",
+        }
+        assigned.append(assignment)
+    return assigned
+
+
+def _is_semantic_fact(fact: dict[str, Any]) -> bool:
+    fact_name = str(fact.get("fact_name") or "")
+    if fact_name in ASSIGNABLE_GEOMETRY_FACT_NAMES or fact_name in INTERSECTION_CENTRE_FACT_NAMES:
+        return False
+    return any(pattern in fact_name for pattern in SEMANTIC_FACT_NAME_PATTERNS)
+
+
+def _semantic_target_scope(fact: dict[str, Any], intersections: list[dict[str, Any]]) -> dict[str, str | None] | None:
+    text = _fact_text(fact)
+    fact_name = str(fact.get("fact_name") or "")
+    scope: dict[str, str | None] = {
+        "intersection_ref": intersections[0]["intersection_ref"],
+        "lane_ref": None,
+    }
+    if phase_ref := _phase_ref(text):
+        scope["phase_ref"] = phase_ref
+    if stage_ref := _stage_ref(text):
+        scope["stage_ref"] = stage_ref
+    if detector_ref := _detector_ref(text):
+        scope["detector_ref"] = detector_ref
+    if signal_group_ref := _signal_group_ref(text):
+        scope["signal_group_ref"] = signal_group_ref
+    if "road_name" in fact_name:
+        if approach_ref := _approach_ref(text):
+            scope["approach_ref"] = approach_ref
+    if "label" in fact_name and len(scope) == 2 and not any(keyword in fact_name for keyword in ("phase", "stage", "stream")):
+        if label_ref := _label_ref(text):
+            scope["label_ref"] = label_ref
+    if len(scope) == 2 and not any(keyword in fact_name for keyword in ("phase", "stage", "detector", "signal", "stream", "timing", "intergreen", "control", "movement", "scoot")):
+        return None
+    return scope
+
+
+def _semantic_assignment_method(target_scope: dict[str, str | None]) -> str:
+    semantic_keys = set(target_scope) - {"intersection_ref", "lane_ref"}
+    if not semantic_keys:
+        return "intersection_semantic_scope"
+    return "semantic_reference_extraction"
 
 
 def _geometry_item(fact: dict[str, Any]) -> GeometryItem | None:
@@ -326,6 +528,65 @@ def _fact_value(fact: dict[str, Any]) -> Any:
     return (fact.get("payload") or {}).get("value")
 
 
+def _fact_text(fact: dict[str, Any]) -> str:
+    value = _fact_value(fact)
+    if isinstance(value, str):
+        return value
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _phase_ref(text: str) -> str | None:
+    match = re.search(r"\bphase\s+([A-Z0-9]{1,3})\b", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    token = _semantic_token(match.group(1))
+    return f"phase_{token}" if token else None
+
+
+def _stage_ref(text: str) -> str | None:
+    match = re.search(r"\bstage\s+([A-Z0-9]{1,3})\b", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    token = _semantic_token(match.group(1))
+    return f"stage_{token}" if token else None
+
+
+def _detector_ref(text: str) -> str | None:
+    match = re.search(r"\b(?:detector\s+)?(D\s*[0-9]{1,3}[A-Z]?)\b", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    token = _semantic_token(match.group(1))
+    return f"detector_{token}" if token else None
+
+
+def _signal_group_ref(text: str) -> str | None:
+    match = re.search(r"\b(?:signal\s*group|sg)\s*([A-Z0-9]{1,4})\b", text, flags=re.IGNORECASE)
+    if not match:
+        return None
+    token = _semantic_token(match.group(1))
+    return f"signal_group_{token}" if token else None
+
+
+def _approach_ref(text: str) -> str | None:
+    token = _slug_token(text)
+    return f"approach_{token}" if token else None
+
+
+def _label_ref(text: str) -> str | None:
+    token = _slug_token(text)
+    return f"label_{token}" if token else None
+
+
+def _semantic_token(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "", value).upper()
+
+
+def _slug_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+
+
 def _lane_output(lane: LaneItem) -> dict[str, Any]:
     return {
         "lane_ref": lane.lane_ref,
@@ -338,6 +599,7 @@ def _lane_output(lane: LaneItem) -> dict[str, Any]:
         "page_ref": lane.item.page_ref,
         "centroid": {"x": lane.item.centroid[0], "y": lane.item.centroid[1]},
         "bounds": lane.item.bounds,
+        "clustered_from": lane.item.fact.get("clustered_from"),
     }
 
 
@@ -346,6 +608,15 @@ def _unassigned_geometry_count(facts: list[dict[str, Any]], assigned_facts: list
     count = 0
     for fact in facts:
         if fact.get("fact_name") in ASSIGNABLE_GEOMETRY_FACT_NAMES and fact.get("fact_id") not in assigned_ids:
+            count += 1
+    return count
+
+
+def _unassigned_semantic_count(facts: list[dict[str, Any]], semantic_assignments: list[dict[str, Any]]) -> int:
+    assigned_ids = {fact.get("fact_id") for fact in semantic_assignments}
+    count = 0
+    for fact in facts:
+        if _is_semantic_fact(fact) and fact.get("fact_id") not in assigned_ids:
             count += 1
     return count
 

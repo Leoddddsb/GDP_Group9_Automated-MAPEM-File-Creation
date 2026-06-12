@@ -141,6 +141,42 @@ Every retained fact includes an `evidence_location` chain. For example, a CAD
 fact extracted from a DWG inside a ZIP keeps the ZIP path, archive-member path,
 and modelspace entity location.
 
+### Extraction Noise Control
+
+The extraction stage applies conservative filtering before assignment or MAPEM
+matching:
+
+| Noise source | Rule |
+| --- | --- |
+| Empty CAD text | `TEXT` and `MTEXT` entities with blank or whitespace-only content are not emitted as `cad_text_label` facts |
+| Non-site CAD files | CAD files with a leading site id that does not match `--site-id` are returned with `status: "skipped"` and `skip_reason: "non_site_cad_source"` |
+| Topographic CAD | Files such as `OS-TOPO.dwg` are parsed only for CAD metadata and bounds; dense drawing geometry and labels are not emitted from the standalone topo file |
+| ZIP / standalone CAD duplicates | If a CAD file exists both as a standalone file and as a ZIP member with the same basename, the standalone file is preferred and the ZIP member emits `duplicate_archive_member_skipped` instead of recursively extracting duplicate CAD facts |
+| PDF semantic drawing candidates | PDF vector/CV semantic facts remain low-confidence candidates and are not promoted to final road semantics in Step 2 |
+
+This keeps `extracted_facts.partial.json` useful for later matching without
+turning topographic background drawings, unrelated site drawings, or duplicated
+archive members into lane-level evidence.
+
+### Structured Movement Mapping Facts
+
+Some controller and UTC documents explicitly describe the relationship between
+phase letters, SCOOT links, stages, and traffic movements. Step 2 now extracts
+these relationships as structured facts so the adapter can route `signalGroup`
+through `movement_ref` before resolving the movement to a lane.
+
+| Fact name | Source pattern | Meaning |
+| --- | --- | --- |
+| `phase_movement_mapping_from_controller_config` | Controller config `Phase Type and Conditions`, for example `A LONDON ROAD INBOUND AHEAD` | Maps a controller phase to a movement description, road name, direction, maneuver, and `movement_ref` |
+| `scoot_link_movement_from_utc_form` | UTC form `Link SCN | Link Description` table | Maps a SCOOT link letter/SCN to a movement description and `movement_ref` |
+| `phase_scoot_link_mapping_from_utc_form` | UTC form `Controller Phase Letter | SCOOT Link Letter` table | Maps controller phase letters to SCOOT link refs and, when available, the linked `movement_ref` |
+| `scoot_link_stage_mapping_from_utc_form` | UTC form `Link Letter | ... | UTC Green Stage No's` table | Maps SCOOT link refs to UTC green stage numbers |
+
+These facts intentionally emit `movement_ref`, `phase_ref`, `scoot_link_ref`,
+and `stage_refs`, not `lane_ref`. `lane_ref` is created by geometry assignment,
+so the later adapter/matching step should join movement semantics to assigned
+lanes using road name, direction, maneuver, CAD labels, and geometry context.
+
 ### Fact Names for Future MAPEM Matching
 
 The final `fact_type` in `extracted_facts.partial.json` should use the `Fact
@@ -628,135 +664,6 @@ If it only supports graphical export, open the `.mova` file in MOVA Tools,
 export the available text or report files, and place those exported files in the
 same site folder before running `mapemgen extract`.
 
-## Usage
-
-### 1. Optional: create a Step 1 site inventory
-
-Run Step 1 for the site folder. Replace every value in angle brackets:
-
-| Placeholder | What to enter |
-| --- | --- |
-| `<project-root>` | Absolute path of the repository root on the local machine |
-| `<site-folder>` | Path of the folder containing all files for one traffic-signal site |
-| `<site-id>` | Site identifier, for example `1003`, `1062`, or `397L` |
-| `<site-name>` | Human-readable site name |
-| `<dataset>` | Data source or local authority, for example `DCIS/Bathnes` or `Leeds` |
-
-Template:
-
-```powershell
-cd "<project-root>"
-.\mapem313\Scripts\Activate.ps1
-$env:PYTHONPATH='src'
-python -m mapemgen.cli inventory `
-  --site-folder "<site-folder>" `
-  --site-id "<site-id>" `
-  --site-name "<site-name>" `
-  --dataset "<dataset>"
-```
-
-Example:
-
-```powershell
-cd C:\Users\leovo\Desktop\GDP
-.\mapem313\Scripts\Activate.ps1
-$env:PYTHONPATH='src'
-python -m mapemgen.cli inventory `
-  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
-  --site-id "1003" `
-  --site-name "London Rd Cleveland Bridge" `
-  --dataset "DCIS/Bathnes"
-```
-
-The default output is:
-
-```text
-outputs/1003_LondonRdClevelandBridge/site_inventory.partial.json
-```
-
-Use `--out-dir <folder>` to choose another inventory output directory.
-
-The Step 1 inventory is a separate output. Step 2 does not read it.
-
-### 2. Extract MAPEM-relevant facts from the complete site folder
-
-Pass the site folder directly to Step 2. Replace every value in angle brackets:
-
-| Placeholder | What to enter |
-| --- | --- |
-| `<site-folder>` | Path of the folder containing all files for one site; nested folders are scanned recursively |
-| `<site-id>` | Site identifier written into `extracted_facts.partial.json` |
-| `<output-folder>` | Folder where `extracted_facts.partial.json` should be written |
-
-Template:
-
-```powershell
-python -m mapemgen.cli extract `
-  --site-folder "<site-folder>" `
-  --site-id "<site-id>" `
-  --out-dir "<output-folder>"
-```
-
-Example:
-
-```powershell
-python -m mapemgen.cli extract `
-  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
-  --site-id "1003" `
-  --out-dir "outputs/1003_LondonRdClevelandBridge"
-```
-
-The output is:
-
-```text
-outputs/1003_LondonRdClevelandBridge/extracted_facts.partial.json
-```
-
-A shortened output example:
-
-```json
-{
-  "site_id": "1003",
-  "source_files": [
-    {
-      "source_file": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf",
-      "file_type": "pdf",
-      "parser": "pdf_parser",
-      "status": "parsed",
-      "extracted_facts": [
-        {
-          "fact_name": "phase_label_from_controller_config",
-          "payload": {
-            "value": "Phase A"
-          },
-          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
-          "confidence": 0.65
-        }
-      ]
-    },
-    {
-      "source_file": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip",
-      "file_type": "zip",
-      "parser": "zip_inventory_parser",
-      "status": "parsed",
-      "extracted_facts": [
-        {
-          "fact_name": "lane_geometry_candidate_from_cad",
-          "payload": {
-            "value": [[0.0, 0.0], [10.0, 5.0]]
-          },
-          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip -> archive member 1003_Cleveland Place_2023Version_Overlay.dwg -> modelspace entity 1 layer LANE_MAIN",
-          "confidence": 0.70
-        }
-      ]
-    }
-  ]
-}
-```
-
-The real file contains all scanned source files and all extracted facts. The
-example above is intentionally shortened.
-
 ## Data Flow
 
 ```text
@@ -778,18 +685,30 @@ facts extraction coordinator
 extracted_facts.partial.json
         |
         v
-geometry assignment
+geometry and semantic scope assignment
         |
         v
 geometry_assignments.partial.json
 ```
 
-## Geometry Assignment
+## Geometry and Semantic Scope Assignment
 
-Geometry assignment is the step after parsing and before MAPEM field matching.
-It does not choose MAPEM fields, build `SiteModel`, or decide final lane
-connectivity. Its only job is to add spatial scope to geometry evidence so that
-multi-lane sites do not merge all geometry into one undifferentiated fact pool.
+Scope assignment is the step after parsing and before MAPEM field matching. It
+does not choose MAPEM fields, build `SiteModel`, or decide final lane
+connectivity. Its job is to add routing references to extracted facts so that
+multi-lane sites do not merge all evidence into one undifferentiated fact pool.
+
+This stage handles two different relationships:
+
+| Relationship | Applies to | Output |
+| --- | --- | --- |
+| Geometry relationship | Lane lines, stop lines, crossings, road markings, signal-head symbols, CAD/GIS/PDF drawing geometry | `target_scope.intersection_ref`, and `target_scope.lane_ref` when a nearest lane can be identified in the same coordinate space |
+| Semantic relationship | Phase labels, stage relationships, detector labels, signal-group labels, road names, control/timing labels | `target_scope.intersection_ref` plus direct semantic references such as `phase_ref`, `stage_ref`, `detector_ref`, `signal_group_ref`, `approach_ref`, or `label_ref` |
+
+Important: non-geometry facts are not forced onto a lane. A fact such as
+`Phase A` is assigned to the site intersection and `phase_A`; it only gets a
+`lane_ref` later if matching/fusion finds reliable movement or geometry context
+that connects that phase to a lane.
 
 Input:
 
@@ -818,9 +737,10 @@ The output contains:
 | `intersections[]` | Intersection references inferred from junction-centre facts, or a default site intersection when no centre is available |
 | `lanes[]` | Stable `lane_ref` values created from lane-like geometry facts |
 | `assigned_facts[]` | Geometry facts with `target_scope.intersection_ref` and, when possible, `target_scope.lane_ref` |
+| `semantic_assignments[]` | Non-geometry facts with intersection-level scope and direct semantic refs such as `phase_ref`, `stage_ref`, `detector_ref`, or `approach_ref` |
 | `geometry_summary` | Centroid, bounds, coordinate space, and PDF page reference when applicable |
 
-Example:
+Geometry assignment example:
 
 ```json
 {
@@ -835,11 +755,40 @@ Example:
 }
 ```
 
+Semantic assignment example:
+
+```json
+{
+  "fact_id": "fact_00456",
+  "fact_name": "phase_label_from_controller_config",
+  "target_scope": {
+    "intersection_ref": "intersection_1",
+    "lane_ref": null,
+    "phase_ref": "phase_A"
+  },
+  "assignment_method": "semantic_reference_extraction",
+  "assignment_basis": "direct_text_reference"
+}
+```
+
 Rules:
 
 - CAD and GIS geometry can be assigned by nearest geometry centroid.
+- Lane definitions use the highest-priority available lane source: CAD first,
+  then Ordnance Survey, then PDF fallback. Lower-priority lane-like facts remain
+  evidence, but they do not create additional lanes when a stronger source is
+  available.
+- When PDF is the only lane source, similar PDF lane-line segments are clustered
+  into lane corridors so the output does not create one lane per vector segment.
 - PDF page-space geometry is assigned only to lanes on the same PDF page and
   source file. It is not mixed with CAD modelspace or GIS coordinates.
+- Phase, stage, detector, signal-group, road-name, and label facts are assigned
+  to semantic refs only when that reference is directly visible in the extracted
+  text.
+- Generic headings such as `Phases, Stages and Streams` stay at intersection
+  scope and are not promoted to a specific `phase_ref` or `stage_ref`.
+- Non-geometry facts keep `lane_ref: null` unless there is a reliable geometry
+  anchor. This avoids falsely assigning one phase or label to the nearest lane.
 - Facts that cannot be converted to points, bounds, or centroids remain
   unassigned.
 - Raw geometry remains available; assignment adds scope but does not remove or
@@ -876,3 +825,146 @@ Step 2 does not:
 - match facts to MAPEM fields
 - fuse evidence into `SiteModel`
 - generate MAPEM JSON or ASN.1 output
+
+## Usage
+
+This is the direct operation for Step 2: inspect the source folder, extract all
+facts from the complete site folder, then assign geometry and semantic scope.
+
+### Template: EDA, Extraction, and Scope Assignment
+
+Replace every value in angle brackets:
+
+| Placeholder | What to enter |
+| --- | --- |
+| `<project-root>` | Absolute path of the repository root on the local machine |
+| `<venv-path>` | Path of the virtual environment activation script, for example `.\mapem313\Scripts\Activate.ps1` |
+| `<site-folder>` | Folder containing all files for one traffic-signal site; nested folders are scanned recursively |
+| `<site-id>` | Site identifier written into the output files |
+| `<site-name>` | Human-readable site name for the optional EDA inventory |
+| `<dataset>` | Data source or local authority for the optional EDA inventory |
+| `<output-folder>` | Folder where the generated JSON files should be written |
+| `<path-to-ODAFileConverter.exe>` | Required only when the site folder contains `.dwg`; use the actual ODA executable path |
+
+```powershell
+cd "<project-root>"
+<venv-path>
+$env:PYTHONPATH='src'
+
+# Required only when DWG files are present.
+$env:ODAFC_PATH="<path-to-ODAFileConverter.exe>"
+
+# EDA / source-data inspection. This is optional and does not feed Step 2.
+python -m mapemgen.cli inventory `
+  --site-folder "<site-folder>" `
+  --site-id "<site-id>" `
+  --site-name "<site-name>" `
+  --dataset "<dataset>" `
+  --out-dir "<output-folder>"
+
+# Extract facts from the complete site folder.
+python -m mapemgen.cli extract `
+  --site-folder "<site-folder>" `
+  --site-id "<site-id>" `
+  --out-dir "<output-folder>"
+
+# Assign geometry and semantic relationships for later MAPEM matching.
+python -m mapemgen.cli assign-geometry `
+  --input "<output-folder>\extracted_facts.partial.json" `
+  --out-dir "<output-folder>"
+```
+
+Expected outputs:
+
+| Output | Purpose |
+| --- | --- |
+| `site_inventory.partial.json` | Optional EDA summary of files found in the site folder |
+| `extracted_facts.partial.json` | Parser output from all supported source files |
+| `geometry_assignments.partial.json` | Geometry assignments plus semantic assignments for later matching |
+
+### Example: 1003 London Road Cleveland Bridge
+
+```powershell
+cd C:\Users\leovo\Desktop\GDP
+.\mapem313\Scripts\Activate.ps1
+$env:PYTHONPATH='src'
+$env:ODAFC_PATH="E:\ODA\ODAFileConverter.exe"
+
+python -m mapemgen.cli inventory `
+  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
+  --site-id "1003" `
+  --site-name "London Rd Cleveland Bridge" `
+  --dataset "DCIS/Bathnes" `
+  --out-dir "outputs/1003_LondonRdClevelandBridge"
+
+python -m mapemgen.cli extract `
+  --site-folder "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge" `
+  --site-id "1003" `
+  --out-dir "outputs/1003_LondonRdClevelandBridge"
+
+python -m mapemgen.cli assign-geometry `
+  --input "outputs/1003_LondonRdClevelandBridge/extracted_facts.partial.json" `
+  --out-dir "outputs/1003_LondonRdClevelandBridge"
+```
+
+Shortened `extracted_facts.partial.json` example:
+
+```json
+{
+  "site_id": "1003",
+  "source_files": [
+    {
+      "source_file": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf",
+      "file_type": "pdf",
+      "parser": "pdf_parser",
+      "status": "parsed",
+      "extracted_facts": [
+        {
+          "fact_name": "phase_label_from_controller_config",
+          "payload": {
+            "value": "Phase A"
+          },
+          "evidence_location": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/1003_2500Config_Mar24.pdf -> page 1 line 16",
+          "confidence": 0.65
+        }
+      ]
+    }
+  ]
+}
+```
+
+Shortened `geometry_assignments.partial.json` example:
+
+```json
+{
+  "site_id": "1003",
+  "lanes": [
+    {
+      "lane_ref": "lane_1",
+      "intersection_ref": "intersection_1",
+      "source_fact_name": "lane_geometry_candidate_from_cad"
+    }
+  ],
+  "assigned_facts": [
+    {
+      "fact_name": "stop_line_from_cad",
+      "target_scope": {
+        "intersection_ref": "intersection_1",
+        "lane_ref": "lane_1"
+      },
+      "assignment_method": "nearest_lane_centroid"
+    }
+  ],
+  "semantic_assignments": [
+    {
+      "fact_name": "phase_label_from_controller_config",
+      "target_scope": {
+        "intersection_ref": "intersection_1",
+        "lane_ref": null,
+        "phase_ref": "phase_A"
+      },
+      "assignment_method": "semantic_reference_extraction"
+    }
+  ]
+}
+```
