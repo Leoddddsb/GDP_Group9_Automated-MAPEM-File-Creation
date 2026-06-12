@@ -1,63 +1,45 @@
-from __future__ import annotations
-
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any
-
-from mapemgen.models import SiteModel
 
 
-MapemSource = SiteModel | Mapping[str, Any]
-
-
-def generate_json_mapem(source: MapemSource) -> dict[str, Any]:
-    """Return the MAPEM-facing JSON structure for a SiteModel or fused model.
-
-    The fusion stage already emits a nested MAPEM-shaped dict with ``header`` and
-    ``mapData``. Older call sites may still pass a ``SiteModel``. This adapter
-    keeps both paths working while applying the field-name normalisation expected
-    by the MAPEM output layer.
-    """
+def generate_json_mapem(source):
     raw = _as_mapping(source)
     if "mapData" not in raw:
-        raise ValueError("MAPEM generation input must contain a 'mapData' object")
+        raise ValueError("input must contain mapData")
 
-    output: dict[str, Any] = {}
+    output = {}
     if "header" in raw:
-        output["header"] = _normalise_mapem_value(raw["header"])
-    output["mapData"] = _normalise_mapem_value(raw["mapData"])
+        output["header"] = _normalise_value(raw["header"])
+    output["mapData"] = _normalise_value(raw["mapData"])
     return output
 
 
-def _as_mapping(source: MapemSource) -> Mapping[str, Any]:
-    if isinstance(source, SiteModel):
-        return source.as_dict()
+def _as_mapping(source):
     if isinstance(source, Mapping):
         return source
-    raise TypeError(
-        "MAPEM generation input must be a SiteModel or a mapping loaded from JSON"
-    )
+    if hasattr(source, "as_dict"):
+        return source.as_dict()
+    raise TypeError("input must be a dict-like object or have as_dict()")
 
 
-def _normalise_mapem_value(value: Any) -> Any:
+def _normalise_value(value):
     if isinstance(value, Mapping):
-        return _normalise_mapem_mapping(value)
+        return _normalise_mapping(value)
     if isinstance(value, list):
-        return [_normalise_mapem_value(item) for item in value]
+        return [_normalise_value(item) for item in value]
     return deepcopy(value)
 
 
-def _normalise_mapem_mapping(value: Mapping[str, Any]) -> dict[str, Any]:
-    normalised: dict[str, Any] = {}
+def _normalise_mapping(value):
+    result = {}
     has_long = "long" in value
 
     for key, item in value.items():
         if key == "lon":
             if has_long:
                 continue
-            output_key = "long"
+            result["long"] = _normalise_value(item)
         else:
-            output_key = str(key)
-        normalised[output_key] = _normalise_mapem_value(item)
+            result[str(key)] = _normalise_value(item)
 
-    return normalised
+    return result
