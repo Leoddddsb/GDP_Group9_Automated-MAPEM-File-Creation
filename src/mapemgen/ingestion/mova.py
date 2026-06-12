@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from mapemgen.ingestion.fact_records import make_fact
+
 
 def extract_mova_facts(path: str | Path) -> list[dict]:
     target = Path(path)
@@ -15,19 +17,14 @@ def extract_mova_facts(path: str | Path) -> list[dict]:
             "before running extraction."
         )
     return [
-        {
-            "fact_type": "mova_tools_manual_export_required",
-            "value": (
+        make_fact(
+            "mova_tools_manual_export_required",
+            (
                 "MOVA binary fields are not decoded directly. Use the official MOVA Tools "
                 "application to export text or report files into the site folder."
             ),
-            "evidence_location": "file",
-            "confidence": 1.0,
-        },
-        {
-            "fact_type": "file_metadata",
-            "value": {"file_size_bytes": target.stat().st_size},
-            "evidence_location": "file",
-            "confidence": 1.0,
-        },
+            "file",
+            1.0,
+        ),
+        make_fact("file_metadata", {"file_size_bytes": target.stat().st_size}, "file", 1.0),
     ]

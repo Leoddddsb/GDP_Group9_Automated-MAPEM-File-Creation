@@ -78,7 +78,20 @@ class GeometryAssignmentTest(unittest.TestCase):
         folder = _test_dir()
         input_path = folder / "extracted_facts.partial.json"
         out_dir = folder / "out"
-        input_path.write_text(json.dumps(_extracted([_fact("lane_geometry_candidate_from_cad", [[0, 0], [5, 0]], "entity 1")])), encoding="utf-8")
+        input_path.write_text(
+            json.dumps(
+                _extracted(
+                    [
+                        _fact(
+                            "lane_geometry_candidate_from_cad",
+                            [[0, 0], [5, 0]],
+                            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+                        )
+                    ]
+                )
+            ),
+            encoding="utf-8",
+        )
 
         exit_code = main(["assign-geometry", "--input", str(input_path), "--out-dir", str(out_dir)])
 
@@ -146,6 +159,32 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(pdf_assignment["target_scope"]["lane_ref"], None)
         self.assertEqual(pdf_assignment["assignment_method"], "intersection_only")
 
+    def test_ignores_legacy_cad_utility_layers_as_lane_definitions(self):
+        duct = _fact(
+            "lane_geometry_candidate_from_cad",
+            [[0, 0], [1, 0]],
+            "site.dxf -> modelspace entity 1 layer DUCTS",
+            source_file="site.dxf",
+        )
+        loop = _fact(
+            "lane_geometry_candidate_from_cad",
+            [[0, 0], [1, 1]],
+            "site.dxf -> modelspace entity 2 layer LOOPS",
+            source_file="site.dxf",
+        )
+        pdf_lane = _fact(
+            "lane_line_candidate_from_pdf_vector",
+            {"geometry": {"x0": 0, "top": 10, "x1": 100, "bottom": 10}},
+            "drawing.pdf -> page 1 vector line 1",
+            source_file="drawing.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([duct, loop, pdf_lane]))
+
+        self.assertEqual(output["lane_source_tier"], 2)
+        self.assertEqual(len(output["lanes"]), 1)
+        self.assertEqual(output["lanes"][0]["source_fact_name"], "lane_line_candidate_from_pdf_vector")
+
     def test_pdf_lane_candidates_cluster_when_pdf_is_only_lane_source(self):
         first = _fact(
             "lane_line_candidate_from_pdf_vector",
@@ -171,6 +210,22 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(output["lane_source_tier"], 2)
         self.assertEqual(len(output["lanes"]), 2)
         self.assertTrue(output["lanes"][0]["clustered_from"])
+
+    def test_pdf_lane_fallback_is_suppressed_when_too_many_clusters_are_found(self):
+        facts = [
+            _fact(
+                "lane_line_candidate_from_pdf_vector",
+                {"geometry": {"x0": 0, "top": index * 10, "x1": 100, "bottom": index * 10}},
+                f"drawing.pdf -> page 1 vector line {index}",
+                source_file="drawing.pdf",
+            )
+            for index in range(51)
+        ]
+
+        output = assign_geometry_to_lanes(_extracted(facts))
+
+        self.assertEqual(output["lane_source_tier"], -1)
+        self.assertEqual(output["lanes"], [])
 
     def test_outputs_movement_lane_mapping_when_lane_label_matches_movement_ref(self):
         lane = _fact(
@@ -204,6 +259,44 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(mapping["phase_refs"], ["phase_A"])
         self.assertEqual(mapping["assignment_method"], "lane_label_movement_match")
 
+    def test_outputs_movement_lane_mapping_from_spatial_cad_movement_label(self):
+        lane = _fact(
+            "lane_geometry_candidate_from_cad",
+            [[0, 0], [10, 0]],
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        cad_label = _fact(
+            "cad_movement_label_candidate",
+            {
+                "label": "London Road inbound ahead",
+                "movement_ref": "movement_london_road_inbound_ahead",
+                "movement_text": "London Road inbound ahead",
+                "geometry": {"x": 5, "y": 1},
+            },
+            "site.dxf -> modelspace entity 2 layer LABELS",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "phase_movement_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_A",
+                "movement_ref": "movement_london_road_inbound_ahead",
+                "movement_text": "LONDON ROAD INBOUND AHEAD",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([lane, cad_label, movement]))
+
+        mapping = next(item for item in output["movement_lane_mappings"] if item["lane_ref"] == "lane_1")
+        self.assertEqual(mapping["movement_ref"], "movement_london_road_inbound_ahead")
+        self.assertEqual(mapping["phase_refs"], ["phase_A"])
+        self.assertEqual(mapping["assignment_method"], "cad_movement_label_nearest_lane")
+        label_assignment = next(item for item in output["assigned_facts"] if item["fact_id"] == cad_label["fact_id"])
+        self.assertEqual(label_assignment["target_scope"]["lane_ref"], "lane_1")
+
     def test_reports_unmatched_movement_lane_mapping_when_lane_context_is_missing(self):
         lane = _fact(
             "lane_geometry_candidate_from_cad",
@@ -232,6 +325,73 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(mapping["lane_ref"], None)
         self.assertEqual(mapping["requires_context_match"], True)
         self.assertEqual(mapping["unmatched_reason"], "no_lane_movement_label")
+
+    def test_uses_cad_signal_arrow_as_lane_proxy_when_lane_geometry_is_missing(self):
+        arrow = _fact(
+            "cad_arrow_block_candidate",
+            {
+                "name": "HD003P",
+                "geometry": {"x": 10, "y": 20},
+                "semantic_type": "signal_arrow",
+                "arrow_direction_candidate": "right",
+                "requires_context_match": True,
+            },
+            "site.dxf -> modelspace entity 3 layer SIGNALS",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "phase_movement_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_C",
+                "movement_ref": "movement_london_road_outbound_right_turn",
+                "movement_text": "LONDON ROAD OUTBOUND RIGHT TURN",
+                "road_name": "London Road",
+                "direction": "outbound",
+                "maneuver": "right_turn",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([arrow, movement]))
+
+        self.assertEqual(output["lane_source_tier"], 3)
+        self.assertEqual(output["lanes"][0]["source_fact_name"], "cad_arrow_block_candidate")
+        self.assertEqual(output["lanes"][0]["lane_semantic_hint"], "right_turn")
+        mapping = output["movement_lane_mappings"][0]
+        self.assertEqual(mapping["movement_ref"], "movement_london_road_outbound_right_turn")
+        self.assertEqual(mapping["lane_ref"], "lane_1")
+        self.assertEqual(mapping["phase_refs"], ["phase_C"])
+        self.assertEqual(mapping["assignment_method"], "cad_signal_arrow_direction_match")
+        self.assertEqual(mapping["requires_context_match"], True)
+
+    def test_creates_semantic_lane_proxy_for_unmatched_structured_movement(self):
+        movement = _fact(
+            "phase_movement_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_A",
+                "movement_ref": "movement_london_road_inbound_ahead",
+                "movement_text": "LONDON ROAD INBOUND AHEAD",
+                "road_name": "London Road",
+                "direction": "inbound",
+                "maneuver": "ahead",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([movement]))
+
+        self.assertEqual(output["lane_source_tier"], 4)
+        self.assertEqual(output["lanes"][0]["source_fact_name"], "semantic_movement_lane_proxy")
+        self.assertEqual(output["lanes"][0]["movement_ref"], "movement_london_road_inbound_ahead")
+        self.assertEqual(output["lanes"][0]["lane_semantic_basis"], "structured_movement_without_geometry")
+        self.assertEqual(output["lanes"][0]["requires_context_match"], True)
+        mapping = output["movement_lane_mappings"][0]
+        self.assertEqual(mapping["movement_ref"], "movement_london_road_inbound_ahead")
+        self.assertEqual(mapping["lane_ref"], "lane_1")
+        self.assertEqual(mapping["assignment_method"], "semantic_movement_lane_proxy")
+        self.assertEqual(mapping["requires_context_match"], True)
 
 
 def _fact(fact_name: str, value: object, location: str, source_file: str = "site.dxf") -> dict:

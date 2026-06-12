@@ -6,6 +6,8 @@ from tempfile import NamedTemporaryFile
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
+from mapemgen.ingestion.fact_records import make_fact, with_evidence_prefix
+
 
 PARSEABLE_EXTENSIONS = {
     ".pdf",
@@ -32,10 +34,12 @@ def extract_zip_facts(
     path: str | Path,
     depth: int = 0,
     member_parser: MemberParser | None = None,
+    ignored_cad_member_basenames: set[str] | None = None,
 ) -> list[dict]:
     if depth >= MAX_ARCHIVE_DEPTH:
         raise ValueError(f"ZIP nesting exceeds maximum depth of {MAX_ARCHIVE_DEPTH}")
     parser = member_parser or _default_member_parser
+    ignored_cad_names = ignored_cad_member_basenames or set()
     facts: list[dict] = []
     with zipfile.ZipFile(path) as archive:
         members = sorted(
@@ -52,6 +56,9 @@ def extract_zip_facts(
                 continue
             lowered = member.lower()
             suffix = pure_path.suffix.lower()
+            if suffix in {".dwg", ".dxf"} and pure_path.name.lower() in ignored_cad_names:
+                facts.append(_fact("duplicate_archive_member_skipped", member, location, 1.0))
+                continue
             if suffix == ".dwg":
                 dwg_type = "xref_dwg_candidate" if len(pure_path.parts) > 1 else "root_dwg_candidate"
                 facts.append(_fact(dwg_type, member, location, 0.8))
@@ -103,11 +110,10 @@ def _safe_member_path(member: str) -> PurePosixPath | None:
 def _prefix_locations(facts: list[dict], prefix: str) -> list[dict]:
     prefixed: list[dict] = []
     for fact in facts:
-        nested = dict(fact)
-        nested["evidence_location"] = f"{prefix} -> {fact['evidence_location']}"
-        prefixed.append(nested)
+        prefixed.append(with_evidence_prefix(fact, prefix))
     return prefixed
 
 
-def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
-    return {"fact_type": fact_type, "value": value, "evidence_location": location, "confidence": confidence}
+def _fact(fact_name: str, value: object, location: str, confidence: float) -> dict:
+    return make_fact(fact_name, value, location, confidence)
+

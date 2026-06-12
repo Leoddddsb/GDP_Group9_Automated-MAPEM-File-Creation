@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from typing import Iterable
 
+from mapemgen.ingestion.fact_records import make_fact
+
 
 DEFAULT_KEYWORD_FACTS = {
     "phase": "phase_candidate",
@@ -76,11 +78,11 @@ def extract_keyword_facts(
             continue
         lowered = line.lower()
         emitted: set[str] = set()
-        for keyword, fact_type in keyword_facts.items():
-            if keyword in lowered and fact_type not in emitted:
+        for keyword, fact_name in keyword_facts.items():
+            if keyword in lowered and fact_name not in emitted:
                 location = location_prefix if exact_location else f"{location_prefix} {index}"
-                facts.append(_fact(fact_type, line, location, 0.65))
-                emitted.add(fact_type)
+                facts.append(_fact(fact_name, line, location, 0.65))
+                emitted.add(fact_name)
     return facts
 
 
@@ -101,10 +103,5 @@ def extract_metadata_facts(lines: Iterable[str], location_prefix: str = "line", 
     return facts
 
 
-def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
-    return {
-        "fact_type": fact_type,
-        "value": value,
-        "evidence_location": location,
-        "confidence": confidence,
-    }
+def _fact(fact_name: str, value: object, location: str, confidence: float) -> dict:
+    return make_fact(fact_name, value, location, confidence)

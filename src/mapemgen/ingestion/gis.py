@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Iterable
 
+from mapemgen.ingestion.fact_records import make_fact
+
 
 def extract_gis_facts(path: str | Path) -> list[dict]:
     target = Path(path)
@@ -105,5 +107,6 @@ def _bounds_and_centre(points: list[tuple[float, float]], location: str, source_
     return [_fact("coordinate_bounds", bounds, location, 0.9), _fact(centre_type, centre, location, 0.6)]
 
 
-def _fact(fact_type: str, value: object, location: str, confidence: float) -> dict:
-    return {"fact_type": fact_type, "value": value, "evidence_location": location, "confidence": confidence}
+def _fact(fact_name: str, value: object, location: str, confidence: float) -> dict:
+    return make_fact(fact_name, value, location, confidence)
+

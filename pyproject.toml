@@ -22,6 +22,7 @@ geo = ["pyproj", "shapely", "geopandas", "folium"]
 cad = ["ezdxf", "shapely"]
 pdf = ["pandas", "pdfplumber", "camelot-py"]
 cv = ["opencv-python", "pytesseract", "pymupdf"]
+train = ["ultralytics>=8", "opencv-python", "pytesseract", "pymupdf"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

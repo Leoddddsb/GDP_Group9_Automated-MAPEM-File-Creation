@@ -11,7 +11,6 @@ from typing import Any
 LANE_DEFINING_TIERS = [
     {
         "lane_geometry_candidate_from_cad",
-        "lane_facility_geometry_candidate_from_cad",
     },
     {
         "lane_geometry_candidate_from_ordnance_survey",
@@ -20,15 +19,43 @@ LANE_DEFINING_TIERS = [
         "lane_line_candidate_from_pdf_vector",
         "lane_line_candidate_from_pdf_cv",
     },
+    {
+        "cad_arrow_block_candidate",
+    },
 ]
 
 LANE_FACT_NAMES = set().union(*LANE_DEFINING_TIERS)
 PDF_LANE_MERGE_DISTANCE = 2.0
 PDF_LANE_ANGLE_TOLERANCE_DEG = 20.0
+MAX_PDF_LANE_CLUSTERS = 50
+CAD_LANE_LAYER_KEYWORDS = (
+    "lane",
+)
+CAD_NON_LANE_LAYER_KEYWORDS = (
+    "duct",
+    "loop",
+    "intergreen",
+    "detector",
+    "signal",
+    "head",
+    "cross",
+    "kerb",
+    "text",
+    "label",
+)
 
 ASSIGNABLE_GEOMETRY_FACT_NAMES = {
     "lane_geometry_candidate_from_cad",
     "lane_facility_geometry_candidate_from_cad",
+    "cad_geometry_candidate",
+    "cad_text_label",
+    "cad_block_reference",
+    "cad_movement_label_candidate",
+    "cad_arrow_block_candidate",
+    "cad_signal_head_candidate",
+    "cad_pole_candidate",
+    "cad_pedestrian_facility_candidate",
+    "cad_lane_use_label_candidate",
     "lane_geometry_candidate_from_ordnance_survey",
     "stop_line_from_cad",
     "stop_line_candidate_from_pdf_vector",
@@ -91,9 +118,11 @@ def assign_geometry_to_lanes(extracted_facts: dict[str, Any]) -> dict[str, Any]:
     facts = _flatten_facts(extracted_facts)
     intersections = _build_intersections(extracted_facts, facts)
     lane_items, lane_tier = _build_lanes(facts, intersections)
+    if _add_semantic_movement_lane_proxies(facts, intersections, lane_items) and lane_tier == -1:
+        lane_tier = 4
     assigned_facts = _assign_facts(facts, intersections, lane_items)
     semantic_assignments = _assign_semantic_facts(facts, intersections)
-    movement_lane_mappings = _build_movement_lane_mappings(facts, lane_items)
+    movement_lane_mappings = _build_movement_lane_mappings(facts, lane_items, assigned_facts)
     return {
         "site_id": str(extracted_facts.get("site_id", "")),
         "intersections": intersections,
@@ -113,7 +142,9 @@ def assign_geometry_to_lanes(extracted_facts: dict[str, Any]) -> dict[str, Any]:
             "PDF page-space geometry is assigned only within the same PDF page coordinate space.",
             "Lanes are defined by the highest-priority available source: CAD, then Ordnance Survey, then PDF fallback.",
             "When PDF is the only lane source, similar lane-line segments are clustered into lane corridors.",
+            f"PDF fallback lane creation is suppressed when more than {MAX_PDF_LANE_CLUSTERS} lane clusters are found.",
             "Movement-to-lane mappings are emitted only when lane movement labels are directly available; otherwise the movement is marked for later context matching.",
+            "If no geometry source can resolve a structured movement, assignment creates a low-confidence semantic lane proxy so every movement can carry a lane_ref while still requiring context match.",
         ],
     }
 
@@ -162,40 +193,163 @@ def _build_intersections(extracted_facts: dict[str, Any], facts: list[dict[str, 
 
 def _select_lane_tier(facts: list[dict[str, Any]]) -> tuple[set[str] | None, int]:
     for tier_index, tier in enumerate(LANE_DEFINING_TIERS):
-        if any(fact.get("fact_name") in tier for fact in facts):
+        if any(fact.get("fact_name") in tier and _can_define_lane(fact) for fact in facts):
             return tier, tier_index
     return None, -1
 
 
 def _build_lanes(facts: list[dict[str, Any]], intersections: list[dict[str, Any]]) -> tuple[list[LaneItem], int]:
-    tier, tier_index = _select_lane_tier(facts)
-    if tier is None:
-        return [], -1
-
-    items: list[GeometryItem] = []
-    for fact in facts:
-        if fact.get("fact_name") not in tier:
+    for tier_index, tier in enumerate(LANE_DEFINING_TIERS):
+        if not any(fact.get("fact_name") in tier and _can_define_lane(fact) for fact in facts):
             continue
-        item = _geometry_item(fact)
-        if item is not None:
-            items.append(item)
+        items: list[GeometryItem] = []
+        for fact in facts:
+            if fact.get("fact_name") not in tier:
+                continue
+            if not _can_define_lane(fact):
+                continue
+            item = _geometry_item(fact)
+            if item is not None:
+                items.append(item)
 
-    if tier_index == 2:
-        items = _cluster_pdf_lane_lines(items, intersections)
+        if tier_index == 2:
+            items = _cluster_pdf_lane_lines(items, intersections)
+            if len(items) > MAX_PDF_LANE_CLUSTERS:
+                continue
 
-    lanes: list[LaneItem] = []
-    for item in items:
-        intersection_ref = _nearest_intersection_ref(item, intersections)
+        lanes: list[LaneItem] = []
+        for item in items:
+            intersection_ref = _nearest_intersection_ref(item, intersections)
+            lane_index = len(lanes) + 1
+            lanes.append(
+                LaneItem(
+                    lane_ref=f"lane_{lane_index}",
+                    intersection_ref=intersection_ref,
+                    item=item,
+                    lane_index=lane_index,
+                )
+            )
+        if lanes:
+            return lanes, tier_index
+    return [], -1
+
+
+def _add_semantic_movement_lane_proxies(
+    facts: list[dict[str, Any]],
+    intersections: list[dict[str, Any]],
+    lanes: list[LaneItem],
+) -> bool:
+    if any(not _is_fallback_lane_proxy(lane) for lane in lanes):
+        return False
+    covered_refs = set(_lane_movement_index(lanes))
+    covered_arrow_hints = set(_lane_arrow_maneuver_index(lanes))
+    added = False
+    seen: set[str] = set()
+    for fact in facts:
+        movement_ref = _movement_ref(fact)
+        if movement_ref is None or movement_ref in seen or movement_ref in covered_refs:
+            continue
+        arrow_hint = _movement_arrow_hint(fact)
+        if arrow_hint is not None and arrow_hint in covered_arrow_hints:
+            seen.add(movement_ref)
+            continue
+        item = _semantic_movement_lane_item(fact, intersections, len(lanes) + 1)
+        if item is None:
+            continue
         lane_index = len(lanes) + 1
         lanes.append(
             LaneItem(
                 lane_ref=f"lane_{lane_index}",
-                intersection_ref=intersection_ref,
+                intersection_ref=_nearest_intersection_ref(item, intersections),
                 item=item,
                 lane_index=lane_index,
             )
         )
-    return lanes, tier_index
+        seen.add(movement_ref)
+        added = True
+    return added
+
+
+def _is_fallback_lane_proxy(lane: LaneItem) -> bool:
+    return lane.item.fact.get("fact_name") in {"cad_arrow_block_candidate", "semantic_movement_lane_proxy"}
+
+
+def _semantic_movement_lane_item(
+    fact: dict[str, Any],
+    intersections: list[dict[str, Any]],
+    lane_index: int,
+) -> GeometryItem | None:
+    value = _fact_value(fact)
+    if not isinstance(value, dict):
+        return None
+    movement_ref = _movement_ref(fact)
+    if movement_ref is None:
+        return None
+    centroid = _semantic_lane_centroid(intersections, lane_index)
+    proxy_value = {
+        "movement_ref": movement_ref,
+        "movement_text": value.get("movement_text"),
+        "road_name": value.get("road_name"),
+        "direction": value.get("direction"),
+        "maneuver": value.get("maneuver"),
+        "phase_ref": value.get("phase_ref"),
+        "geometry": {"x": centroid[0], "y": centroid[1]},
+        "requires_context_match": True,
+        "proxy_reason": "structured_movement_without_geometry",
+    }
+    proxy_fact = {
+        "fact_id": "semantic_lane_proxy_" + stable_assignment_id(movement_ref),
+        "fact_name": "semantic_movement_lane_proxy",
+        "payload": {"value": proxy_value},
+        "source_file": fact.get("source_file"),
+        "evidence_location": fact.get("evidence_location"),
+        "confidence": min(float(fact.get("confidence") or 0.5), 0.5),
+    }
+    return GeometryItem(
+        fact=proxy_fact,
+        centroid=centroid,
+        bounds={"min_x": centroid[0], "min_y": centroid[1], "max_x": centroid[0], "max_y": centroid[1]},
+        coordinate_space="semantic_movement",
+        page_ref=None,
+    )
+
+
+def _semantic_lane_centroid(intersections: list[dict[str, Any]], lane_index: int) -> tuple[float, float]:
+    centroid = intersections[0].get("centroid") if intersections else None
+    if isinstance(centroid, dict) and isinstance(centroid.get("x"), (int, float)) and isinstance(centroid.get("y"), (int, float)):
+        return float(centroid["x"]) + lane_index, float(centroid["y"])
+    return float(lane_index), 0.0
+
+
+def _can_define_lane(fact: dict[str, Any]) -> bool:
+    fact_name = str(fact.get("fact_name") or "")
+    if fact_name == "lane_geometry_candidate_from_cad":
+        return _is_cad_lane_layer(fact)
+    if fact_name == "cad_arrow_block_candidate":
+        return _cad_arrow_lane_hint(fact) is not None
+    return fact_name in LANE_FACT_NAMES
+
+
+def _is_cad_lane_layer(fact: dict[str, Any]) -> bool:
+    layer = _cad_layer_name(fact)
+    if not layer:
+        value = _fact_value(fact)
+        return isinstance(value, dict) and any(value.get(key) for key in ("movement_ref", "movement_text", "label", "road_name"))
+    lowered = layer.lower()
+    if any(keyword in lowered for keyword in CAD_NON_LANE_LAYER_KEYWORDS):
+        return False
+    return any(keyword in lowered for keyword in CAD_LANE_LAYER_KEYWORDS)
+
+
+def _cad_layer_name(fact: dict[str, Any]) -> str | None:
+    location = str(fact.get("evidence_location") or "")
+    match = re.search(r"\blayer\s+([^>]+)$", location, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"\blayer\s+(.+?)(?:\s+->|$)", location, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
 
 
 def _cluster_pdf_lane_lines(items: list[GeometryItem], intersections: list[dict[str, Any]]) -> list[GeometryItem]:
@@ -347,12 +501,19 @@ def _assign_semantic_facts(facts: list[dict[str, Any]], intersections: list[dict
     return assigned
 
 
-def _build_movement_lane_mappings(facts: list[dict[str, Any]], lanes: list[LaneItem]) -> list[dict[str, Any]]:
+def _build_movement_lane_mappings(
+    facts: list[dict[str, Any]],
+    lanes: list[LaneItem],
+    assigned_facts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     movement_facts = [fact for fact in facts if _movement_ref(fact)]
     if not movement_facts:
         return []
 
     lane_index = _lane_movement_index(lanes)
+    lane_arrow_index = _lane_arrow_maneuver_index(lanes)
+    lane_by_ref = {lane.lane_ref: lane for lane in lanes}
+    assignment_by_fact_id = {assignment.get("fact_id"): assignment for assignment in assigned_facts}
     mappings: list[dict[str, Any]] = []
     seen: set[tuple[str, str | None]] = set()
     for fact in movement_facts:
@@ -360,6 +521,19 @@ def _build_movement_lane_mappings(facts: list[dict[str, Any]], lanes: list[LaneI
         if movement_ref is None:
             continue
         lane = lane_index.get(movement_ref)
+        assignment_method = _movement_lane_assignment_method(lane) if lane else "needs_context_match"
+        if lane is None and fact.get("fact_name") == "cad_movement_label_candidate":
+            assignment = assignment_by_fact_id.get(fact.get("fact_id"))
+            lane_ref = ((assignment or {}).get("target_scope") or {}).get("lane_ref")
+            lane = lane_by_ref.get(lane_ref)
+            if lane is not None:
+                assignment_method = "cad_movement_label_nearest_lane"
+        if lane is None:
+            arrow_hint = _movement_arrow_hint(fact)
+            if arrow_hint is not None:
+                lane = lane_arrow_index.get(arrow_hint)
+                if lane is not None:
+                    assignment_method = "cad_signal_arrow_direction_match"
         key = (movement_ref, lane.lane_ref if lane else None)
         if key in seen:
             continue
@@ -376,13 +550,18 @@ def _build_movement_lane_mappings(facts: list[dict[str, Any]], lanes: list[LaneI
             "evidence_location": fact.get("evidence_location"),
             "confidence": fact.get("confidence"),
             "movement_text": payload.get("movement_text") if isinstance(payload, dict) else None,
-            "assignment_method": "lane_label_movement_match" if lane else "needs_context_match",
-            "requires_context_match": lane is None,
+            "assignment_method": assignment_method,
+            "requires_context_match": lane is None or assignment_method in {"cad_signal_arrow_direction_match", "semantic_movement_lane_proxy"},
         }
         if lane is None:
             mapping["unmatched_reason"] = "no_lane_movement_label"
         mappings.append(mapping)
-    return mappings
+    matched_movement_refs = {mapping["movement_ref"] for mapping in mappings if mapping.get("lane_ref")}
+    return [
+        mapping
+        for mapping in mappings
+        if mapping.get("lane_ref") or mapping["movement_ref"] not in matched_movement_refs
+    ]
 
 
 def _lane_movement_index(lanes: list[LaneItem]) -> dict[str, LaneItem]:
@@ -412,6 +591,61 @@ def _lane_movement_refs(lane: LaneItem) -> list[str]:
             if slug:
                 refs.append("movement_" + slug)
     return refs
+
+
+def _movement_lane_assignment_method(lane: LaneItem | None) -> str:
+    if lane is None:
+        return "needs_context_match"
+    if lane.item.fact.get("fact_name") == "semantic_movement_lane_proxy":
+        return "semantic_movement_lane_proxy"
+    return "lane_label_movement_match"
+
+
+def _lane_arrow_maneuver_index(lanes: list[LaneItem]) -> dict[str, LaneItem]:
+    index: dict[str, LaneItem] = {}
+    for lane in lanes:
+        hint = _cad_arrow_lane_hint(lane.item.fact)
+        if hint is not None:
+            index.setdefault(hint, lane)
+    return index
+
+
+def _cad_arrow_lane_hint(fact: dict[str, Any]) -> str | None:
+    value = _fact_value(fact)
+    if not isinstance(value, dict):
+        return None
+    if value.get("semantic_type") not in {None, "signal_arrow", "arrow"}:
+        return None
+    direction = str(value.get("arrow_direction_candidate") or "").lower()
+    if direction in {"left", "left_turn"}:
+        return "left_turn"
+    if direction in {"right", "right_turn"}:
+        return "right_turn"
+    if direction in {"ahead", "straight", "through"}:
+        return "ahead"
+    return None
+
+
+def _movement_arrow_hint(fact: dict[str, Any]) -> str | None:
+    value = _fact_value(fact)
+    if not isinstance(value, dict):
+        return None
+    maneuver = str(value.get("maneuver") or "").lower()
+    if maneuver in {"left", "left_turn"}:
+        return "left_turn"
+    if maneuver in {"right", "right_turn"}:
+        return "right_turn"
+    if maneuver in {"ahead", "straight", "through"}:
+        return "ahead"
+    movement_text = str(value.get("movement_text") or "")
+    lowered = movement_text.lower()
+    if "right" in lowered:
+        return "right_turn"
+    if "left" in lowered:
+        return "left_turn"
+    if "ahead" in lowered or "straight" in lowered:
+        return "ahead"
+    return None
 
 
 def _movement_ref(fact: dict[str, Any]) -> str | None:
@@ -585,6 +819,8 @@ def _nearest_lane(
 
 def _coordinate_space(fact: dict[str, Any]) -> str:
     fact_name = str(fact.get("fact_name", ""))
+    if fact_name == "semantic_movement_lane_proxy":
+        return "semantic_movement"
     if "_pdf_" in fact_name or fact_name.startswith("pdf_"):
         return "pdf_page"
     if "_ordnance_survey" in fact_name or "_open_street_map" in fact_name:
@@ -620,6 +856,11 @@ def _fact_text(fact: dict[str, Any]) -> str:
     value = _fact_value(fact)
     if isinstance(value, str):
         return value
+    if isinstance(value, dict):
+        for key in ("text", "label", "movement_text", "name", "value"):
+            candidate = value.get(key)
+            if isinstance(candidate, str):
+                return candidate
     if value is None:
         return ""
     return str(value)
@@ -676,7 +917,7 @@ def _slug_token(value: str) -> str:
 
 
 def _lane_output(lane: LaneItem) -> dict[str, Any]:
-    return {
+    output = {
         "lane_ref": lane.lane_ref,
         "intersection_ref": lane.intersection_ref,
         "lane_index": lane.lane_index,
@@ -689,6 +930,18 @@ def _lane_output(lane: LaneItem) -> dict[str, Any]:
         "bounds": lane.item.bounds,
         "clustered_from": lane.item.fact.get("clustered_from"),
     }
+    if lane_semantic_hint := _cad_arrow_lane_hint(lane.item.fact):
+        output["lane_semantic_hint"] = lane_semantic_hint
+        output["lane_semantic_basis"] = "cad_signal_arrow_direction"
+        output["requires_context_match"] = True
+    value = _fact_value(lane.item.fact)
+    if isinstance(value, dict) and lane.item.fact.get("fact_name") == "semantic_movement_lane_proxy":
+        for key in ("movement_ref", "movement_text", "road_name", "direction", "maneuver", "phase_ref"):
+            if value.get(key) is not None:
+                output[key] = value.get(key)
+        output["lane_semantic_basis"] = "structured_movement_without_geometry"
+        output["requires_context_match"] = True
+    return output
 
 
 def _unassigned_geometry_count(facts: list[dict[str, Any]], assigned_facts: list[dict[str, Any]]) -> int:

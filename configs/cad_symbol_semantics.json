@@ -1,0 +1,86 @@
+{
+  "block_rules": [
+    {
+      "match": "exact",
+      "pattern": "tactpblk",
+      "semantic_type": "tactile_paving",
+      "fact_name": "cad_pedestrian_facility_candidate",
+      "description": "Tactile paving block near pedestrian crossing facilities."
+    },
+    {
+      "match": "exact",
+      "pattern": "pole",
+      "semantic_type": "pole",
+      "fact_name": "cad_pole_candidate",
+      "description": "Pole or post asset."
+    },
+    {
+      "match": "prefix",
+      "pattern": "HD",
+      "semantic_type": "signal_head",
+      "fact_name": "cad_signal_head_candidate",
+      "description": "Common signal-head block naming pattern, for example HD084 or HD001S."
+    },
+    {
+      "match": "exact",
+      "pattern": "HD003P",
+      "semantic_type": "signal_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "right",
+        "requires_context_match": true
+      },
+      "description": "Directional signal-head block with arrow-like geometry in the block definition."
+    },
+    {
+      "match": "exact",
+      "pattern": "HD004P",
+      "semantic_type": "signal_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "left",
+        "requires_context_match": true
+      },
+      "description": "Directional signal-head block with arrow-like geometry in the block definition."
+    },
+    {
+      "match": "contains",
+      "pattern": "arrow",
+      "semantic_type": "arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "description": "Arrow symbol block."
+    },
+    {
+      "match": "contains",
+      "pattern": "left",
+      "semantic_type": "arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "description": "Left-turn or directional symbol block."
+    },
+    {
+      "match": "contains",
+      "pattern": "right",
+      "semantic_type": "arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "description": "Right-turn or directional symbol block."
+    }
+  ],
+  "text_rules": [
+    {
+      "match": "regex",
+      "pattern": "\\b(?:LEFT|RIGHT|AHEAD|STRAIGHT|INBOUND|OUTBOUND|NB|SB|EB|WB)\\b",
+      "semantic_type": "movement_label",
+      "fact_name": "cad_movement_label_candidate",
+      "derive_movement": true,
+      "description": "Text that directly describes a vehicle movement."
+    },
+    {
+      "match": "regex",
+      "pattern": "\\bKEEP\\s+CLEAR\\b",
+      "semantic_type": "lane_use",
+      "fact_name": "cad_lane_use_label_candidate",
+      "label": "keep_clear",
+      "description": "Keep-clear marking or lane-use note."
+    }
+  ]
+}

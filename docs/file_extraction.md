@@ -403,8 +403,12 @@ Use `ezdxf` for DXF parsing. Emit:
 - entity counts
 - coordinate bounds
 - line and polyline geometry candidates
-- text labels
-- block references
+- text labels with insertion-point coordinates when available
+- block references with insertion-point coordinates when available
+- CAD movement-label candidates when text contains a movement-like direction or
+  manoeuvre, such as `inbound ahead`, `WB left`, or `right turn`
+- CAD arrow-block candidates when a block name indicates an arrow, turn, or
+  lane direction
 - lane, stop line, crossing and signal-head candidates based on configurable
   layer-name and text-label rules
 
@@ -412,6 +416,30 @@ For DWG input, call ODA File Converter through `ezdxf.addons.odafc`, create a
 temporary DXF, and run the same DXF parser. ODA File Converter is a required
 runtime dependency when a site inventory contains `.dwg`. If it is not
 installed, extraction stops with a clear error.
+
+CAD text and block coordinates are important upstream data. The assignment
+stage cannot infer `movement_ref -> lane_ref` from a phase table alone; it needs
+a spatial movement label, arrow block, or lane label near a lane geometry. For
+that reason `cad_text_label`, `cad_block_reference`,
+`cad_movement_label_candidate`, and `cad_arrow_block_candidate` retain their
+modelspace coordinates whenever the CAD entity exposes an insertion point.
+
+CAD block/text semantics are configured in
+`configs/cad_symbol_semantics.json`. The parser reads that table before scanning
+CAD entities. `CAD_SYMBOL_RULES_PATH` can point to a different JSON rule file
+for local experiments.
+
+Current starter rules:
+
+| CAD symbol/text rule | Output fact | Meaning |
+| --- | --- | --- |
+| Block name `HD*`, for example `HD084` or `HD001S` | `cad_signal_head_candidate` | Signal-head candidate with modelspace coordinates |
+| Block name `HD003P` or `HD004P` | `cad_arrow_block_candidate` | Directional signal-arrow candidate from block-definition geometry; kept as `requires_context_match` |
+| Block name `pole` | `cad_pole_candidate` | Pole/post candidate with modelspace coordinates |
+| Block name `tactpblk` | `cad_pedestrian_facility_candidate` | Tactile paving or pedestrian crossing facility candidate |
+| Block name containing `arrow`, `left`, or `right` | `cad_arrow_block_candidate` | Directional arrow candidate |
+| Text containing `LEFT`, `RIGHT`, `AHEAD`, `WB`, `EB`, `NB`, `SB`, `INBOUND`, or `OUTBOUND` | `cad_movement_label_candidate` | Movement label with derived `movement_ref` |
+| Text `KEEP CLEAR` | `cad_lane_use_label_candidate` | Lane-use or road-marking label |
 
 ### GIS Parser
 
@@ -793,9 +821,11 @@ Rules:
 
 - CAD and GIS geometry can be assigned by nearest geometry centroid.
 - Lane definitions use the highest-priority available lane source: CAD first,
-  then Ordnance Survey, then PDF fallback. Lower-priority lane-like facts remain
-  evidence, but they do not create additional lanes when a stronger source is
-  available.
+  then Ordnance Survey, then PDF fallback. If PDF fallback is suppressed because
+  it creates too many generic clusters, directional CAD signal-arrow blocks can
+  create low-confidence lane proxies as the final fallback. Lower-priority
+  lane-like facts remain evidence, but they do not create additional lanes when
+  a stronger source is available.
 - When PDF is the only lane source, similar PDF lane-line segments are clustered
   into lane corridors so the output does not create one lane per vector segment.
 - PDF page-space geometry is assigned only to lanes on the same PDF page and
@@ -810,9 +840,19 @@ Rules:
 - Phase-to-movement facts can be routed to lanes through `movement_lane_mappings[]`
   only when assignment can read a matching `movement_ref`, `movement_text`,
   lane label, or road-name label from the lane source facts.
-- If assignment cannot see which lane belongs to a movement, it does not guess.
-  It outputs the movement with `requires_context_match: true` so Step 3 can use
-  CAD labels, GIS context, signal-head geometry, or manual rules.
+- CAD movement labels with coordinates can also produce `movement_lane_mappings[]`
+  after assignment places the label near a lane; these mappings use
+  `assignment_method: "cad_movement_label_nearest_lane"`.
+- Directional CAD signal-arrow lane proxies can map only matching turn
+  movements, such as `right_turn` or `left_turn`; these mappings use
+  `assignment_method: "cad_signal_arrow_direction_match"` and still keep
+  `requires_context_match: true` because the proxy is not full lane geometry.
+- If assignment still cannot see which lane belongs to a structured movement,
+  it creates a `semantic_movement_lane_proxy` so the movement still has a stable
+  `lane_ref`. These mappings use
+  `assignment_method: "semantic_movement_lane_proxy"` and always keep
+  `requires_context_match: true` because the proxy was created from movement
+  semantics rather than observed lane geometry.
 - Facts that cannot be converted to points, bounds, or centroids remain
   unassigned.
 - Raw geometry remains available; assignment adds scope but does not remove or
