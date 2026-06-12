@@ -172,6 +172,67 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(len(output["lanes"]), 2)
         self.assertTrue(output["lanes"][0]["clustered_from"])
 
+    def test_outputs_movement_lane_mapping_when_lane_label_matches_movement_ref(self):
+        lane = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[0, 0], [10, 0]],
+                "label": "London Road inbound ahead",
+            },
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "phase_movement_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_A",
+                "movement_ref": "movement_london_road_inbound_ahead",
+                "movement_text": "LONDON ROAD INBOUND AHEAD",
+                "road_name": "London Road",
+                "direction": "inbound",
+                "maneuver": "ahead",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([lane, movement]))
+
+        mapping = output["movement_lane_mappings"][0]
+        self.assertEqual(mapping["movement_ref"], "movement_london_road_inbound_ahead")
+        self.assertEqual(mapping["lane_ref"], "lane_1")
+        self.assertEqual(mapping["phase_refs"], ["phase_A"])
+        self.assertEqual(mapping["assignment_method"], "lane_label_movement_match")
+
+    def test_reports_unmatched_movement_lane_mapping_when_lane_context_is_missing(self):
+        lane = _fact(
+            "lane_geometry_candidate_from_cad",
+            [[0, 0], [10, 0]],
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "phase_movement_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_A",
+                "movement_ref": "movement_london_road_inbound_ahead",
+                "movement_text": "LONDON ROAD INBOUND AHEAD",
+                "road_name": "London Road",
+                "direction": "inbound",
+                "maneuver": "ahead",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([lane, movement]))
+
+        mapping = output["movement_lane_mappings"][0]
+        self.assertEqual(mapping["movement_ref"], "movement_london_road_inbound_ahead")
+        self.assertEqual(mapping["lane_ref"], None)
+        self.assertEqual(mapping["requires_context_match"], True)
+        self.assertEqual(mapping["unmatched_reason"], "no_lane_movement_label")
+
 
 def _fact(fact_name: str, value: object, location: str, source_file: str = "site.dxf") -> dict:
     return make_fact(fact_name, value, location, 0.75, source_file=source_file)

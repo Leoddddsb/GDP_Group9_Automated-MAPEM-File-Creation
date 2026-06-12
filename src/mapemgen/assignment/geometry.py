@@ -93,12 +93,14 @@ def assign_geometry_to_lanes(extracted_facts: dict[str, Any]) -> dict[str, Any]:
     lane_items, lane_tier = _build_lanes(facts, intersections)
     assigned_facts = _assign_facts(facts, intersections, lane_items)
     semantic_assignments = _assign_semantic_facts(facts, intersections)
+    movement_lane_mappings = _build_movement_lane_mappings(facts, lane_items)
     return {
         "site_id": str(extracted_facts.get("site_id", "")),
         "intersections": intersections,
         "lanes": [_lane_output(lane) for lane in lane_items],
         "assigned_facts": assigned_facts,
         "semantic_assignments": semantic_assignments,
+        "movement_lane_mappings": movement_lane_mappings,
         "lane_source_tier": lane_tier,
         "unassigned_fact_count": _unassigned_geometry_count(facts, assigned_facts),
         "unassigned_geometry_fact_count": _unassigned_geometry_count(facts, assigned_facts),
@@ -111,6 +113,7 @@ def assign_geometry_to_lanes(extracted_facts: dict[str, Any]) -> dict[str, Any]:
             "PDF page-space geometry is assigned only within the same PDF page coordinate space.",
             "Lanes are defined by the highest-priority available source: CAD, then Ordnance Survey, then PDF fallback.",
             "When PDF is the only lane source, similar lane-line segments are clustered into lane corridors.",
+            "Movement-to-lane mappings are emitted only when lane movement labels are directly available; otherwise the movement is marked for later context matching.",
         ],
     }
 
@@ -344,6 +347,91 @@ def _assign_semantic_facts(facts: list[dict[str, Any]], intersections: list[dict
     return assigned
 
 
+def _build_movement_lane_mappings(facts: list[dict[str, Any]], lanes: list[LaneItem]) -> list[dict[str, Any]]:
+    movement_facts = [fact for fact in facts if _movement_ref(fact)]
+    if not movement_facts:
+        return []
+
+    lane_index = _lane_movement_index(lanes)
+    mappings: list[dict[str, Any]] = []
+    seen: set[tuple[str, str | None]] = set()
+    for fact in movement_facts:
+        movement_ref = _movement_ref(fact)
+        if movement_ref is None:
+            continue
+        lane = lane_index.get(movement_ref)
+        key = (movement_ref, lane.lane_ref if lane else None)
+        if key in seen:
+            continue
+        seen.add(key)
+        payload = _fact_value(fact)
+        mapping = {
+            "movement_ref": movement_ref,
+            "lane_ref": lane.lane_ref if lane else None,
+            "intersection_ref": lane.intersection_ref if lane else None,
+            "phase_refs": _phase_refs_for_movement(movement_ref, movement_facts),
+            "source_fact_id": fact.get("fact_id"),
+            "source_fact_name": fact.get("fact_name"),
+            "source_file": fact.get("source_file"),
+            "evidence_location": fact.get("evidence_location"),
+            "confidence": fact.get("confidence"),
+            "movement_text": payload.get("movement_text") if isinstance(payload, dict) else None,
+            "assignment_method": "lane_label_movement_match" if lane else "needs_context_match",
+            "requires_context_match": lane is None,
+        }
+        if lane is None:
+            mapping["unmatched_reason"] = "no_lane_movement_label"
+        mappings.append(mapping)
+    return mappings
+
+
+def _lane_movement_index(lanes: list[LaneItem]) -> dict[str, LaneItem]:
+    index: dict[str, LaneItem] = {}
+    for lane in lanes:
+        for movement_ref in _lane_movement_refs(lane):
+            index.setdefault(movement_ref, lane)
+    return index
+
+
+def _lane_movement_refs(lane: LaneItem) -> list[str]:
+    value = _fact_value(lane.item.fact)
+    labels: list[str] = []
+    if isinstance(value, dict):
+        for key in ("movement_ref", "movement_text", "label", "road_name"):
+            candidate = value.get(key)
+            if isinstance(candidate, str):
+                labels.append(candidate)
+    if isinstance(value, str):
+        labels.append(value)
+    refs = []
+    for label in labels:
+        if label.startswith("movement_"):
+            refs.append(label)
+        else:
+            slug = _slug_token(label)
+            if slug:
+                refs.append("movement_" + slug)
+    return refs
+
+
+def _movement_ref(fact: dict[str, Any]) -> str | None:
+    value = _fact_value(fact)
+    if isinstance(value, dict) and isinstance(value.get("movement_ref"), str):
+        return value["movement_ref"]
+    return None
+
+
+def _phase_refs_for_movement(movement_ref: str, movement_facts: list[dict[str, Any]]) -> list[str]:
+    phase_refs = []
+    for fact in movement_facts:
+        value = _fact_value(fact)
+        if not isinstance(value, dict):
+            continue
+        if value.get("movement_ref") == movement_ref and isinstance(value.get("phase_ref"), str):
+            phase_refs.append(value["phase_ref"])
+    return sorted(set(phase_refs))
+
+
 def _is_semantic_fact(fact: dict[str, Any]) -> bool:
     fact_name = str(fact.get("fact_name") or "")
     if fact_name in ASSIGNABLE_GEOMETRY_FACT_NAMES or fact_name in INTERSECTION_CENTRE_FACT_NAMES:
@@ -386,7 +474,7 @@ def _semantic_assignment_method(target_scope: dict[str, str | None]) -> str:
 
 def _geometry_item(fact: dict[str, Any]) -> GeometryItem | None:
     value = _fact_value(fact)
-    if isinstance(value, dict) and isinstance(value.get("geometry"), dict):
+    if isinstance(value, dict) and isinstance(value.get("geometry"), (dict, list)):
         value = value["geometry"]
     points = _geometry_points(value)
     if not points:

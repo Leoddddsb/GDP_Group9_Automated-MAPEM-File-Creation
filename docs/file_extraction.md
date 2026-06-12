@@ -570,18 +570,6 @@ requires the external Tesseract executable on the machine before
 `pytesseract` can run OCR. These packages are required when Step 2 encounters a
 PDF page that contains image objects and must be recognised from pixels.
 
-Training a local PDF object detector uses another optional dependency group:
-
-```powershell
-python -m pip install -e ".[train]"
-```
-
-This installs `ultralytics` plus the PDF image-recognition packages. The
-training command does not download or create human annotations. It uses the
-current PDF vector/CV semantic candidates as weak pseudo-labels and trains a
-local YOLO detector from those generated labels. Missing training packages stop
-the command with a clear error.
-
 ### ODA File Converter for DWG
 
 DWG is not decoded by a pure Python package. Install
@@ -738,6 +726,7 @@ The output contains:
 | `lanes[]` | Stable `lane_ref` values created from lane-like geometry facts |
 | `assigned_facts[]` | Geometry facts with `target_scope.intersection_ref` and, when possible, `target_scope.lane_ref` |
 | `semantic_assignments[]` | Non-geometry facts with intersection-level scope and direct semantic refs such as `phase_ref`, `stage_ref`, `detector_ref`, or `approach_ref` |
+| `movement_lane_mappings[]` | Conservative `movement_ref -> lane_ref` links when lane source labels directly expose the movement; unmatched movements are retained with `requires_context_match: true` |
 | `geometry_summary` | Centroid, bounds, coordinate space, and PDF page reference when applicable |
 
 Geometry assignment example:
@@ -771,6 +760,35 @@ Semantic assignment example:
 }
 ```
 
+Movement-to-lane mapping example:
+
+```json
+{
+  "movement_ref": "movement_london_road_inbound_ahead",
+  "movement_text": "London Road inbound ahead",
+  "phase_refs": ["phase_A"],
+  "lane_ref": "lane_3",
+  "intersection_ref": "intersection_1",
+  "assignment_method": "lane_label_movement_match",
+  "requires_context_match": false
+}
+```
+
+Unmatched movement example:
+
+```json
+{
+  "movement_ref": "movement_cleveland_bridge_right",
+  "movement_text": "Cleveland Bridge right",
+  "phase_refs": ["phase_B"],
+  "lane_ref": null,
+  "intersection_ref": null,
+  "assignment_method": "needs_context_match",
+  "requires_context_match": true,
+  "unmatched_reason": "no_lane_movement_label"
+}
+```
+
 Rules:
 
 - CAD and GIS geometry can be assigned by nearest geometry centroid.
@@ -789,6 +807,12 @@ Rules:
   scope and are not promoted to a specific `phase_ref` or `stage_ref`.
 - Non-geometry facts keep `lane_ref: null` unless there is a reliable geometry
   anchor. This avoids falsely assigning one phase or label to the nearest lane.
+- Phase-to-movement facts can be routed to lanes through `movement_lane_mappings[]`
+  only when assignment can read a matching `movement_ref`, `movement_text`,
+  lane label, or road-name label from the lane source facts.
+- If assignment cannot see which lane belongs to a movement, it does not guess.
+  It outputs the movement with `requires_context_match: true` so Step 3 can use
+  CAD labels, GIS context, signal-head geometry, or manual rules.
 - Facts that cannot be converted to points, bounds, or centroids remain
   unassigned.
 - Raw geometry remains available; assignment adds scope but does not remove or
@@ -964,6 +988,16 @@ Shortened `geometry_assignments.partial.json` example:
         "phase_ref": "phase_A"
       },
       "assignment_method": "semantic_reference_extraction"
+    }
+  ],
+  "movement_lane_mappings": [
+    {
+      "movement_ref": "movement_london_road_inbound_ahead",
+      "phase_refs": ["phase_A"],
+      "lane_ref": "lane_1",
+      "intersection_ref": "intersection_1",
+      "assignment_method": "lane_label_movement_match",
+      "requires_context_match": false
     }
   ]
 }
