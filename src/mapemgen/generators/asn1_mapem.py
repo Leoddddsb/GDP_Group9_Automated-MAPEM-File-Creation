@@ -5,7 +5,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from mapemgen.generators.json_mapem_new import MapemSource, generate_json_mapem
+from mapemgen.generators.json_mapem import MapemSource, generate_json_mapem
 
 
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9-]*$")
