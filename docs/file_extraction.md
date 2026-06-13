@@ -434,10 +434,11 @@ Current starter rules:
 | CAD symbol/text rule | Output fact | Meaning |
 | --- | --- | --- |
 | Block name `HD*`, for example `HD084` or `HD001S` | `cad_signal_head_candidate` | Signal-head candidate with modelspace coordinates |
+| Xref-prefixed `...$HD001P` or Leeds `Signal-Symbol-001P` names | `cad_signal_head_candidate` | Signal-head candidate from vendor/xref block naming |
 | Block name `HD003P` or `HD004P` | `cad_arrow_block_candidate` | Directional signal-arrow candidate from block-definition geometry; kept as `requires_context_match` |
-| Block name `pole` | `cad_pole_candidate` | Pole/post candidate with modelspace coordinates |
-| Block name `tactpblk` | `cad_pedestrian_facility_candidate` | Tactile paving or pedestrian crossing facility candidate |
-| Block name containing `arrow`, `left`, or `right` | `cad_arrow_block_candidate` | Directional arrow candidate |
+| Block name `pole`, `WBPOLE-sym`, `poleno`, `stubpole`, `crpole`, or `polesock` | `cad_pole_candidate` | Pole/post candidate with modelspace coordinates |
+| Block name `tactpblk`, `TACTPBLK`, `tactknob`, or `tactpave`, including xref-prefixed variants | `cad_pedestrian_facility_candidate` | Tactile paving or pedestrian crossing facility candidate |
+| Block name containing `arrow`, `left`, `right`, `1038l`, or `1038r` | `cad_arrow_block_candidate` | Directional arrow candidate, with left/right hint when visible |
 | Text containing `LEFT`, `RIGHT`, `AHEAD`, `WB`, `EB`, `NB`, `SB`, `INBOUND`, or `OUTBOUND` | `cad_movement_label_candidate` | Movement label with derived `movement_ref` |
 | Text `KEEP CLEAR` | `cad_lane_use_label_candidate` | Lane-use or road-marking label |
 
@@ -597,6 +598,28 @@ This installs `opencv-python`, `pytesseract`, and `pymupdf`. Tesseract OCR also
 requires the external Tesseract executable on the machine before
 `pytesseract` can run OCR. These packages are required when Step 2 encounters a
 PDF page that contains image objects and must be recognised from pixels.
+
+On Windows, install the external Tesseract executable with:
+
+```powershell
+winget install UB-Mannheim.TesseractOCR
+```
+
+After installation, open a new PowerShell window and verify:
+
+```powershell
+tesseract --version
+```
+
+If PowerShell cannot find `tesseract`, add the installed folder to `PATH`. A
+common example path is:
+
+```text
+C:\Program Files\Tesseract-OCR
+```
+
+`pytesseract` is only the Python wrapper. The wrapper is not enough by itself;
+the external `tesseract.exe` must be installed and discoverable on `PATH`.
 
 ### ODA File Converter for DWG
 
@@ -909,6 +932,7 @@ Replace every value in angle brackets:
 | `<dataset>` | Data source or local authority for the optional EDA inventory |
 | `<output-folder>` | Folder where the generated JSON files should be written |
 | `<path-to-ODAFileConverter.exe>` | Required only when the site folder contains `.dwg`; use the actual ODA executable path |
+| Tesseract OCR | Required only when PDF pages contain images and OCR/CV is needed; verify with `tesseract --version` |
 
 ```powershell
 cd "<project-root>"
@@ -917,6 +941,9 @@ $env:PYTHONPATH='src'
 
 # Required only when DWG files are present.
 $env:ODAFC_PATH="<path-to-ODAFileConverter.exe>"
+
+# Required only when PDF image OCR is needed.
+tesseract --version
 
 # EDA / source-data inspection. This is optional and does not feed Step 2.
 python -m mapemgen.cli inventory `

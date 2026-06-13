@@ -17,8 +17,9 @@ from mapemgen.ingestion.movement_tables import _movement_payload
 DEFAULT_CAD_SYMBOL_RULES = {
     "block_rules": [
         {"match": "exact", "pattern": "tactpblk", "semantic_type": "tactile_paving", "fact_name": "cad_pedestrian_facility_candidate"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:tactpblk|tactknob|tactpave)(?:$|[^a-z0-9])", "semantic_type": "tactile_paving", "fact_name": "cad_pedestrian_facility_candidate"},
         {"match": "exact", "pattern": "pole", "semantic_type": "pole", "fact_name": "cad_pole_candidate"},
-        {"match": "prefix", "pattern": "HD", "semantic_type": "signal_head", "fact_name": "cad_signal_head_candidate"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:pole|wbpole|poleno|stubpole|crpole|polesock)(?:$|[^a-z0-9])", "semantic_type": "pole", "fact_name": "cad_pole_candidate"},
         {
             "match": "exact",
             "pattern": "HD003P",
@@ -27,9 +28,39 @@ DEFAULT_CAD_SYMBOL_RULES = {
             "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
         },
         {
+            "match": "regex",
+            "pattern": r"(?:^|[$_\s-])HD003P(?:$|[^a-z0-9])",
+            "semantic_type": "signal_arrow",
+            "fact_name": "cad_arrow_block_candidate",
+            "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
+        },
+        {
             "match": "exact",
             "pattern": "HD004P",
             "semantic_type": "signal_arrow",
+            "fact_name": "cad_arrow_block_candidate",
+            "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
+        },
+        {
+            "match": "regex",
+            "pattern": r"(?:^|[$_\s-])HD004P(?:$|[^a-z0-9])",
+            "semantic_type": "signal_arrow",
+            "fact_name": "cad_arrow_block_candidate",
+            "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
+        },
+        {"match": "prefix", "pattern": "HD", "semantic_type": "signal_head", "fact_name": "cad_signal_head_candidate"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:HD[0-9]{3}[A-Z]*|Signal-Symbol-[0-9]{3}[A-Z]*)(?:$|[^a-z0-9])", "semantic_type": "signal_head", "fact_name": "cad_signal_head_candidate"},
+        {
+            "match": "regex",
+            "pattern": r"(?:right|1038r|arrow-r|r-arrow)",
+            "semantic_type": "directional_arrow",
+            "fact_name": "cad_arrow_block_candidate",
+            "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
+        },
+        {
+            "match": "regex",
+            "pattern": r"(?:left|1038l|arrow-l|l-arrow)",
+            "semantic_type": "directional_arrow",
             "fact_name": "cad_arrow_block_candidate",
             "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
         },

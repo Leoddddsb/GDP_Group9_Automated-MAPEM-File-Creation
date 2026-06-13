@@ -122,10 +122,20 @@ def _prefix_source_file(facts: list[dict], source_file: str) -> list[dict]:
 
 
 def _is_site_cad_source(source_file: str, site_id: str) -> bool:
+    if _filename_contains_site_token(Path(source_file).name, site_id):
+        return True
     source_token = _leading_site_token(Path(source_file).name)
     if source_token is None:
         return True
     return source_token == _normalise_site_token(site_id)
+
+
+def _filename_contains_site_token(name: str, site_id: str) -> bool:
+    token = _normalise_site_token(site_id)
+    if not token:
+        return False
+    pattern = rf"(?<![0-9a-z]){re.escape(token)}(?![0-9a-z])"
+    return re.search(pattern, name.lower()) is not None
 
 
 def _leading_site_token(name: str) -> str | None:

@@ -497,6 +497,30 @@ class ExtractionTest(unittest.TestCase):
             arrow_candidates,
         )
 
+    def test_dxf_parser_applies_leeds_cad_symbol_variants(self):
+        entities = [
+            _Entity("INSERT", "UTC SIGNALS", name="XREF UTC_716709_AJB_1b$0$HD001P", insert=(1, 1)),
+            _Entity("INSERT", "UTC_Signals", name="Signal-Symbol-001P", insert=(2, 2)),
+            _Entity("INSERT", "UTC PC POLES", name="WBPOLE-sym", insert=(3, 3)),
+            _Entity("INSERT", "Tactpave", name="XREF UTC_716709_AJB_1b$0$TACTPBLK", insert=(4, 4)),
+            _Entity("INSERT", "PRO-MARKINGS", name="Right turn arrow", insert=(5, 5)),
+            _Entity("INSERT", "PRO-MARKINGS", name="Left-Arrow-4m(1038l4)", insert=(6, 6)),
+        ]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        signal_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_signal_head_candidate"]
+        pole_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_pole_candidate"]
+        tactile_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_pedestrian_facility_candidate"]
+        arrow_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_arrow_block_candidate"]
+        self.assertEqual(len(signal_candidates), 2)
+        self.assertEqual(len(pole_candidates), 1)
+        self.assertEqual(len(tactile_candidates), 1)
+        self.assertTrue(any(candidate.get("arrow_direction_candidate") == "right" for candidate in arrow_candidates))
+        self.assertTrue(any(candidate.get("arrow_direction_candidate") == "left" for candidate in arrow_candidates))
+
     def test_dxf_parser_filters_empty_cad_text_labels(self):
         entities = [
             _Entity("TEXT", "LABELS", text=""),
@@ -795,6 +819,20 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual(by_name["1018_Other_Overlay.dxf"]["status"], "skipped")
         self.assertEqual(by_name["1018_Other_Overlay.dxf"]["skip_reason"], "non_site_cad_source")
         self.assertEqual(by_name["1018_Other_Overlay.dxf"]["extracted_facts"], [])
+
+    def test_coordinator_accepts_site_id_embedded_after_project_number_in_cad_name(self):
+        folder = _test_dir()
+        site_path = folder / "733647-UTC-378L-01a 25-06-24.dxf"
+        site_path.write_text("synthetic", encoding="utf-8")
+        entities = [_Entity("LINE", "LANE_MAIN", start=(0, 0), end=(10, 5))]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            output = extract_site_folder_facts(folder, site_id="378L")
+
+        source = output["source_files"][0]
+        self.assertEqual(source["status"], "parsed")
+        self.assertTrue(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in source["extracted_facts"]))
 
     def test_coordinator_limits_topographic_cad_to_metadata(self):
         folder = _test_dir()
