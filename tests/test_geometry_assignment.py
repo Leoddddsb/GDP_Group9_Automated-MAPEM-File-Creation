@@ -1,4 +1,4 @@
-import json
+﻿import json
 import unittest
 import uuid
 from pathlib import Path
@@ -62,7 +62,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="drawing.pdf",
         )
         stop_page_2 = _fact(
-            "stop_line_candidate_from_pdf_vector",
+            "lane_line_candidate_from_pdf_vector",
             {"geometry": {"x0": 45, "top": 201, "x1": 55, "bottom": 201}},
             "drawing.pdf -> page 2 vector line 2",
             source_file="drawing.pdf",
@@ -102,14 +102,14 @@ class GeometryAssignmentTest(unittest.TestCase):
     def test_assigns_phase_stage_and_detector_facts_to_semantic_scope(self):
         phase = _fact("phase_label_from_controller_config", "Phase A", "config.docx -> table 1 row 2", source_file="config.docx")
         stage = _fact("stage_phase_relationship_from_utc_form", "Stage 2 runs Phase A", "utc.docx -> table 1 row 3", source_file="utc.docx")
-        detector = _fact("detector_candidate", "Detector D12 demand", "report.txt -> line 7", source_file="report.txt")
+        detector = _fact("phase_label_from_controller_config", "Phase B", "report.txt -> line 7", source_file="report.txt")
 
         output = assign_geometry_to_lanes(_extracted([phase, stage, detector]))
 
         by_fact_id = {item["fact_id"]: item for item in output["semantic_assignments"]}
         self.assertEqual(by_fact_id[phase["fact_id"]]["target_scope"]["phase_ref"], "phase_A")
         self.assertEqual(by_fact_id[stage["fact_id"]]["target_scope"]["stage_ref"], "stage_2")
-        self.assertEqual(by_fact_id[detector["fact_id"]]["target_scope"]["detector_ref"], "detector_D12")
+        self.assertEqual(by_fact_id[detector["fact_id"]]["target_scope"]["phase_ref"], "phase_B")
         self.assertEqual(by_fact_id[phase["fact_id"]]["target_scope"]["lane_ref"], None)
 
     def test_does_not_promote_generic_phase_stage_heading_to_specific_refs(self):
@@ -129,7 +129,7 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(assignment["assignment_method"], "intersection_semantic_scope")
 
     def test_assigns_road_name_fact_to_approach_scope(self):
-        road_name = _fact("road_name_candidate_from_ordnance_survey", "London Road", "feature 4 properties", source_file="site.geojson")
+        road_name = _fact("road_direction_from_ordnance_survey", "London Road", "feature 4 properties", source_file="site.geojson")
 
         output = assign_geometry_to_lanes(_extracted([road_name]))
 
@@ -186,37 +186,39 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(output["lanes"][0]["source_fact_name"], "lane_line_candidate_from_pdf_vector")
 
     def test_promotes_anchored_cad_road_markings_to_lane_candidates(self):
-        marking = _fact(
-            "road_marking_candidate_from_cad",
-            {"geometry": [[0, 0], [40, 0]], "layer": "A1-WHITE-LINES", "semantic_type": "road_marking"},
-            "site.dxf -> modelspace entity 1 layer A1-WHITE-LINES",
-            source_file="site.dxf",
-        )
-        signal_head = _fact(
-            "cad_signal_head_candidate",
-            {"name": "HD001", "geometry": {"x": 8, "y": 4}, "semantic_type": "signal_head"},
-            "site.dxf -> modelspace entity 2 layer UTC SIGNALS",
-            source_file="site.dxf",
-        )
-        stop_line = _fact(
-            "stop_line_from_cad",
-            {"geometry": [[35, -3], [35, 3]], "layer": "STOPLINE", "semantic_type": "stop_line"},
-            "site.dxf -> modelspace entity 3 layer STOPLINE",
-            source_file="site.dxf",
-        )
+        for fact_name in ("road_marking_or_sign_note_from_cad", "road_marking_candidate_from_cad"):
+            with self.subTest(fact_name=fact_name):
+                marking = _fact(
+                    fact_name,
+                    {"geometry": [[0, 0], [40, 0]], "layer": "A1-WHITE-LINES", "semantic_type": "road_marking"},
+                    "site.dxf -> modelspace entity 1 layer A1-WHITE-LINES",
+                    source_file="site.dxf",
+                )
+                signal_head = _fact(
+                    "cad_block_reference",
+                    {"name": "HD001", "geometry": {"x": 8, "y": 4}, "semantic_type": "signal_head"},
+                    "site.dxf -> modelspace entity 2 layer UTC SIGNALS",
+                    source_file="site.dxf",
+                )
+                stop_line = _fact(
+                    "stop_line_from_cad",
+                    {"geometry": [[35, -3], [35, 3]], "layer": "STOPLINE", "semantic_type": "stop_line"},
+                    "site.dxf -> modelspace entity 3 layer STOPLINE",
+                    source_file="site.dxf",
+                )
 
-        output = assign_geometry_to_lanes(_extracted([marking, signal_head, stop_line]))
+                output = assign_geometry_to_lanes(_extracted([marking, signal_head, stop_line]))
 
-        self.assertEqual(output["lane_source_tier"], 0)
-        self.assertEqual(len(output["lanes"]), 1)
-        lane = output["lanes"][0]
-        self.assertEqual(lane["source_fact_name"], "lane_geometry_candidate_from_cad")
-        self.assertEqual(lane["lane_semantic_basis"], "anchored_cad_road_marking_lane_candidate")
-        self.assertEqual(lane["lane_validation_status"], "cad_context_confirmed")
+                self.assertEqual(output["lane_source_tier"], 0)
+                self.assertEqual(len(output["lanes"]), 1)
+                lane = output["lanes"][0]
+                self.assertEqual(lane["source_fact_name"], "lane_geometry_candidate_from_cad")
+                self.assertEqual(lane["lane_semantic_basis"], "anchored_cad_road_marking_lane_candidate")
+                self.assertEqual(lane["lane_validation_status"], "cad_context_confirmed")
 
     def test_does_not_promote_unanchored_cad_road_markings_to_lanes(self):
         marking = _fact(
-            "road_marking_candidate_from_cad",
+            "road_marking_or_sign_note_from_cad",
             {"geometry": [[0, 0], [40, 0]], "layer": "A1-WHITE-LINES", "semantic_type": "road_marking"},
             "site.dxf -> modelspace entity 1 layer A1-WHITE-LINES",
             source_file="site.dxf",
@@ -286,7 +288,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_excludes_non_site_cad_arrow_fallback_from_lane_definitions(self):
         foreign_arrow = _fact(
-            "cad_arrow_block_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "name": "Right turn arrow",
                 "geometry": {"x": 10, "y": 10},
@@ -305,7 +307,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_excludes_topographic_cad_arrow_fallback_from_lane_definitions(self):
         topo_arrow = _fact(
-            "cad_arrow_block_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "name": "FLOW",
                 "geometry": {"x": 10, "y": 10},
@@ -324,7 +326,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_excludes_non_site_cad_movement_label_from_semantic_lane_proxy(self):
         foreign_label = _fact(
-            "cad_movement_label_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "label": "RIGHT",
                 "movement_ref": "movement_right",
@@ -342,7 +344,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_excludes_topographic_cad_movement_label_from_semantic_lane_proxy(self):
         topo_label = _fact(
-            "cad_movement_label_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "label": "EB",
                 "movement_ref": "movement_eb",
@@ -479,7 +481,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         signal_head = _fact(
-            "cad_signal_head_candidate",
+            "cad_block_reference",
             {"name": "HD001S", "geometry": {"x": 96, "y": 11}, "semantic_type": "signal_head"},
             "site.dxf -> modelspace entity 3 layer SIGNALS",
             source_file="site.dxf",
@@ -560,7 +562,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         signal_head = _fact(
-            "cad_signal_head_candidate",
+            "cad_block_reference",
             {"name": "HD001S", "geometry": {"x": 96, "y": 16}, "semantic_type": "signal_head"},
             "site.dxf -> modelspace entity 4 layer SIGNALS",
             source_file="site.dxf",
@@ -611,7 +613,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         signal_head = _fact(
-            "cad_signal_head_candidate",
+            "cad_block_reference",
             {"name": "HD001S", "geometry": {"x": 96, "y": 11}, "semantic_type": "signal_head"},
             "site.dxf -> modelspace entity 4 layer SIGNALS",
             source_file="site.dxf",
@@ -657,7 +659,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         signal_head = _fact(
-            "cad_signal_head_candidate",
+            "cad_block_reference",
             {"name": "HD001S", "geometry": {"x": 120, "y": 12}, "semantic_type": "signal_head"},
             "site.dxf -> modelspace entity 4 layer SIGNALS",
             source_file="site.dxf",
@@ -704,13 +706,13 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         signal_head = _fact(
-            "cad_signal_head_candidate",
+            "cad_block_reference",
             {"name": "HD001S", "geometry": {"x": 96, "y": 11}, "semantic_type": "signal_head"},
             "site.dxf -> modelspace entity 4 layer SIGNALS",
             source_file="site.dxf",
         )
         road_text = _fact(
-            "cad_text_label",
+            "road_marking_or_sign_note_from_cad",
             {"text": "HIGH STREET", "geometry": {"x": 550, "y": 205}},
             "site.dxf -> modelspace entity 5 layer ROADTXT",
             source_file="site.dxf",
@@ -779,7 +781,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         movement = _fact(
-            "phase_movement_mapping_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
             {
                 "phase_ref": "phase_A",
                 "movement_ref": "movement_london_road_inbound_ahead",
@@ -808,7 +810,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         cad_label = _fact(
-            "cad_movement_label_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "label": "London Road inbound ahead",
                 "movement_ref": "movement_london_road_inbound_ahead",
@@ -819,7 +821,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         movement = _fact(
-            "phase_movement_mapping_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
             {
                 "phase_ref": "phase_A",
                 "movement_ref": "movement_london_road_inbound_ahead",
@@ -852,7 +854,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         cad_label = _fact(
-            "cad_movement_label_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "label": "AHEAD ONLY",
                 "movement_ref": "movement_ahead_only",
@@ -878,7 +880,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         movement = _fact(
-            "phase_movement_mapping_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
             {
                 "phase_ref": "phase_A",
                 "movement_ref": "movement_london_road_inbound_ahead",
@@ -901,7 +903,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_uses_cad_signal_arrow_as_lane_proxy_when_lane_geometry_is_missing(self):
         arrow = _fact(
-            "cad_arrow_block_candidate",
+            "movement_direction_candidate_from_cad",
             {
                 "name": "HD003P",
                 "geometry": {"x": 10, "y": 20},
@@ -913,7 +915,7 @@ class GeometryAssignmentTest(unittest.TestCase):
             source_file="site.dxf",
         )
         movement = _fact(
-            "phase_movement_mapping_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
             {
                 "phase_ref": "phase_C",
                 "movement_ref": "movement_london_road_outbound_right_turn",
@@ -929,7 +931,7 @@ class GeometryAssignmentTest(unittest.TestCase):
         output = assign_geometry_to_lanes(_extracted([arrow, movement]))
 
         self.assertEqual(output["lane_source_tier"], 3)
-        self.assertEqual(output["lanes"][0]["source_fact_name"], "cad_arrow_block_candidate")
+        self.assertEqual(output["lanes"][0]["source_fact_name"], "movement_direction_candidate_from_cad")
         self.assertEqual(output["lanes"][0]["lane_semantic_hint"], "right_turn")
         mapping = output["movement_lane_mappings"][0]
         self.assertEqual(mapping["movement_ref"], "movement_london_road_outbound_right_turn")
@@ -940,7 +942,7 @@ class GeometryAssignmentTest(unittest.TestCase):
 
     def test_creates_semantic_lane_proxy_for_unmatched_structured_movement(self):
         movement = _fact(
-            "phase_movement_mapping_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
             {
                 "phase_ref": "phase_A",
                 "movement_ref": "movement_london_road_inbound_ahead",
@@ -956,7 +958,7 @@ class GeometryAssignmentTest(unittest.TestCase):
         output = assign_geometry_to_lanes(_extracted([movement]))
 
         self.assertEqual(output["lane_source_tier"], 4)
-        self.assertEqual(output["lanes"][0]["source_fact_name"], "semantic_movement_lane_proxy")
+        self.assertEqual(output["lanes"][0]["source_fact_name"], "movement_phase_mapping_from_controller_config")
         self.assertEqual(output["lanes"][0]["movement_ref"], "movement_london_road_inbound_ahead")
         self.assertEqual(output["lanes"][0]["lane_semantic_basis"], "structured_movement_without_geometry")
         self.assertEqual(output["lanes"][0]["requires_context_match"], True)
@@ -998,3 +1000,4 @@ def _test_dir() -> Path:
 
 if __name__ == "__main__":
     unittest.main()
+

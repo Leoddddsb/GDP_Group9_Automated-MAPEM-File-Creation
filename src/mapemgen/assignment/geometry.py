@@ -20,7 +20,7 @@ LANE_DEFINING_TIERS = [
         "lane_line_candidate_from_pdf_cv",
     },
     {
-        "cad_arrow_block_candidate",
+        "movement_direction_candidate_from_cad",
     },
 ]
 
@@ -66,12 +66,10 @@ CAD_NON_LANE_LAYER_KEYWORDS = (
 )
 LANE_VALIDATION_GROUPS_BY_FACT_NAME = {
     "stop_line_from_cad": "stop_line",
-    "cad_signal_head_candidate": "signal_head",
-    "signal_geometry_candidate_from_cad": "signal_geometry",
-    "cad_arrow_block_candidate": "arrow",
-    "cad_movement_label_candidate": "movement_label",
-    "cad_lane_use_label_candidate": "lane_text",
-    "cad_pole_candidate": "pole",
+    "movement_direction_candidate_from_cad": "movement_label",
+    "lane_use_label_from_cad": "lane_text",
+    "lane_facility_geometry_candidate_from_cad": "signal_geometry",
+    "road_marking_or_sign_note_from_cad": "road_marking",
     "road_marking_candidate_from_cad": "road_marking",
 }
 LANE_CONFIRMATION_GROUPS = {
@@ -90,37 +88,30 @@ MIN_LANE_CONFIRMATION_GROUPS = 2
 MAX_LANE_VALIDATION_EVIDENCE_FACT_IDS = 20
 MAX_NEAREST_LANE_VALIDATION_CANDIDATES = 5
 CAD_MARKING_LANE_MIN_LENGTH = 20.0
-CAD_MARKING_LANE_MERGE_DISTANCE = 20.0
+CAD_MARKING_LANE_MERGE_DISTANCE = 15.0
 CAD_MARKING_LANE_ANCHOR_DISTANCE = 45.0
 CAD_MARKING_LANE_MIN_ANCHOR_GROUPS = 2
+CAD_ROAD_MARKING_FACT_NAMES = {
+    "road_marking_or_sign_note_from_cad",
+    "road_marking_candidate_from_cad",
+}
 
 ASSIGNABLE_GEOMETRY_FACT_NAMES = {
     "lane_geometry_candidate_from_cad",
     "lane_facility_geometry_candidate_from_cad",
-    "cad_geometry_candidate",
-    "cad_context_geometry_candidate",
-    "cad_text_label",
     "cad_block_reference",
-    "cad_movement_label_candidate",
-    "cad_arrow_block_candidate",
-    "cad_signal_head_candidate",
-    "cad_pole_candidate",
-    "cad_pedestrian_facility_candidate",
-    "cad_lane_use_label_candidate",
+    "movement_direction_candidate_from_cad",
+    "lane_use_label_from_cad",
     "lane_geometry_candidate_from_ordnance_survey",
+    "approach_arm_geometry_from_cad",
     "stop_line_from_cad",
+    "road_marking_or_sign_note_from_cad",
     "road_marking_candidate_from_cad",
-    "crossing_candidate_from_cad",
-    "signal_geometry_candidate_from_cad",
-    "detector_loop_candidate_from_cad",
-    "stop_line_candidate_from_pdf_vector",
-    "stop_line_candidate_from_pdf_cv",
-    "crossing_candidate_from_pdf_vector",
+    "lane_type_marking_or_sign_note_from_cad",
     "signal_head_symbol_candidate_from_pdf_vector",
     "signal_head_symbol_candidate_from_pdf_cv",
     "road_marking_candidate_from_pdf_vector",
     "road_marking_candidate_from_pdf_cv",
-    "arrow_candidate_from_pdf_vector",
     "lane_line_candidate_from_pdf_vector",
     "lane_line_candidate_from_pdf_cv",
 }
@@ -138,6 +129,7 @@ SEMANTIC_FACT_NAME_PATTERNS = (
     "signal",
     "label",
     "road_name",
+    "road_direction",
     "movement",
     "scoot",
     "timing",
@@ -256,7 +248,7 @@ def _add_anchored_cad_marking_lane_candidates(facts: list[dict[str, Any]], site_
             anchor_items.append((item, group))
 
     for fact in facts:
-        if fact.get("fact_name") != "road_marking_candidate_from_cad":
+        if fact.get("fact_name") not in CAD_ROAD_MARKING_FACT_NAMES:
             continue
         if not _is_cad_lane_source_allowed(fact, site_id):
             continue
@@ -508,13 +500,16 @@ def _add_semantic_movement_lane_proxies(
 
 
 def _is_disallowed_cad_semantic_lane_source(fact: dict[str, Any], site_id: str) -> bool:
-    if fact.get("fact_name") != "cad_movement_label_candidate":
+    if fact.get("fact_name") != "movement_direction_candidate_from_cad":
         return False
     return not _is_cad_lane_source_allowed(fact, site_id)
 
 
 def _is_fallback_lane_proxy(lane: LaneItem) -> bool:
-    return lane.item.fact.get("fact_name") in {"cad_arrow_block_candidate", "semantic_movement_lane_proxy"}
+    value = _fact_value(lane.item.fact)
+    return lane.item.fact.get("fact_name") == "movement_direction_candidate_from_cad" or (
+        isinstance(value, dict) and value.get("recognition_basis") == "semantic_movement_lane_proxy"
+    )
 
 
 def _semantic_movement_lane_item(
@@ -538,11 +533,12 @@ def _semantic_movement_lane_item(
         "phase_ref": value.get("phase_ref"),
         "geometry": {"x": centroid[0], "y": centroid[1]},
         "requires_context_match": True,
+        "recognition_basis": "semantic_movement_lane_proxy",
         "proxy_reason": "structured_movement_without_geometry",
     }
     proxy_fact = {
         "fact_id": "semantic_lane_proxy_" + stable_assignment_id(movement_ref),
-        "fact_name": "semantic_movement_lane_proxy",
+        "fact_name": fact.get("fact_name"),
         "payload": {"value": proxy_value},
         "source_file": fact.get("source_file"),
         "evidence_location": fact.get("evidence_location"),
@@ -568,7 +564,7 @@ def _can_define_lane(fact: dict[str, Any], site_id: str = "") -> bool:
     fact_name = str(fact.get("fact_name") or "")
     if fact_name == "lane_geometry_candidate_from_cad":
         return _is_cad_lane_source_allowed(fact, site_id) and _is_cad_lane_layer(fact)
-    if fact_name == "cad_arrow_block_candidate":
+    if fact_name == "movement_direction_candidate_from_cad":
         return _is_cad_lane_source_allowed(fact, site_id) and _cad_arrow_lane_hint(fact) is not None
     return fact_name in LANE_FACT_NAMES
 
@@ -917,7 +913,7 @@ def _build_assignment_method_audit(
             "method": "cad_movement_label_nearest_lane",
             "status": "effective_but_review_labels" if cad_movement_mappings else "no_cad_movement_label_matches",
             "matched_count": len(cad_movement_mappings),
-            "candidate_count": len([m for m in movement_lane_mappings if m.get("source_fact_name") == "cad_movement_label_candidate"]),
+            "candidate_count": len([m for m in movement_lane_mappings if m.get("source_fact_name") == "movement_direction_candidate_from_cad"]),
             "examples": [_movement_audit_example(mapping) for mapping in cad_movement_mappings[:3]],
             "notes": "Uses CAD movement text with modelspace coordinates. Review examples because CAD legends/keys can look like movement labels.",
         },
@@ -1045,7 +1041,7 @@ def _build_movement_lane_mappings(
         lane = lane_index.get(movement_ref)
         assignment_method = _movement_lane_assignment_method(lane) if lane else "needs_context_match"
         unmatched_reason = "no_lane_movement_label"
-        if lane is None and fact.get("fact_name") == "cad_movement_label_candidate":
+        if lane is None and fact.get("fact_name") == "movement_direction_candidate_from_cad":
             if _cad_movement_label_supports_lane_mapping(fact):
                 assignment = assignment_by_fact_id.get(fact.get("fact_id"))
                 lane_ref = ((assignment or {}).get("target_scope") or {}).get("lane_ref")
@@ -1412,7 +1408,13 @@ def _lane_validation_group(fact: dict[str, Any]) -> str | None:
     fact_name = str(fact.get("fact_name") or "")
     if fact_name in LANE_VALIDATION_GROUPS_BY_FACT_NAME:
         return LANE_VALIDATION_GROUPS_BY_FACT_NAME[fact_name]
-    if fact_name == "cad_text_label" and _cad_text_supports_lane_validation(fact):
+    if fact_name == "cad_block_reference":
+        value = _fact_value(fact)
+        if isinstance(value, dict) and value.get("semantic_type") == "signal_head":
+            return "signal_head"
+        if _cad_block_supports_lane_validation(fact):
+            return "cad_block"
+    if fact_name in {"road_marking_or_sign_note_from_cad", "lane_type_marking_or_sign_note_from_cad"} and _cad_text_supports_lane_validation(fact):
         return "road_text"
     if fact_name == "cad_block_reference" and _cad_block_supports_lane_validation(fact):
         return "cad_block"
@@ -1478,7 +1480,8 @@ def _lane_movement_refs(lane: LaneItem) -> list[str]:
 def _movement_lane_assignment_method(lane: LaneItem | None) -> str:
     if lane is None:
         return "needs_context_match"
-    if lane.item.fact.get("fact_name") == "semantic_movement_lane_proxy":
+    value = _fact_value(lane.item.fact)
+    if isinstance(value, dict) and value.get("recognition_basis") == "semantic_movement_lane_proxy":
         return "semantic_movement_lane_proxy"
     return "lane_label_movement_match"
 
@@ -1570,7 +1573,7 @@ def _semantic_target_scope(fact: dict[str, Any], intersections: list[dict[str, A
         scope["detector_ref"] = detector_ref
     if signal_group_ref := _signal_group_ref(text):
         scope["signal_group_ref"] = signal_group_ref
-    if "road_name" in fact_name:
+    if "road_name" in fact_name or "road_direction" in fact_name:
         if approach_ref := _approach_ref(text):
             scope["approach_ref"] = approach_ref
     if "label" in fact_name and len(scope) == 2 and not any(keyword in fact_name for keyword in ("phase", "stage", "stream")):
@@ -1701,7 +1704,8 @@ def _nearest_lane(
 
 def _coordinate_space(fact: dict[str, Any]) -> str:
     fact_name = str(fact.get("fact_name", ""))
-    if fact_name == "semantic_movement_lane_proxy":
+    value = _fact_value(fact)
+    if isinstance(value, dict) and value.get("recognition_basis") == "semantic_movement_lane_proxy":
         return "semantic_movement"
     if "_pdf_" in fact_name or fact_name.startswith("pdf_"):
         return "pdf_page"
@@ -1838,7 +1842,7 @@ def _lane_output(lane: LaneItem, validation: dict[str, Any] | None = None) -> di
         output["requires_context_match"] = True
     if isinstance(value, dict) and value.get("recognition_basis"):
         output["lane_semantic_basis"] = value.get("recognition_basis")
-    if isinstance(value, dict) and lane.item.fact.get("fact_name") == "semantic_movement_lane_proxy":
+    if isinstance(value, dict) and value.get("recognition_basis") == "semantic_movement_lane_proxy":
         for key in ("movement_ref", "movement_text", "road_name", "direction", "maneuver", "phase_ref"):
             if value.get(key) is not None:
                 output[key] = value.get(key)
