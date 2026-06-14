@@ -1,0 +1,53 @@
+{
+  "layer_rules": [
+    {
+      "match": "regex",
+      "pattern": "(?:stop\\s*line|stoplines|sct_loops|slc)",
+      "fact_name": "stop_line_from_cad",
+      "semantic_type": "stop_line",
+      "description": "Stop-line or stop-line loop layers."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:road\\s*mark|roadmarking|pro-markings|rd\\s*mks|1038|studs|zig\\s*zags|lines-studs)",
+      "fact_name": "road_marking_candidate_from_cad",
+      "semantic_type": "road_marking",
+      "description": "Road marking layers, including Leeds and DCIS naming variants."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:tact|toucan|xing|crossing)",
+      "fact_name": "crossing_candidate_from_cad",
+      "semantic_type": "crossing_or_tactile",
+      "description": "Crossing, tactile paving, or Toucan crossing layers."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:signal|utc_signals|kts_signals|traffic\\s*signal)",
+      "fact_name": "signal_geometry_candidate_from_cad",
+      "semantic_type": "signal_geometry",
+      "description": "Signal layout, signal equipment, or signal loop layers."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:loop|mova\\s*loop|traffic\\s*loops|va\\s*loops)",
+      "fact_name": "detector_loop_candidate_from_cad",
+      "semantic_type": "detector_loop",
+      "description": "Detector loop layers."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:kerb|carriagewaykerb|road-edge|road\\s*or\\s*track|channel)",
+      "fact_name": "cad_context_geometry_candidate",
+      "semantic_type": "road_context_geometry",
+      "description": "Kerb, road-edge, carriageway, and road context layers."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])(?:os|topo|exbase|base)(?:[$_\\s-]|$)",
+      "fact_name": "cad_context_geometry_candidate",
+      "semantic_type": "background_context",
+      "description": "OS/topographic/background layers used as context only."
+    }
+  ]
+}

@@ -86,6 +86,18 @@ DEFAULT_CAD_SYMBOL_RULES = {
     ],
 }
 
+DEFAULT_CAD_LAYER_RULES = {
+    "layer_rules": [
+        {"match": "regex", "pattern": r"(?:stop\s*line|stoplines|sct_loops|slc)", "fact_name": "stop_line_from_cad", "semantic_type": "stop_line"},
+        {"match": "regex", "pattern": r"(?:road\s*mark|roadmarking|pro-markings|rd\s*mks|1038|studs|zig\s*zags|lines-studs)", "fact_name": "road_marking_candidate_from_cad", "semantic_type": "road_marking"},
+        {"match": "regex", "pattern": r"(?:tact|toucan|xing|crossing)", "fact_name": "crossing_candidate_from_cad", "semantic_type": "crossing_or_tactile"},
+        {"match": "regex", "pattern": r"(?:signal|utc_signals|kts_signals|traffic\s*signal)", "fact_name": "signal_geometry_candidate_from_cad", "semantic_type": "signal_geometry"},
+        {"match": "regex", "pattern": r"(?:loop|mova\s*loop|traffic\s*loops|va\s*loops)", "fact_name": "detector_loop_candidate_from_cad", "semantic_type": "detector_loop"},
+        {"match": "regex", "pattern": r"(?:kerb|carriagewaykerb|road-edge|road\s*or\s*track|channel)", "fact_name": "cad_context_geometry_candidate", "semantic_type": "road_context_geometry"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:os|topo|exbase|base)(?:[$_\s-]|$)", "fact_name": "cad_context_geometry_candidate", "semantic_type": "background_context"},
+    ]
+}
+
 
 def extract_dxf_facts(path: str | Path) -> list[dict]:
     try:
@@ -166,10 +178,25 @@ def _load_cad_symbol_rules() -> dict[str, Any]:
     }
 
 
+def _load_cad_layer_rules() -> dict[str, Any]:
+    configured_path = os.environ.get("CAD_LAYER_RULES_PATH")
+    path = Path(configured_path) if configured_path else Path("configs") / "cad_layer_semantics.json"
+    if not path.is_file():
+        return DEFAULT_CAD_LAYER_RULES
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_CAD_LAYER_RULES
+    return {
+        "layer_rules": data.get("layer_rules", DEFAULT_CAD_LAYER_RULES["layer_rules"]),
+    }
+
+
 def _extract_document_facts(document: object) -> list[dict]:
     modelspace = document.modelspace()
     entities = list(modelspace)
     semantic_rules = _load_cad_symbol_rules()
+    layer_rules = _load_cad_layer_rules()
     counts = Counter(entity.dxftype() for entity in entities)
     layers = sorted({getattr(entity.dxf, "layer", "0") for entity in entities})
     facts = [_fact("cad_layer_names", layers, "modelspace", 0.95), _fact("cad_entity_counts", dict(sorted(counts.items())), "modelspace", 0.95)]
@@ -181,15 +208,18 @@ def _extract_document_facts(document: object) -> list[dict]:
         if entity_type == "LINE":
             geometry = [_xy(entity.dxf.start), _xy(entity.dxf.end)]
             points.extend(geometry)
-            facts.append(_fact(_geometry_type(layer), geometry, location, 0.7))
+            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, 0.7))
         elif entity_type == "LWPOLYLINE":
             geometry = [_xy(point) for point in entity.get_points()]
             points.extend(geometry)
-            facts.append(_fact(_geometry_type(layer), geometry, location, 0.75))
+            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, 0.75))
         elif entity_type == "POLYLINE":
             geometry = [_xy(vertex.dxf.location) for vertex in entity.vertices]
             points.extend(geometry)
-            facts.append(_fact(_geometry_type(layer), geometry, location, 0.75))
+            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, 0.75))
         elif entity_type in {"TEXT", "MTEXT"}:
             text = entity.plain_text() if hasattr(entity, "plain_text") else entity.dxf.text
             text = str(text).strip()
@@ -206,6 +236,29 @@ def _extract_document_facts(document: object) -> list[dict]:
         ys = [point[1] for point in points]
         facts.append(_fact("coordinate_bounds", {"min_x": min(xs), "min_y": min(ys), "max_x": max(xs), "max_y": max(ys)}, "modelspace geometry", 0.9))
     return facts
+
+
+def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_rules: dict[str, Any]) -> tuple[str, object]:
+    for rule in layer_rules.get("layer_rules", []):
+        if not _rule_matches(layer, rule):
+            continue
+        fact_name = str(rule.get("fact_name") or "")
+        semantic_type = str(rule.get("semantic_type") or "")
+        if not fact_name:
+            continue
+        return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": semantic_type}
+    fact_name = _geometry_type(layer)
+    if fact_name == "cad_geometry_candidate":
+        return fact_name, geometry
+    return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": _legacy_layer_semantic_type(fact_name)}
+
+
+def _legacy_layer_semantic_type(fact_name: str) -> str:
+    return {
+        "stop_line_from_cad": "stop_line",
+        "lane_facility_geometry_candidate_from_cad": "lane_facility",
+        "lane_geometry_candidate_from_cad": "lane_geometry",
+    }.get(fact_name, "cad_geometry")
 
 
 def _geometry_type(layer: str) -> str:

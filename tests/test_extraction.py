@@ -521,6 +521,29 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(any(candidate.get("arrow_direction_candidate") == "right" for candidate in arrow_candidates))
         self.assertTrue(any(candidate.get("arrow_direction_candidate") == "left" for candidate in arrow_candidates))
 
+    def test_dxf_parser_applies_cad_layer_semantic_rules(self):
+        entities = [
+            _Entity("LINE", "OptionG+UTC cdp$0$-RoadMarkings", start=(0, 0), end=(10, 0)),
+            _Entity("LINE", "OptionG+UTC cdp$0$stoplines", start=(0, 1), end=(10, 1)),
+            _Entity("LINE", "UTC MOVA LOOPS", start=(0, 2), end=(10, 2)),
+            _Entity("LINE", "UTC SIGNALS", start=(0, 3), end=(10, 3)),
+            _Entity("LINE", "Tactpave", start=(0, 4), end=(10, 4)),
+            _Entity("LINE", "KERB", start=(0, 5), end=(10, 5)),
+        ]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        by_name = {fact["fact_name"]: fact["payload"]["value"] for fact in facts if "modelspace entity" in fact["evidence_location"]}
+        self.assertEqual(by_name["road_marking_candidate_from_cad"]["semantic_type"], "road_marking")
+        self.assertEqual(by_name["stop_line_from_cad"]["semantic_type"], "stop_line")
+        self.assertEqual(by_name["detector_loop_candidate_from_cad"]["semantic_type"], "detector_loop")
+        self.assertEqual(by_name["signal_geometry_candidate_from_cad"]["semantic_type"], "signal_geometry")
+        self.assertEqual(by_name["crossing_candidate_from_cad"]["semantic_type"], "crossing_or_tactile")
+        self.assertEqual(by_name["cad_context_geometry_candidate"]["semantic_type"], "road_context_geometry")
+        self.assertEqual(by_name["road_marking_candidate_from_cad"]["layer"], "OptionG+UTC cdp$0$-RoadMarkings")
+
     def test_dxf_parser_filters_empty_cad_text_labels(self):
         entities = [
             _Entity("TEXT", "LABELS", text=""),
@@ -548,7 +571,7 @@ class ExtractionTest(unittest.TestCase):
 
         layer_by_name = {fact["evidence_location"]: fact["fact_name"] for fact in facts if "modelspace entity" in fact["evidence_location"]}
         self.assertEqual(layer_by_name["modelspace entity 1 layer DUCTS"], "cad_geometry_candidate")
-        self.assertEqual(layer_by_name["modelspace entity 2 layer LOOPS"], "cad_geometry_candidate")
+        self.assertEqual(layer_by_name["modelspace entity 2 layer LOOPS"], "detector_loop_candidate_from_cad")
         self.assertEqual(layer_by_name["modelspace entity 3 layer LANE_MAIN"], "lane_geometry_candidate_from_cad")
 
     def test_dxf_parser_extracts_classic_polyline_vertices(self):

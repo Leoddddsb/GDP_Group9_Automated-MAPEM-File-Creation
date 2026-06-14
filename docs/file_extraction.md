@@ -442,6 +442,48 @@ Current starter rules:
 | Text containing `LEFT`, `RIGHT`, `AHEAD`, `WB`, `EB`, `NB`, `SB`, `INBOUND`, or `OUTBOUND` | `cad_movement_label_candidate` | Movement label with derived `movement_ref` |
 | Text `KEEP CLEAR` | `cad_lane_use_label_candidate` | Lane-use or road-marking label |
 
+CAD layer semantics are configured separately in
+`configs/cad_layer_semantics.json`. The parser reads the entity layer before
+emitting geometry facts. `CAD_LAYER_RULES_PATH` can point to a different JSON
+rule file for local authority-specific CAD templates. Geometry facts emitted by
+layer rules keep `geometry`, `layer`, and `semantic_type` in the payload.
+
+Current starter layer rules:
+
+| CAD layer pattern | Output fact | Meaning |
+| --- | --- | --- |
+| `stopline`, `stoplines`, `SCT_LOOPS`, `SLC` | `stop_line_from_cad` | Stop-line or stop-line loop candidate |
+| `RoadMarkings`, `ROAD MARKINGS WHITE`, `PRO-MARKINGS`, `RD MKS`, `1038`, `STUDS`, `ZIG ZAGS` | `road_marking_candidate_from_cad` | Road marking candidate |
+| `TACTPAVE`, `Tactiles`, `Toucan-Xings`, `XING`, `crossing` | `crossing_candidate_from_cad` | Crossing or tactile paving geometry candidate |
+| `UTC SIGNALS`, `Signals`, `KTS_SIGNALS`, `traffic signal` | `signal_geometry_candidate_from_cad` | Signal layout/equipment geometry candidate |
+| `LOOPS`, `UTC_LOOPS`, `MOVA LOOPS`, `TRAFFIC LOOPS` | `detector_loop_candidate_from_cad` | Detector-loop geometry candidate |
+| `KERB`, `CarriagewayKerb`, `ROAD-EDGE`, `Road Or Track`, `channel` | `cad_context_geometry_candidate` | Road/kerb context geometry, not direct lane evidence |
+| `OS`, `TOPO`, `ExBase`, `BASE` | `cad_context_geometry_candidate` | Background/topographic context geometry |
+
+When a CAD file is recognised as a standalone topographic/background file, such
+as `OS-TOPO.dwg`, extraction still limits it to CAD metadata and coordinate
+bounds at the site-folder coordinator level. This prevents dense background
+geometry from becoming MAPEM lane evidence.
+
+Layer names are useful hints, not guaranteed semantics. Some CAD files contain
+hundreds of layers, and the naming can vary by local authority, contractor,
+year, xref source, and drawing template. The same concept may appear as
+`RoadMarkings`, `PRO-MARKINGS`, `RD MKS`, or
+`x_prop_road markings Rev B$0$Lines`; one layer can also contain mixed object
+types. For this reason, layer-derived facts remain candidate facts and later
+matching/fusion must corroborate them with block symbols, text labels, geometry
+context, GIS, PDFs, or manual rules before filling final MAPEM fields.
+
+Recommended CAD source-data practice:
+
+| Recommendation | Why it matters |
+| --- | --- |
+| Put signal heads, poles, stop lines, crossings, detector loops, and road markings on clear, consistent layers | The parser can emit more accurate candidate facts from layer rules |
+| Avoid mixing OS/topographic background, construction notes, and traffic-signal evidence on the same layer | Reduces background noise and false lane evidence |
+| Keep road names, phase labels, movement labels, and detector labels as CAD text with insertion coordinates | Later assignment can spatially relate text semantics to lanes and signal equipment |
+| Provide a layer dictionary or drawing legend when layer names are vendor-specific | The project can encode those names in `configs/cad_layer_semantics.json` |
+| Keep xref names stable or document their source | Xref-prefixed layer and block names can still be parsed when their naming is consistent |
+
 ### GIS Parser
 
 Implement `src/mapemgen/ingestion/gis.py`.
@@ -616,6 +658,14 @@ common example path is:
 
 ```text
 C:\Program Files\Tesseract-OCR
+```
+
+For the current PowerShell session only, set `PATH` explicitly before running
+extraction:
+
+```powershell
+$env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+tesseract --version
 ```
 
 `pytesseract` is only the Python wrapper. The wrapper is not enough by itself;
@@ -943,6 +993,8 @@ $env:PYTHONPATH='src'
 $env:ODAFC_PATH="<path-to-ODAFileConverter.exe>"
 
 # Required only when PDF image OCR is needed.
+# Use the next line if Tesseract is installed but not visible in this shell.
+$env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
 tesseract --version
 
 # EDA / source-data inspection. This is optional and does not feed Step 2.
