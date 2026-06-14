@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from mapemgen.cli import main
-from mapemgen.ingestion.cad import extract_dwg_facts, extract_dxf_facts
+from mapemgen.ingestion.cad import _configure_odafc_path, extract_dwg_facts, extract_dxf_facts
 from mapemgen.ingestion.docx_tables import extract_docx_facts
 from mapemgen.ingestion.facts import extract_site_folder_facts
 from mapemgen.ingestion.gis import extract_gis_facts
@@ -34,8 +34,7 @@ class ExtractionTest(unittest.TestCase):
         fact_names = {fact["fact_name"] for fact in facts}
         self.assertIn("phase_label_from_ram_8tx", fact_names)
         self.assertIn("stage_phase_relationship_from_ram_8tx", fact_names)
-        self.assertIn("detector_candidate", fact_names)
-        self.assertIn("io_allocation_candidate", fact_names)
+        self.assertIn("movement_phase_mapping_from_ram_8tx", fact_names)
         self.assertTrue(all("fact_type" not in fact and "value" not in fact for fact in facts))
         self.assertTrue(all(fact["evidence_location"].startswith("line ") for fact in facts))
 
@@ -51,21 +50,30 @@ class ExtractionTest(unittest.TestCase):
         by_type = {}
         for fact in facts:
             by_type.setdefault(fact["fact_name"], []).append(fact["payload"]["value"])
-        self.assertIn("T1003 Root.dwg", by_type["root_dwg_candidate"])
-        self.assertIn("xref/OS-TOPO.dwg", by_type["xref_dwg_candidate"])
-        self.assertIn("xref/OS-TOPO.dwg", by_type["topographic_drawing_available"])
+        archive_members = by_type["archive_member"]
+        self.assertIn({"member": "T1003 Root.dwg", "status": "available", "cad_member_role": "root_dwg", "parseable": True}, archive_members)
+        self.assertIn(
+            {
+                "member": "xref/OS-TOPO.dwg",
+                "status": "available",
+                "cad_member_role": "xref_dwg",
+                "drawing_role": "topographic",
+                "parseable": True,
+            },
+            archive_members,
+        )
         self.assertFalse((path.parent / "xref").exists())
 
     def test_zip_parser_recursively_extracts_supported_members(self):
         path = _test_dir() / "site.zip"
         with zipfile.ZipFile(path, "w") as archive:
-            archive.writestr("notes/controller.txt", "Detector D12")
+            archive.writestr("notes/controller.8tx", "Phase A")
 
         facts = extract_zip_facts(path)
 
-        detector = next(fact for fact in facts if fact["fact_name"] == "detector_candidate")
-        self.assertEqual(detector["payload"]["value"], "Detector D12")
-        self.assertEqual(detector["evidence_location"], "archive member notes/controller.txt -> line 1")
+        phase = next(fact for fact in facts if fact["fact_name"] == "phase_label_from_ram_8tx")
+        self.assertEqual(phase["payload"]["value"], "Phase A")
+        self.assertEqual(phase["evidence_location"], "archive member notes/controller.8tx -> line 1")
 
     def test_zip_parser_recursively_extracts_nested_zip_members(self):
         nested_path = _test_dir() / "nested.zip"
@@ -90,8 +98,9 @@ class ExtractionTest(unittest.TestCase):
 
         facts = extract_zip_facts(path)
 
-        rejected = next(fact for fact in facts if fact["fact_name"] == "archive_member_rejected")
-        self.assertEqual(rejected["payload"]["value"], "../outside.txt")
+        rejected = next(fact for fact in facts if fact["fact_name"] == "archive_member")
+        self.assertEqual(rejected["payload"]["value"]["member"], "../outside.txt")
+        self.assertEqual(rejected["payload"]["value"]["status"], "rejected")
 
     def test_mova_parser_skips_without_mova_tools(self):
         path = _test_dir() / "site.mova"
@@ -100,10 +109,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             facts = extract_mova_facts(path)
 
-        self.assertEqual(facts[0]["fact_name"], "mova_tools_not_configured_skipped")
-        self.assertTrue(facts[0]["payload"]["value"]["skipped"])
-        self.assertEqual(facts[0]["payload"]["value"]["priority"], "low")
-        self.assertEqual(facts[1]["payload"]["value"], {"file_size_bytes": path.stat().st_size})
+        self.assertEqual(facts, [])
 
     def test_mova_parser_records_official_export_requirement(self):
         folder = _test_dir()
@@ -115,8 +121,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(os.environ, {"MOVA_TOOLS_PATH": str(executable)}):
             facts = extract_mova_facts(path)
 
-        self.assertEqual(facts[0]["fact_name"], "mova_tools_manual_export_required")
-        self.assertEqual(facts[1]["payload"]["value"], {"file_size_bytes": path.stat().st_size})
+        self.assertEqual(facts, [])
 
     def test_geojson_parser_extracts_bounds_and_reference_point(self):
         path = _test_dir() / "roads.geojson"
@@ -206,7 +211,7 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual(calls[-1], ("readfile", ".dxf"))
         self.assertEqual(calls[0][0], "execute")
         self.assertEqual(calls[0][1], "site.dwg")
-        self.assertTrue(any(fact["fact_name"] == "cad_entity_counts" for fact in facts))
+        self.assertEqual(facts, [])
 
     def test_dwg_parser_uses_odafc_path_environment_variable(self):
         calls = []
@@ -243,6 +248,19 @@ class ExtractionTest(unittest.TestCase):
 
         self.assertEqual(configured[("odafc-addon", "win_exec_path")], r"E:\ODA\ODAFileConverter.exe")
         self.assertEqual(calls[-1], ("readfile", ".dxf"))
+
+    def test_dwg_parser_uses_unix_odafc_path_environment_variable(self):
+        configured = {}
+        fake_ezdxf = types.ModuleType("ezdxf")
+        fake_ezdxf.options = types.SimpleNamespace(
+            set=lambda section, key, value: configured.__setitem__((section, key), value)
+        )
+
+        with patch.dict(os.environ, {"ODAFC_PATH": "/Applications/ODAFileConverter"}):
+            with patch("mapemgen.ingestion.cad.os.name", "posix"):
+                _configure_odafc_path(fake_ezdxf)
+
+        self.assertEqual(configured[("odafc-addon", "unix_exec_path")], "/Applications/ODAFileConverter")
 
     def test_dwg_parser_recovers_converted_dxf_structure_error(self):
         calls = []
@@ -283,7 +301,7 @@ class ExtractionTest(unittest.TestCase):
 
         self.assertEqual(calls[-1], ("recover", ".dxf"))
         self.assertEqual(calls[0][0], "execute")
-        self.assertTrue(any(fact["fact_name"] == "cad_entity_counts" for fact in facts))
+        self.assertEqual(facts, [])
 
     def test_docx_parser_requires_python_docx(self):
         with patch.dict(sys.modules, {"docx": None}):
@@ -331,12 +349,12 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(any(fact["fact_name"] == "stage_phase_relationship_from_utc_form" and fact["evidence_location"] == "table 1 row 1" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "site_description" and fact["payload"]["value"] == "London Rd / Morrisons" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "scn" and fact["payload"]["value"] == "J04121" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "ip_address" and fact["payload"]["value"] == "172.16.52.53" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "ip_address" for fact in facts))
 
     def test_pdf_parser_defers_image_page_and_preserves_table_location(self):
         page = types.SimpleNamespace(
             extract_text=lambda: "",
-            extract_tables=lambda: [[["Detector", "D1"]]],
+            extract_tables=lambda: [[["Phase", "A"]]],
             width=595,
             height=842,
             images=[],
@@ -346,9 +364,9 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
             facts = extract_pdf_facts("site.pdf")
 
-        self.assertTrue(any(fact["fact_name"] == "needs_future_recognition" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "needs_future_recognition" for fact in facts))
         self.assertFalse(any(fact["fact_name"] == "pdf_image_page_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "detector_candidate" and fact["evidence_location"] == "page 1 table 1 row 1" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_table_row" for fact in facts))
 
     def test_pdf_parser_runs_ocr_and_cv_for_image_page(self):
         page = types.SimpleNamespace(
@@ -392,9 +410,9 @@ class ExtractionTest(unittest.TestCase):
         ):
             facts = extract_pdf_facts("site.pdf")
 
-        self.assertTrue(any(fact["fact_name"] == "pdf_ocr_text_candidate" and fact["payload"]["value"] == "Phase A" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_ocr_text_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "phase_candidate_from_pdf_ocr" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_cv_line_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_cv_line_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "lane_line_candidate_from_pdf_cv" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "road_marking_candidate_from_pdf_cv" for fact in facts))
 
@@ -414,13 +432,12 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
             facts = extract_pdf_facts("site.pdf")
 
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_page_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_line_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_curve_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_rect_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_page_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_line_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_curve_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_rect_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "lane_line_candidate_from_pdf_vector" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "road_marking_candidate_from_pdf_vector" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "stop_line_candidate_from_pdf_vector" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "signal_head_symbol_candidate_from_pdf_vector" for fact in facts))
 
     def test_pdf_parser_does_not_promote_page_borders_to_semantic_candidates(self):
@@ -439,9 +456,9 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
             facts = extract_pdf_facts("site.pdf")
 
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_line_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_curve_candidate" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "pdf_vector_rect_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_line_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_curve_candidate" for fact in facts))
+        self.assertFalse(any(fact["fact_name"] == "pdf_vector_rect_candidate" for fact in facts))
         self.assertFalse(any(fact["fact_name"].endswith("_candidate_from_pdf_vector") for fact in facts))
 
     def test_dxf_parser_extracts_geometry_labels_and_bounds(self):
@@ -456,15 +473,15 @@ class ExtractionTest(unittest.TestCase):
             facts = extract_dxf_facts("site.dxf")
 
         self.assertTrue(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in facts))
-        text_label = next(fact for fact in facts if fact["fact_name"] == "cad_text_label")
+        text_label = next(fact for fact in facts if fact["fact_name"] == "road_marking_or_sign_note_from_cad")
         self.assertEqual(text_label["payload"]["value"]["text"], "London Road inbound ahead")
         self.assertEqual(text_label["payload"]["value"]["geometry"], {"x": 2.0, "y": 3.0})
-        movement_label = next(fact for fact in facts if fact["fact_name"] == "cad_movement_label_candidate")
+        movement_label = next(fact for fact in facts if fact["fact_name"] == "movement_direction_candidate_from_cad")
         self.assertEqual(movement_label["payload"]["value"]["movement_ref"], "movement_london_road_inbound_ahead")
         block = next(fact for fact in facts if fact["fact_name"] == "cad_block_reference")
         self.assertEqual(block["payload"]["value"]["name"], "RIGHT_ARROW")
         self.assertEqual(block["payload"]["value"]["geometry"], {"x": 4.0, "y": 5.0})
-        self.assertTrue(any(fact["fact_name"] == "cad_arrow_block_candidate" for fact in facts))
+        self.assertTrue(any(fact["fact_name"] == "movement_direction_candidate_from_cad" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "coordinate_bounds" for fact in facts))
 
     def test_dxf_parser_applies_cad_symbol_semantic_rules(self):
@@ -480,16 +497,20 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
             facts = extract_dxf_facts("site.dxf")
 
-        by_name = {fact["fact_name"]: fact["payload"]["value"] for fact in facts if fact["fact_name"].startswith("cad_")}
-        signal_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_signal_head_candidate"]
+        by_name = {fact["fact_name"]: fact["payload"]["value"] for fact in facts}
+        signal_candidates = [
+            fact["payload"]["value"]
+            for fact in facts
+            if fact["fact_name"] == "cad_block_reference" and fact["payload"]["value"].get("semantic_type") == "signal_head"
+        ]
         self.assertIn(
             {"name": "HD001S", "geometry": {"x": 1.0, "y": 1.0}, "semantic_type": "signal_head", "source_block_name": "HD001S"},
             signal_candidates,
         )
-        self.assertEqual(by_name["cad_pole_candidate"]["semantic_type"], "pole")
-        self.assertEqual(by_name["cad_pedestrian_facility_candidate"]["semantic_type"], "tactile_paving")
-        self.assertEqual(by_name["cad_lane_use_label_candidate"]["label"], "keep_clear")
-        arrow_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_arrow_block_candidate"]
+        self.assertTrue(any(fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"]["semantic_type"] == "pole" for fact in facts))
+        self.assertTrue(any(fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"]["semantic_type"] == "tactile_paving" for fact in facts))
+        self.assertEqual(by_name["lane_use_label_from_cad"]["label"], "keep_clear")
+        arrow_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "movement_direction_candidate_from_cad"]
         self.assertIn(
             {
                 "name": "HD004P",
@@ -516,10 +537,14 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
             facts = extract_dxf_facts("site.dxf")
 
-        signal_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_signal_head_candidate"]
-        pole_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_pole_candidate"]
-        tactile_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_pedestrian_facility_candidate"]
-        arrow_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_arrow_block_candidate"]
+        signal_candidates = [
+            fact["payload"]["value"]
+            for fact in facts
+            if fact["fact_name"] == "cad_block_reference" and fact["payload"]["value"].get("semantic_type") == "signal_head"
+        ]
+        pole_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"].get("semantic_type") == "pole"]
+        tactile_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"].get("semantic_type") == "tactile_paving"]
+        arrow_candidates = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "movement_direction_candidate_from_cad"]
         self.assertEqual(len(signal_candidates), 2)
         self.assertEqual(len(pole_candidates), 1)
         self.assertEqual(len(tactile_candidates), 1)
@@ -541,13 +566,13 @@ class ExtractionTest(unittest.TestCase):
             facts = extract_dxf_facts("site.dxf")
 
         by_name = {fact["fact_name"]: fact["payload"]["value"] for fact in facts if "modelspace entity" in fact["evidence_location"]}
-        self.assertEqual(by_name["road_marking_candidate_from_cad"]["semantic_type"], "road_marking")
+        self.assertEqual(by_name["road_marking_or_sign_note_from_cad"]["semantic_type"], "road_marking")
         self.assertEqual(by_name["stop_line_from_cad"]["semantic_type"], "stop_line")
-        self.assertEqual(by_name["detector_loop_candidate_from_cad"]["semantic_type"], "detector_loop")
-        self.assertEqual(by_name["signal_geometry_candidate_from_cad"]["semantic_type"], "signal_geometry")
-        self.assertEqual(by_name["crossing_candidate_from_cad"]["semantic_type"], "crossing_or_tactile")
-        self.assertEqual(by_name["cad_context_geometry_candidate"]["semantic_type"], "road_context_geometry")
-        self.assertEqual(by_name["road_marking_candidate_from_cad"]["layer"], "OptionG+UTC cdp$0$-RoadMarkings")
+        self.assertTrue(any(fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"]["semantic_type"] == "detector_loop" for fact in facts))
+        self.assertTrue(any(fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"]["semantic_type"] == "signal_geometry" for fact in facts))
+        self.assertTrue(any(fact["fact_name"] == "lane_facility_geometry_candidate_from_cad" and fact["payload"]["value"]["semantic_type"] == "crossing_or_tactile" for fact in facts))
+        self.assertEqual(by_name["approach_arm_geometry_from_cad"]["semantic_type"], "road_context_geometry")
+        self.assertEqual(by_name["road_marking_or_sign_note_from_cad"]["layer"], "OptionG+UTC cdp$0$-RoadMarkings")
 
     def test_dxf_parser_filters_empty_cad_text_labels(self):
         entities = [
@@ -560,7 +585,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
             facts = extract_dxf_facts("site.dxf")
 
-        labels = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "cad_text_label"]
+        labels = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "road_marking_or_sign_note_from_cad"]
         self.assertEqual([label["text"] for label in labels], ["Phase A"])
 
     def test_dxf_parser_does_not_promote_utility_layers_to_lane_candidates(self):
@@ -575,8 +600,8 @@ class ExtractionTest(unittest.TestCase):
             facts = extract_dxf_facts("site.dxf")
 
         layer_by_name = {fact["evidence_location"]: fact["fact_name"] for fact in facts if "modelspace entity" in fact["evidence_location"]}
-        self.assertEqual(layer_by_name["modelspace entity 1 layer DUCTS"], "cad_geometry_candidate")
-        self.assertEqual(layer_by_name["modelspace entity 2 layer LOOPS"], "detector_loop_candidate_from_cad")
+        self.assertNotIn("modelspace entity 1 layer DUCTS", layer_by_name)
+        self.assertEqual(layer_by_name["modelspace entity 2 layer LOOPS"], "lane_facility_geometry_candidate_from_cad")
         self.assertEqual(layer_by_name["modelspace entity 3 layer LANE_MAIN"], "lane_geometry_candidate_from_cad")
 
     def test_dxf_parser_promotes_long_generic_cad_lines_to_lane_candidates(self):
@@ -656,9 +681,9 @@ class ExtractionTest(unittest.TestCase):
 
     def test_coordinator_prefixes_fact_location_with_source_file(self):
         folder = _test_dir()
-        text_path = folder / "nested" / "site.txt"
+        text_path = folder / "nested" / "site.8tx"
         text_path.parent.mkdir()
-        text_path.write_text("Detector D1", encoding="utf-8")
+        text_path.write_text("Phase A", encoding="utf-8")
 
         output = extract_site_folder_facts(folder, site_id="1003")
 
@@ -670,15 +695,15 @@ class ExtractionTest(unittest.TestCase):
         zip_path = folder / "packages" / "site.zip"
         zip_path.parent.mkdir()
         with zipfile.ZipFile(zip_path, "w") as archive:
-            archive.writestr("notes/controller.txt", "Detector D12")
+            archive.writestr("notes/controller.8tx", "Phase A")
 
         output = extract_site_folder_facts(folder, site_id="1003")
 
         facts = output["source_files"][0]["extracted_facts"]
-        detector = next(fact for fact in facts if fact["fact_name"] == "detector_candidate")
+        detector = next(fact for fact in facts if fact["fact_name"] == "phase_label_from_ram_8tx")
         self.assertEqual(
             detector["evidence_location"],
-            f"{zip_path.as_posix()} -> archive member notes/controller.txt -> line 1",
+            f"{zip_path.as_posix()} -> archive member notes/controller.8tx -> line 1",
         )
 
     def test_coordinator_emits_ram_dictionary_fact_names(self):
@@ -746,7 +771,7 @@ class ExtractionTest(unittest.TestCase):
         with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
             facts = extract_pdf_facts(path)
 
-        mappings = [fact for fact in facts if fact["fact_name"] == "phase_movement_mapping_from_controller_config"]
+        mappings = [fact for fact in facts if fact["fact_name"] == "movement_phase_mapping_from_controller_config"]
         payloads = [fact["payload"]["value"] for fact in mappings]
         self.assertIn(
             {
@@ -834,7 +859,7 @@ class ExtractionTest(unittest.TestCase):
                 "direction": "WB",
                 "maneuver": "ahead",
             },
-            by_name["scoot_link_movement_from_utc_form"],
+            by_name["movement_direction_candidate_from_utc_form"],
         )
         self.assertIn(
             {
@@ -846,7 +871,7 @@ class ExtractionTest(unittest.TestCase):
                 "slag": -2,
                 "elag": 0,
             },
-            by_name["phase_scoot_link_mapping_from_utc_form"],
+            by_name["movement_phase_mapping_from_utc_form"],
         )
         self.assertIn(
             {
@@ -855,7 +880,7 @@ class ExtractionTest(unittest.TestCase):
                 "stage_numbers": [2, 3],
                 "junction_scn": "J04211",
             },
-            by_name["scoot_link_stage_mapping_from_utc_form"],
+            by_name["stage_phase_relationship_from_utc_form"],
         )
 
     def test_coordinator_emits_cad_dictionary_fact_names(self):
@@ -922,7 +947,7 @@ class ExtractionTest(unittest.TestCase):
             output = extract_site_folder_facts(folder, site_id="1003")
 
         facts = output["source_files"][0]["extracted_facts"]
-        self.assertEqual({fact["fact_name"] for fact in facts}, {"cad_layer_names", "cad_entity_counts", "coordinate_bounds"})
+        self.assertEqual({fact["fact_name"] for fact in facts}, {"coordinate_bounds"})
 
     def test_coordinator_prefers_standalone_cad_over_duplicate_zip_member_cad(self):
         folder = _test_dir()
@@ -942,7 +967,13 @@ class ExtractionTest(unittest.TestCase):
         zip_facts = by_name["1003_package.zip"]["extracted_facts"]
         self.assertTrue(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in standalone_facts))
         self.assertFalse(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in zip_facts))
-        self.assertTrue(any(fact["fact_name"] == "duplicate_archive_member_skipped" for fact in zip_facts))
+        self.assertTrue(
+            any(
+                fact["fact_name"] == "archive_member"
+                and fact["payload"]["value"].get("reason") == "duplicate_standalone_cad"
+                for fact in zip_facts
+            )
+        )
 
     def test_extract_cli_scans_site_folder_without_inventory(self):
         folder = _test_dir()

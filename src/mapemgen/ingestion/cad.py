@@ -6,7 +6,6 @@ import os
 import json
 import re
 import uuid
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -16,71 +15,71 @@ from mapemgen.ingestion.movement_tables import _movement_payload
 
 DEFAULT_CAD_SYMBOL_RULES = {
     "block_rules": [
-        {"match": "exact", "pattern": "tactpblk", "semantic_type": "tactile_paving", "fact_name": "cad_pedestrian_facility_candidate"},
-        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:tactpblk|tactknob|tactpave)(?:$|[^a-z0-9])", "semantic_type": "tactile_paving", "fact_name": "cad_pedestrian_facility_candidate"},
-        {"match": "exact", "pattern": "pole", "semantic_type": "pole", "fact_name": "cad_pole_candidate"},
-        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:pole|wbpole|poleno|stubpole|crpole|polesock)(?:$|[^a-z0-9])", "semantic_type": "pole", "fact_name": "cad_pole_candidate"},
+        {"match": "exact", "pattern": "tactpblk", "semantic_type": "tactile_paving", "fact_name": "lane_facility_geometry_candidate_from_cad"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:tactpblk|tactknob|tactpave)(?:$|[^a-z0-9])", "semantic_type": "tactile_paving", "fact_name": "lane_facility_geometry_candidate_from_cad"},
+        {"match": "exact", "pattern": "pole", "semantic_type": "pole", "fact_name": "lane_facility_geometry_candidate_from_cad"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:pole|wbpole|poleno|stubpole|crpole|polesock)(?:$|[^a-z0-9])", "semantic_type": "pole", "fact_name": "lane_facility_geometry_candidate_from_cad"},
         {
             "match": "exact",
             "pattern": "HD003P",
             "semantic_type": "signal_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
         },
         {
             "match": "regex",
             "pattern": r"(?:^|[$_\s-])HD003P(?:$|[^a-z0-9])",
             "semantic_type": "signal_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
         },
         {
             "match": "exact",
             "pattern": "HD004P",
             "semantic_type": "signal_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
         },
         {
             "match": "regex",
             "pattern": r"(?:^|[$_\s-])HD004P(?:$|[^a-z0-9])",
             "semantic_type": "signal_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
         },
-        {"match": "prefix", "pattern": "HD", "semantic_type": "signal_head", "fact_name": "cad_signal_head_candidate"},
-        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:HD[0-9]{3}[A-Z]*|Signal-Symbol-[0-9]{3}[A-Z]*)(?:$|[^a-z0-9])", "semantic_type": "signal_head", "fact_name": "cad_signal_head_candidate"},
+        {"match": "prefix", "pattern": "HD", "semantic_type": "signal_head", "fact_name": "cad_block_reference"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:HD[0-9]{3}[A-Z]*|Signal-Symbol-[0-9]{3}[A-Z]*)(?:$|[^a-z0-9])", "semantic_type": "signal_head", "fact_name": "cad_block_reference"},
         {
             "match": "regex",
             "pattern": r"(?:right|1038r|arrow-r|r-arrow)",
             "semantic_type": "directional_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "right", "requires_context_match": True},
         },
         {
             "match": "regex",
             "pattern": r"(?:left|1038l|arrow-l|l-arrow)",
             "semantic_type": "directional_arrow",
-            "fact_name": "cad_arrow_block_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "payload": {"arrow_direction_candidate": "left", "requires_context_match": True},
         },
-        {"match": "contains", "pattern": "arrow", "semantic_type": "arrow", "fact_name": "cad_arrow_block_candidate"},
-        {"match": "contains", "pattern": "left", "semantic_type": "arrow", "fact_name": "cad_arrow_block_candidate"},
-        {"match": "contains", "pattern": "right", "semantic_type": "arrow", "fact_name": "cad_arrow_block_candidate"},
+        {"match": "contains", "pattern": "arrow", "semantic_type": "arrow", "fact_name": "movement_direction_candidate_from_cad"},
+        {"match": "contains", "pattern": "left", "semantic_type": "arrow", "fact_name": "movement_direction_candidate_from_cad"},
+        {"match": "contains", "pattern": "right", "semantic_type": "arrow", "fact_name": "movement_direction_candidate_from_cad"},
     ],
     "text_rules": [
         {
             "match": "regex",
             "pattern": r"\b(?:LEFT|RIGHT|AHEAD|STRAIGHT|INBOUND|OUTBOUND|NB|SB|EB|WB)\b",
             "semantic_type": "movement_label",
-            "fact_name": "cad_movement_label_candidate",
+            "fact_name": "movement_direction_candidate_from_cad",
             "derive_movement": True,
         },
         {
             "match": "regex",
             "pattern": r"\bKEEP\s+CLEAR\b",
             "semantic_type": "lane_use",
-            "fact_name": "cad_lane_use_label_candidate",
+            "fact_name": "lane_use_label_from_cad",
             "label": "keep_clear",
         },
     ],
@@ -89,12 +88,12 @@ DEFAULT_CAD_SYMBOL_RULES = {
 DEFAULT_CAD_LAYER_RULES = {
     "layer_rules": [
         {"match": "regex", "pattern": r"(?:stop\s*line|stoplines|sct_loops|slc)", "fact_name": "stop_line_from_cad", "semantic_type": "stop_line"},
-        {"match": "regex", "pattern": r"(?:road\s*mark|roadmarking|pro-markings|rd\s*mks|1038|studs|zig\s*zags|lines-studs)", "fact_name": "road_marking_candidate_from_cad", "semantic_type": "road_marking"},
-        {"match": "regex", "pattern": r"(?:tact|toucan|xing|crossing)", "fact_name": "crossing_candidate_from_cad", "semantic_type": "crossing_or_tactile"},
-        {"match": "regex", "pattern": r"(?:signal|utc_signals|kts_signals|traffic\s*signal)", "fact_name": "signal_geometry_candidate_from_cad", "semantic_type": "signal_geometry"},
-        {"match": "regex", "pattern": r"(?:loop|mova\s*loop|traffic\s*loops|va\s*loops)", "fact_name": "detector_loop_candidate_from_cad", "semantic_type": "detector_loop"},
-        {"match": "regex", "pattern": r"(?:kerb|carriagewaykerb|road-edge|road\s*or\s*track|channel)", "fact_name": "cad_context_geometry_candidate", "semantic_type": "road_context_geometry"},
-        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:os|topo|exbase|base)(?:[$_\s-]|$)", "fact_name": "cad_context_geometry_candidate", "semantic_type": "background_context"},
+        {"match": "regex", "pattern": r"(?:road\s*mark|roadmarking|pro-markings|rd\s*mks|1038|studs|zig\s*zags|lines-studs)", "fact_name": "road_marking_or_sign_note_from_cad", "semantic_type": "road_marking"},
+        {"match": "regex", "pattern": r"(?:tact|toucan|xing|crossing)", "fact_name": "lane_facility_geometry_candidate_from_cad", "semantic_type": "crossing_or_tactile"},
+        {"match": "regex", "pattern": r"(?:signal|utc_signals|kts_signals|traffic\s*signal)", "fact_name": "lane_facility_geometry_candidate_from_cad", "semantic_type": "signal_geometry"},
+        {"match": "regex", "pattern": r"(?:loop|mova\s*loop|traffic\s*loops|va\s*loops)", "fact_name": "lane_facility_geometry_candidate_from_cad", "semantic_type": "detector_loop"},
+        {"match": "regex", "pattern": r"(?:kerb|carriagewaykerb|road-edge|road\s*or\s*track|channel)", "fact_name": "approach_arm_geometry_from_cad", "semantic_type": "road_context_geometry"},
+        {"match": "regex", "pattern": r"(?:^|[$_\s-])(?:os|topo|exbase|base)(?:[$_\s-]|$)", "fact_name": "approach_arm_geometry_from_cad", "semantic_type": "background_context"},
     ]
 }
 
@@ -121,14 +120,13 @@ def extract_dwg_facts(path: str | Path) -> list[dict]:
         from ezdxf.addons import odafc
     except ImportError as exc:
         raise RuntimeError("DWG extraction requires 'ezdxf' and ODA File Converter.") from exc
-    configured_path = os.environ.get("ODAFC_PATH")
-    if configured_path:
-        ezdxf.options.set("odafc-addon", "win_exec_path", configured_path)
+    _configure_odafc_path(ezdxf)
     if not odafc.is_installed():
         raise RuntimeError(
             "DWG extraction requires ODA File Converter to be installed. "
-            "If it is installed outside the default location, set ODAFC_PATH "
-            "to the full path of ODAFileConverter.exe."
+            "If it is installed outside the default location, set ODAFC_PATH to "
+            "the full path of ODAFileConverter.exe on Windows, or the ODA File "
+            "Converter executable on macOS/Linux."
         )
     source_path = Path(path).resolve()
     temp_root = Path(os.environ.get("MAPEMGEN_TEMP_DIR", Path.cwd() / "outputs" / "mapemgen_odafc_work")).resolve()
@@ -159,6 +157,14 @@ def extract_dwg_facts(path: str | Path) -> list[dict]:
     finally:
         _cleanup_odafc_output(converted_dir)
     return _extract_document_facts(document)
+
+
+def _configure_odafc_path(ezdxf_module: object) -> None:
+    configured_path = os.environ.get("ODAFC_PATH")
+    if not configured_path:
+        return
+    option_name = "win_exec_path" if os.name == "nt" else "unix_exec_path"
+    ezdxf_module.options.set("odafc-addon", option_name, configured_path)
 
 
 def _cleanup_odafc_output(folder: Path) -> None:
@@ -205,9 +211,7 @@ def _extract_document_facts(document: object) -> list[dict]:
     entities = list(modelspace)
     semantic_rules = _load_cad_symbol_rules()
     layer_rules = _load_cad_layer_rules()
-    counts = Counter(entity.dxftype() for entity in entities)
-    layers = sorted({getattr(entity.dxf, "layer", "0") for entity in entities})
-    facts = [_fact("cad_layer_names", layers, "modelspace", 0.95), _fact("cad_entity_counts", dict(sorted(counts.items())), "modelspace", 0.95)]
+    facts: list[dict] = []
     points: list[tuple[float, float]] = []
     for index, entity in enumerate(entities, start=1):
         entity_type = entity.dxftype()
@@ -216,24 +220,30 @@ def _extract_document_facts(document: object) -> list[dict]:
         if entity_type == "LINE":
             geometry = [_xy(entity.dxf.start), _xy(entity.dxf.end)]
             points.extend(geometry)
-            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, confidence))
+            result = _layer_geometry_fact(layer, geometry, layer_rules)
+            if result is not None:
+                fact_name, payload, confidence = result
+                facts.append(_fact(fact_name, payload, location, confidence))
         elif entity_type == "LWPOLYLINE":
             geometry = [_xy(point) for point in entity.get_points()]
             points.extend(geometry)
-            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
+            result = _layer_geometry_fact(layer, geometry, layer_rules)
+            if result is not None:
+                fact_name, payload, confidence = result
+                facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
         elif entity_type == "POLYLINE":
             geometry = [_xy(vertex.dxf.location) for vertex in entity.vertices]
             points.extend(geometry)
-            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
+            result = _layer_geometry_fact(layer, geometry, layer_rules)
+            if result is not None:
+                fact_name, payload, confidence = result
+                facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
         elif entity_type in {"TEXT", "MTEXT"}:
             text = entity.plain_text() if hasattr(entity, "plain_text") else entity.dxf.text
             text = str(text).strip()
             if text:
                 payload = _cad_text_payload(entity, text)
-                facts.append(_fact("cad_text_label", payload, location, 0.8))
+                facts.append(_fact("road_marking_or_sign_note_from_cad", payload, location, 0.8))
                 facts.extend(_semantic_text_facts(text, payload, location, semantic_rules))
         elif entity_type == "INSERT":
             payload = _cad_block_payload(entity)
@@ -246,7 +256,7 @@ def _extract_document_facts(document: object) -> list[dict]:
     return facts
 
 
-def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_rules: dict[str, Any]) -> tuple[str, object, float]:
+def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_rules: dict[str, Any]) -> tuple[str, object, float] | None:
     for rule in layer_rules.get("layer_rules", []):
         if not _rule_matches(layer, rule):
             continue
@@ -268,8 +278,8 @@ def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_
             0.6,
         )
     fact_name = _geometry_type(layer)
-    if fact_name == "cad_geometry_candidate":
-        return fact_name, geometry, 0.7
+    if fact_name is None:
+        return None
     return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": _legacy_layer_semantic_type(fact_name)}, 0.7
 
 
@@ -296,7 +306,7 @@ def _legacy_layer_semantic_type(fact_name: str) -> str:
     }.get(fact_name, "cad_geometry")
 
 
-def _geometry_type(layer: str) -> str:
+def _geometry_type(layer: str) -> str | None:
     lowered = layer.lower()
     if "stop" in lowered:
         return "stop_line_from_cad"
@@ -306,7 +316,7 @@ def _geometry_type(layer: str) -> str:
         return "lane_facility_geometry_candidate_from_cad"
     if "lane" in lowered:
         return "lane_geometry_candidate_from_cad"
-    return "cad_geometry_candidate"
+    return None
 
 
 def _cad_text_payload(entity: object, text: str) -> dict:
