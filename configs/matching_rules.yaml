@@ -1,487 +1,644 @@
-# =============================================================================
-# MAPEM Field Matching Rules
-# =============================================================================
-# Maps extracted facts (PDF/DWG/GIS/manual) → MAPEM fields, with confidence
-# and provenance. Used by the matching engine to produce mapped_evidence.partial.json.
+# MAPEM Step 3 matching rules
 #
-# Sources:
-#   - C-ITS EU Handbook for MAPEM/SPATEM 3.2.0
-#   - ETSI TS 103 301 ASN.1 (via forge.etsi.org)
+# Selection policy:
+#   Option A - final_score based candidate selection.
 #
-# Conventions:
-#   - target:          MAPEM dotted path (e.g. intersections[].refPoint.lat)
-#   - sources:         list of fact types that can feed this field, in priority
-#                      order (1 = preferred)
-#   - transform:       named pipeline (implementations in transforms.py)
-#   - confidence_floor: minimum acceptable confidence; below this → manual_review
-#   - rule:            const | config | project_managed | auto_number | default
-# =============================================================================
+# The matcher should:
+#   1. expand each target into object-scoped field instances;
+#   2. collect all source facts that match that target and object scope;
+#   3. transform each candidate fact into a candidate MAPEM value;
+#   4. compute extract_confidence_score, conflict_agreement_score,
+#      and source_priority_score for each candidate;
+#   5. select the candidate with the highest final_score;
+#   6. preserve provenance, corroborating facts, rejected facts,
+#      conflict details, and manual review reasons.
 
-version: "1.0"
+version: "3.0"
 schema_for: "MAPEM 3.2.0 (C-Roads profile)"
-description: |
-  Field-by-field matching rules from extracted facts to MAPEM fields.
-  Output: mapped_evidence.partial.json (per-field value + source facts +
-  confidence + rule_applied).
+selection_policy: "option_a_final_score"
 
-# -----------------------------------------------------------------------------
-# 1. Per-site config (overridden by site_config.yaml)
-# -----------------------------------------------------------------------------
+documentation:
+  purpose: >
+    These rules map extracted facts to MAPEM target fields and define the
+    scoring logic used to select one final value from multiple candidates.
+    The file is site-independent; site-specific values belong in site_config.
+
+  fact_contract: >
+    Extractors should emit facts using fact_name, payload, confidence,
+    evidence_location, source_file, and fact_id. The primary raw value should
+    live under payload.value. Object scope keys such as intersection_ref,
+    lane_ref, connection_ref, and node_ref should also live under payload when
+    the parser can infer them.
+
+  final_score_formula: |
+    final_score =
+      0.15 * extract_confidence_score
+    + 0.35 * conflict_agreement_score
+    + 0.50 * source_priority_score
+
+    The candidate with the highest final_score is selected.
+    Ties are broken by source priority, then by extraction confidence,
+    then by source order in this file.
+
+  score_definitions:
+    extract_confidence_score: >
+      Numeric confidence from Step 2 extraction, normalized to 0.0..1.0.
+      If a parser emits low/medium/high, normalize using confidence_levels.
+    conflict_agreement_score: >
+      Candidate agreement within the same target_path + object_scope group.
+      The default calculation is agreeing_candidate_count / candidate_count.
+      Agreement is evaluated using the field type and tolerance rules under
+      conflict_detection.
+    source_priority_score: >
+      Numeric score derived from the source priority label. P1 is the highest
+      priority and F is fallback. See source_priority_scores.
+
+  important_scope_rule: >
+    Fields with [] are per-object fields. For example,
+    laneSet[].laneAttributes.laneType is per lane, and
+    laneSet[].connectsTo[].signalGroup is per lane connection.
+    Candidates from different object scopes must not be compared.
+
+  manual_review_policy: >
+    Manual review should be raised when no candidate can be transformed,
+    a mandatory field has no selected value, required complementary groups are
+    missing, the winning candidate has material conflict with high-priority
+    candidates, or the chosen value violates C-Roads constraints.
+
 config:
-  protocol_version:   2          # MAPEM header.protocolVersion (fixed by std)
-  message_id_mapem:   5          # MAPEM header.messageID (fixed by std)
-  default_station_id: 100        # MAPEM header.stationID (project-configurable)
-  default_lane_width_m: 3.5      # used when laneWidth not derivable from CAD
-  region_code:        50         # UK; final value = 50 + 3-digit Leeds code (TBD)
-  crs_source:         EPSG:27700 # BNG (verify per site)
-  crs_target:         EPSG:4326  # WGS84
-  bng_to_wgs84:       OSTN15     # NOT generic PROJ; OSTN15 gives <0.1m error
+  protocol_version: 2
+  message_id_mapem: 5
+  default_station_id: 100
+  default_msg_issue_revision: 1
+  default_intersection_revision: 1
+  default_region_code: 50050
+  default_lane_width_cm: 350
+  crs_source: "EPSG:27700"
+  crs_target: "EPSG:4326"
+  bng_to_wgs84: "OSTN15"
 
-# -----------------------------------------------------------------------------
-# 2. Transform pipeline definitions (functions implemented in transforms.py)
-# -----------------------------------------------------------------------------
+scoring:
+  policy: "weighted_final_score"
+  weights:
+    extract_confidence: 0.15
+    conflict_agreement: 0.35
+    source_priority: 0.50
+  confidence_levels:
+    low: 0.30
+    medium: 0.60
+    high: 0.90
+  source_priority_scores:
+    P1: 1.00
+    P2: 0.75
+    P3: 0.50
+    F: 0.25
+  source_priority_ranks:
+    P1: 1
+    P2: 2
+    P3: 3
+    F: 9
+  tie_breakers:
+    - "highest_source_priority_score"
+    - "highest_extract_confidence_score"
+    - "first_source_order"
+  selected_statuses:
+    matched: "selected candidate has usable value and no material conflict"
+    matched_with_conflict: "selected candidate has usable value but conflicts exist"
+    manual_review_required: "field needs human confirmation"
+    unresolved: "no candidate produced a usable value"
+    pending_transform: "candidate exists but required transform is not implemented"
+
+conflict_detection:
+  documentation: >
+    Conflict is calculated per target_path + object_scope. For each candidate,
+    compare its transformed value against other transformed candidate values.
+    agreement_count includes the candidate itself. The score used by Option A is
+    agreement_count / candidate_count.
+  tolerances:
+    coordinate:
+      method: "ground_distance_m"
+      tolerance: 2.0
+      unit: "m"
+      note: "Used for refPoint latitude/longitude after WGS84 transform."
+    node_delta:
+      method: "ground_distance_m"
+      tolerance: 1.0
+      unit: "m"
+      note: "Used for lane node offsets from refPoint."
+    integer_id:
+      method: "exact"
+      tolerance: 0
+      note: "Used for signalGroup, LaneID, region, and intersection id."
+    enum:
+      method: "exact"
+      note: "Used for laneType, directionalUse, sharedWith, and maneuvers."
+    angle:
+      method: "angular_deg"
+      tolerance: 15.0
+      unit: "deg"
+      note: "Used for approach bearing and movement direction comparisons."
+    geometry:
+      method: "hausdorff_or_average_distance_m"
+      tolerance: 2.0
+      unit: "m"
+      note: "Used for line/polygon geometry candidates when implemented."
+    text:
+      method: "casefold_exact"
+      note: "Used for identifiers or labels where exact text agreement matters."
+    default:
+      method: "exact"
+  field_type_map:
+    "*.refPoint.lat": "coordinate"
+    "*.refPoint.long": "coordinate"
+    "*.nodeList.nodes[].delta": "node_delta"
+    "*.laneID": "integer_id"
+    "*.LaneID": "integer_id"
+    "*.id.region": "integer_id"
+    "*.id.id": "integer_id"
+    "*.signalGroup": "integer_id"
+    "*.laneType": "enum"
+    "*.directionalUse": "enum"
+    "*.sharedWith": "enum"
+    "*.connectingLane.maneuver": "enum"
+    "*.ingressApproach": "angle"
+    "*.egressApproach": "angle"
+
+object_scope:
+  documentation: >
+    Instance resolver should expand collection targets using refs in fact payloads.
+    If refs are unavailable, the matcher may create unresolved/manual review
+    records for object-scoped fields rather than mixing candidates globally.
+  levels:
+    intersections:
+      ref_key: "intersection_ref"
+      default: "intersection_0"
+    laneSet:
+      ref_key: "lane_ref"
+    connectsTo:
+      ref_key: "connection_ref"
+    nodes:
+      ref_key: "node_ref"
+
+group_logic:
+  documentation: >
+    Some fields require complementary evidence groups. Within a group, candidates
+    compete by final_score. Across required groups, each group must be satisfied
+    or the field should be marked manual_review_required.
+  alternative_sets:
+    geometry:
+      - "lane_geometry"
+      - "road_layout_geometry"
+      - "drawing_geometry"
+      - "gis_geometry"
+    signal_semantics:
+      - "signal_control_semantics"
+      - "movement_phase_mapping"
+    connection_semantics:
+      - "connection_topology"
+      - "movement_semantics"
+  required_group_sets:
+    refpoint:
+      - "geometry"
+      - "coordinate_reference"
+    lane_nodes:
+      - "geometry"
+      - "coordinate_reference"
+    connection_signal_group:
+      - "signal_semantics"
+      - "connection_semantics"
+
 transforms:
-
-  # --- coordinate transforms ---
+  documentation: >
+    The transform names are logical operations. The matching engine may implement
+    them directly or dispatch them through a transform registry.
   bng_to_wgs84_OSTN15:
-    desc: BNG (EPSG:27700) → WGS84 via OSTN15 .gsb grid
-    in:   "Point(east_m, north_m)"
-    out:  "Point(lat_deg, long_deg)"
-
+    input: "Point(easting, northing)"
+    output: "Point(lat, long)"
   wgs84_to_int_1e7:
-    desc: WGS84 degrees → integer 1/10^7 deg (ASN.1 Latitude/Longitude unit)
-    in:   "float deg"
-    out:  "int (≈ deg * 1e7)"
-
-  relative_to_refpoint:
-    desc: Convert absolute WGS84 point to (east_m, north_m) offset from refPoint
-    in:   "Point(lat, long), refPoint(lat, long)"
-    out:  "Point(d_east_m, d_north_m)"
-
-  # --- geometry helpers ---
-  polyline_centroid:
-    desc: Centroid of polyline vertices (used for refPoint candidate from conflict-area polygon)
+    input: "float degrees"
+    output: "integer 1/10^7 degrees"
+  take_lat:
+    input: "Point(lat, long)"
+    output: "lat"
+  take_long:
+    input: "Point(lat, long)"
+    output: "long"
   polygon_centroid:
-    desc: Centroid of polygon (used for conflict-area polygon)
+    input: "polygon geometry"
+    output: "Point"
+  polyline_centroid:
+    input: "polyline geometry"
+    output: "Point"
+  geometry_bounds_centre:
+    input: "coordinate_bounds"
+    output: "Point"
   sample_polyline_at_intervals:
-    desc: Resample a polyline to N control points (lane centerline → nodes)
-    params: { min_nodes: 2, max_nodes: 12, spacing_m: 5.0 }
-  compute_centerline_from_edges:
-    desc: Given two parallel polylines (lane left/right edges), compute centerline
-  pair_ingress_egress_by_geometry:
-    desc: Match an ingress lane endpoint to the closest egress lane start point
-    params: { max_match_dist_m: 8.0 }
-  cluster_by_direction:
-    desc: Group lane centerlines by bearing from refPoint → produces approach IDs
-    params: { bearing_tolerance_deg: 25 }
-
-  # --- NodeXY delta encoding ---
-  choose_node_xy_precision:
-    desc: Pick NodeOffsetPointXY CHOICE based on max abs offset of any node
-    rules:
-      - if_max_abs_m_le: 5.11
-        use: node-XY1
-      - if_max_abs_m_le: 10.23
-        use: node-XY2
-      - if_max_abs_m_le: 20.47
-        use: node-XY3
-      - if_max_abs_m_le: 32.767
-        use: node-XY4
-      - if_max_abs_m_le: 163.83
-        use: node-XY5
-      - if_max_abs_m_le: 327.67
-        use: node-XY6
-      - else:
-        use: node-LatLon
+    input: "polyline"
+    output: "node list"
+    params:
+      min_nodes: 2
+      max_nodes: 12
+      spacing_m: 5.0
+  relative_to_refpoint:
+    input: "Point, refPoint"
+    output: "delta metres"
   delta_to_cm:
-    desc: Convert offset (m) to cm integer (ASN.1 unit)
-
-  # --- semantic transforms ---
-  phase_letter_to_signal_group:
-    desc: Map phase letter A..T → signalGroupID 1..N, excluding dummy phases
-    inputs: [phase_letter, dummy_phase_set]
-    rule:   "letter A → 1, B → 2, ... ; skip letters in dummy_phase_set"
-  arrow_to_maneuver:
-    desc: PDF stage diagram arrow → maneuver enum
-    mapping:
-      straight_up:    straight
-      left_arrow:     leftTurn
-      right_arrow:    rightTurn
-      u_turn:         uTurn
+    input: "delta metres"
+    output: "delta centimetres"
+  choose_node_xy_precision:
+    input: "delta centimetres"
+    output: "NodeOffsetPointXY choice"
+  infer_lane_direction:
+    input: "lane geometry + refPoint + stop lines"
+    output: "ingress|egress|both"
+  cluster_by_direction:
+    input: "lane geometry + refPoint"
+    output: "approach id"
+  pair_ingress_egress_by_geometry:
+    input: "ingress lane + egress lanes"
+    output: "target lane id"
+    params:
+      max_match_dist_m: 8.0
   maneuver_from_angle_change:
-    desc: Compute maneuver from angle between ingress and egress lane bearings
-    rules:
-      - "|Δθ| <= 30°   → straight"
-      - "30° < Δθ ≤ 150° (CCW) → leftTurn"
-      - "-150° ≤ Δθ < -30° (CW) → rightTurn"
-      - "|Δθ| > 150° → uTurn"
-  phase_type_to_lanetype:
-    desc: PDF phase type letter → laneType
-    mapping:
-      T: vehicle          # Traffic
-      F: vehicle          # Filter
-      I: vehicle          # Indicative
-      P: crosswalkLane    # Pedestrian
-      L: trackedVehicle   # LRT (light rail)
-      S: vehicle          # Switched-sign
-      # D (Dummy) excluded entirely
-  layer_name_to_lanetype:
-    desc: CAD layer name heuristic → laneType (fallback when no PDF phase data)
-    mapping_examples:
-      contains("CARRIAGEWAY|TRAFFIC|ROAD"): vehicle
-      contains("CROSS|ZEBRA|PED_CROSS"):    crosswalkLane
-      contains("CYCLE|BIKE"):               bikeLane
-      contains("FOOTWAY|PAVEMENT"):         sideWalk
-      contains("MEDIAN|ISLAND"):            medianLane
+    input: "ingress bearing + egress bearing"
+    output: "straight|leftTurn|rightTurn|uTurn"
+  phase_label_to_signal_group:
+    input: "phase label"
+    output: "SignalGroupID"
+  phase_type_to_lane_type:
+    input: "phase type or controlled facility text"
+    output: "vehicle|crosswalkLane|bikeLane|sideWalk|medianLane|trackedVehicle"
+  layer_or_marking_to_lane_type:
+    input: "CAD/PDF layer, label, marking, or facility candidate"
+    output: "lane type enum"
+  extract_int_from_identifier:
+    input: "site/scn/intersection identifier"
+    output: "integer id"
 
-# =============================================================================
-# 3. FIELD-LEVEL MATCHING RULES (organised by MAPEM hierarchy)
-# =============================================================================
+fields:
+  - target: "header.protocolVersion"
+    population_mode: "constant"
+    value: 2
+    confidence: "high"
 
-# -----------------------------------------------------------------------------
-# 3.1 MAPEM top + header
-# -----------------------------------------------------------------------------
-mandatory_fields:
+  - target: "header.messageID"
+    population_mode: "constant"
+    value: 5
+    confidence: "high"
 
-  - target: header.protocolVersion
-    rule:   const
-    value:  2
-    note:   "Fixed by ETSI TS 103 301: shall be set to 2"
-
-  - target: header.messageID
-    rule:   const
-    value:  5
-    note:   "mapem(5)"
-
-  - target: header.stationID
-    rule:   config
-    config_key: station_id
-    confidence: high
-    note:   "Project-configured ITS-S identifier"
-
-  # -----------------------------------------------------------------------------
-  # 3.2 MapData
-  # -----------------------------------------------------------------------------
-  - target: map.msgIssueRevision
-    rule:   project_managed
-    initial: 1
-    note:   |
-      MAPEM message version (NOT the PDF 'Issue'). Increment when message
-      structure changes. ASN.1 type MsgCount (INTEGER 0..127).
-
-  # -----------------------------------------------------------------------------
-  # 3.3 IntersectionGeometry
-  # -----------------------------------------------------------------------------
-  - target: intersections[].id.region
-    rule:   config
-    config_key: region_code
-    confidence: high
+  - target: "header.stationID"
+    population_mode: "client_configured"
+    config_key: "station_id"
+    fallback_config_key: "default_station_id"
     c_roads_mandatory: true
-    note:   |
-      C-Roads scheme: 2-digit country + 3-digit authority.
-      United Kingdom = 50. Leeds authority code TBD (client confirmation).
-      ASN.1: OPTIONAL, but C-Roads needs it for SPATEM matching.
 
-  - target: intersections[].id.id
-    sources:
-      - fact_type: pdf.site_id
-        priority: 1
-        transform: [extract_int_from_site_code]
-        confidence: high
-        example: "337L → 337"
-      - fact_type: folder.name
-        priority: 2
-        transform: [extract_digits]
-        confidence: medium
-      - fact_type: manual.intersection_id
-        priority: 0   # highest (manual override)
-        confidence: high
-    confidence_floor: high
-    asn1_type: IntersectionID (INTEGER 0..65535)
-
-  - target: intersections[].revision
-    rule:   project_managed
+  - target: "mapData.msgIssueRevision"
+    population_mode: "project_managed"
     initial: 1
-    note:   "Topology version of this intersection. Must equal SPATEM revision."
 
-  - target: intersections[].refPoint.lat
+  - target: "mapData.intersections"
+    population_mode: "must_exist"
+    c_roads_mandatory: true
+
+  - target: "mapData.intersections[].id.region"
+    population_mode: "client_configured"
+    config_key: "region_code"
+    fallback_config_key: "default_region_code"
+    c_roads_mandatory: true
+
+  - target: "mapData.intersections[].id.id"
+    population_mode: "final_score"
+    c_roads_mandatory: true
     sources:
-      - fact_type: manual.refpoint
-        priority: 0
-        transform: [wgs84_to_int_1e7, take_lat]
-        confidence: high
-      - fact_type: cad.conflict_area_polygon
-        priority: 1
-        transform: [polygon_centroid, bng_to_wgs84_OSTN15, wgs84_to_int_1e7, take_lat]
-        confidence: medium
-      - fact_type: cad.intersection_block
-        priority: 2
-        transform: [block_position, bng_to_wgs84_OSTN15, wgs84_to_int_1e7, take_lat]
-        confidence: medium
-      - fact_type: gis.osm.intersection_node
-        priority: 3
-        transform: [wgs84_to_int_1e7, take_lat]
-        confidence: medium
-    confidence_floor: medium
-    asn1_type: Latitude (INTEGER, unit 1/10^7 deg)
+      - fact_name: "scn"
+        priority: "P2"
+        fact_group: "site_identity"
+        transform: ["extract_int_from_identifier"]
+      - fact_name: "site_description"
+        priority: "P3"
+        fact_group: "site_identity"
+        transform: ["extract_int_from_identifier"]
+      - fact_name: "archive_member"
+        priority: "F"
+        fact_group: "site_identity"
+        transform: ["extract_int_from_identifier"]
 
-  - target: intersections[].refPoint.long
-    sources: "same chain as refPoint.lat, but take_long instead of take_lat"
-    confidence_floor: medium
-    asn1_type: Longitude (INTEGER, unit 1/10^7 deg)
-    note: "ASN.1 field name is 'long', NOT 'lon'"
+  - target: "mapData.intersections[].revision"
+    population_mode: "project_managed"
+    initial: 1
 
-  - target: intersections[].laneWidth
+  - target: "mapData.intersections[].refPoint.lat"
+    population_mode: "final_score"
+    c_roads_mandatory: true
+    required_groups: ["geometry"]
     sources:
-      - fact_type: cad.lane_edge_spacing
-        priority: 1
-        transform: [median_spacing_cm]
-        confidence: medium
-      - fact_type: pdf.lane_width_note
-        priority: 2
-        confidence: medium
-    rule_fallback: default
-    default_value_cm: 350      # 3.5 m
+      - fact_name: "junction_centre_from_ordnance_survey"
+        priority: "P2"
+        fact_group: "gis_geometry"
+        transform: ["take_lat", "wgs84_to_int_1e7"]
+      - fact_name: "junction_centre_from_open_street_map"
+        priority: "P3"
+        fact_group: "gis_geometry"
+        transform: ["take_lat", "wgs84_to_int_1e7"]
+      - fact_name: "coordinate_bounds"
+        priority: "P2"
+        fact_group: "geometry"
+        transform: ["geometry_bounds_centre", "bng_to_wgs84_OSTN15", "take_lat", "wgs84_to_int_1e7"]
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_geometry"
+        transform: ["polyline_centroid", "bng_to_wgs84_OSTN15", "take_lat", "wgs84_to_int_1e7"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "drawing_geometry"
+        transform: ["polyline_centroid", "take_lat", "wgs84_to_int_1e7"]
+
+  - target: "mapData.intersections[].refPoint.long"
+    population_mode: "final_score"
+    c_roads_mandatory: true
+    required_groups: ["geometry"]
+    sources:
+      - fact_name: "junction_centre_from_ordnance_survey"
+        priority: "P2"
+        fact_group: "gis_geometry"
+        transform: ["take_long", "wgs84_to_int_1e7"]
+      - fact_name: "junction_centre_from_open_street_map"
+        priority: "P3"
+        fact_group: "gis_geometry"
+        transform: ["take_long", "wgs84_to_int_1e7"]
+      - fact_name: "coordinate_bounds"
+        priority: "P2"
+        fact_group: "geometry"
+        transform: ["geometry_bounds_centre", "bng_to_wgs84_OSTN15", "take_long", "wgs84_to_int_1e7"]
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_geometry"
+        transform: ["polyline_centroid", "bng_to_wgs84_OSTN15", "take_long", "wgs84_to_int_1e7"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "drawing_geometry"
+        transform: ["polyline_centroid", "take_long", "wgs84_to_int_1e7"]
+
+  - target: "mapData.intersections[].laneWidth"
+    population_mode: "default"
+    default_value: 350
     optional: true
-    note: "ASN.1 OPTIONAL; recommended; unit cm"
 
-  # -----------------------------------------------------------------------------
-  # 3.4 GenericLane (per lane)
-  # -----------------------------------------------------------------------------
-  - target: laneSet[].laneID
-    rule:   auto_number
-    start:  1
-    asn1_type: LaneID (INTEGER 0..255)
-
-  - target: laneSet[].ingressApproach
-    sources:
-      - fact_type: cad.lane_centerline
-        condition: "lane.directionalUse == ingress"
-        priority: 1
-        transform: [cluster_by_direction, assign_approach_id]
-        confidence: medium
-    confidence_floor: medium
-    c_roads_mandatory: true
-    note: |
-      Group unidirectional ingress lanes per intersection arm.
-      Successive/internal lanes (e.g., roundabout circulation) get their own ID.
-      C-Roads: lanes shall be grouped into approaches (at least 1 per arm).
-
-  - target: laneSet[].egressApproach
-    sources: "mirror of ingressApproach for egress lanes"
+  - target: "mapData.intersections[].laneSet[].laneID"
+    population_mode: "system_generated"
+    auto_start: 1
     c_roads_mandatory: true
 
-  - target: laneSet[].laneAttributes.directionalUse
+  - target: "mapData.intersections[].laneSet[].ingressApproach"
+    population_mode: "final_score"
+    c_roads_mandatory: true
+    applies_when: "lane.directionalUse contains ingress"
     sources:
-      - fact_type: cad.lane_centerline_direction
-        priority: 1
-        transform: [direction_relative_to_refpoint, encode_bit_string_2]
-        confidence: high
-      - fact_type: pdf.lane_direction_label
-        priority: 2
-        confidence: medium
-    encoding: BIT STRING(2)
-    rules:
-      "ingress only":    "10"   # bit 0 set
-      "egress only":     "01"   # bit 1 set
-      "bidirectional":   "11"   # pedestrian lanes
-      "impassable":      "00"   # median/curb modelled as lane
-    asn1_mandatory: true
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_geometry"
+        transform: ["cluster_by_direction"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "drawing_geometry"
+        transform: ["cluster_by_direction"]
 
-  - target: laneSet[].laneAttributes.sharedWith
-    rule:   default
-    default_value: "0000000000"   # 10 bits, all 0 (not shared)
+  - target: "mapData.intersections[].laneSet[].egressApproach"
+    population_mode: "final_score"
+    c_roads_mandatory: true
+    applies_when: "lane.directionalUse contains egress"
+    sources:
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_geometry"
+        transform: ["cluster_by_direction"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "drawing_geometry"
+        transform: ["cluster_by_direction"]
+
+  - target: "mapData.intersections[].laneSet[].laneAttributes.directionalUse"
+    population_mode: "final_score"
+    c_roads_mandatory: true
+    sources:
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_attribute_classification"
+        transform: ["infer_lane_direction"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "lane_attribute_classification"
+        transform: ["infer_lane_direction"]
+      - fact_name: "road_direction_from_open_street_map"
+        priority: "P3"
+        fact_group: "lane_attribute_classification"
+        transform: ["infer_lane_direction"]
+
+  - target: "mapData.intersections[].laneSet[].laneAttributes.sharedWith"
+    population_mode: "default"
+    default_value: []
+    c_roads_mandatory: true
     overrides:
-      - fact_type: cad.lane_shared_tag
-        rule: set_bits_per_tag
-    forbidden_bits:
-      - bit: 1
-        name: multipleLanesTreatedAsOneLane
-        reason: "C-Roads: shall not be used"
-      - bit: 9
-        name: pedestrianTraffic
-        reason: "C-Roads: use bit 6 (pedestriansTraffic) instead"
-    encoding: BIT STRING(10)
-    asn1_mandatory: true
-    note: |
-      Structurally mandatory in ASN.1 (no OPTIONAL in LaneAttributes SEQUENCE).
-      The encoder will reject a message missing sharedWith.
+      - fact_name: "road_marking_candidate_from_pdf_vector"
+        priority: "P2"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "road_marking_candidate_from_pdf_cv"
+        priority: "P3"
+        transform: ["layer_or_marking_to_lane_type"]
 
-  - target: laneSet[].laneAttributes.laneType
+  - target: "mapData.intersections[].laneSet[].laneAttributes.laneType"
+    population_mode: "final_score"
+    c_roads_mandatory: true
     sources:
-      - fact_type: pdf.phase_type
-        priority: 1
-        transform: [phase_type_to_lanetype]
-        confidence: high
-      - fact_type: cad.layer_name
-        priority: 2
-        transform: [layer_name_to_lanetype]
-        confidence: medium
-      - fact_type: manual.lanetype
-        priority: 0
-        confidence: high
-    allowed_values: [vehicle, crosswalkLane, bikeLane, sideWalk, medianLane, trackedVehicle]
-    encoding: CHOICE
-    asn1_mandatory: true
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_attribute_classification"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "lane_facility_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_attribute_classification"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "lane_attribute_classification"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "road_marking_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "lane_attribute_classification"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "lane_line_candidate_from_pdf_cv"
+        priority: "P3"
+        fact_group: "lane_attribute_classification"
+        transform: ["layer_or_marking_to_lane_type"]
+      - fact_name: "phase_label_from_controller_config"
+        priority: "P3"
+        fact_group: "signal_control_semantics"
+        transform: ["phase_type_to_lane_type"]
 
-  - target: laneSet[].nodeList.nodes[]
+  - target: "mapData.intersections[].laneSet[].nodeList.nodes[].delta"
+    population_mode: "final_score"
+    c_roads_mandatory: true
     sources:
-      - fact_type: cad.lane_centerline_polyline
-        priority: 1
-        transform:
-          - sample_polyline_at_intervals    # N control points (typ. 3–8)
-          - bng_to_wgs84_OSTN15             # per node
-          - relative_to_refpoint            # delta in m
-          - delta_to_cm                     # ASN.1 unit
-          - choose_node_xy_precision        # pick XY1..6 for the whole lane
-        confidence: high
-      - fact_type: cad.lane_edge_pair
-        priority: 2
-        transform:
-          - compute_centerline_from_edges
-          - (same downstream as priority 1)
-        confidence: medium
-    constraints:
-      - first_node_ingress: "at stop line (from cad.stop_line)"
-      - first_node_egress:  "at conflict-area boundary"
-      - min_nodes: 2
-      - never_cross_conflict_zone: true
-    asn1_mandatory: true
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "lane_geometry"
+        transform: ["sample_polyline_at_intervals", "bng_to_wgs84_OSTN15", "relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "drawing_geometry"
+        transform: ["sample_polyline_at_intervals", "relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
+      - fact_name: "lane_geometry_candidate_from_ordnance_survey"
+        priority: "P3"
+        fact_group: "gis_geometry"
+        transform: ["sample_polyline_at_intervals", "relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
 
-  # -----------------------------------------------------------------------------
-  # 3.5 Connection (per ingress lane → connectsTo)
-  # -----------------------------------------------------------------------------
-
-  # The connectsTo CONTAINER must exist (and be non-empty) for every ingress lane.
-  # ASN.1 marks connectsTo as OPTIONAL, but C-Roads requires it.
-  - target: laneSet[].connectsTo
-    rule: must_exist
+  - target: "mapData.intersections[].laneSet[].connectsTo"
+    population_mode: "must_exist"
     applies_when: "lane.directionalUse contains ingress"
     c_roads_mandatory: true
-    fallback: manual_review
-    note: |
-      Handbook §3.3.5 (line 1472): "Each ingress lane of an intersection
-      must be connected to an egress or ingress lane".
-      Engine MUST check this — the ASN.1 encoder will not catch a missing
-      connectsTo (it is OPTIONAL in ASN.1). If empty for an ingress lane,
-      add to manual_review_items.
 
-  - target: laneSet[].connectsTo[].connectingLane.lane
-    applies_when: "lane.directionalUse contains ingress"
+  - target: "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane"
+    population_mode: "final_score"
+    c_roads_mandatory: true
     sources:
-      - fact_type: pdf.stage_table_row
-        priority: 1
-        transform: [resolve_egress_lane_from_stage]
-        confidence: high
-        note: "Structured table; most reliable for which-lane-connects-where"
-      - fact_type: cad.geometry
-        priority: 2
-        transform: [pair_ingress_egress_by_geometry]
-        confidence: medium
-    confidence_floor: medium
-    asn1_mandatory: true
-    note: |
-      Structurally mandatory inside a Connection (no OPTIONAL).
-      The encoder will reject any Connection missing 'lane'.
-      The "every ingress must have a connection" rule is on the parent
-      connectsTo container — see rule for laneSet[].connectsTo below.
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "connection_topology"
+        transform: ["pair_ingress_egress_by_geometry"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "connection_topology"
+        transform: ["pair_ingress_egress_by_geometry"]
+      - fact_name: "stage_phase_relationship_from_controller_config"
+        priority: "P2"
+        fact_group: "movement_semantics"
+        transform: ["pair_ingress_egress_by_geometry"]
 
-  - target: laneSet[].connectsTo[].connectingLane.maneuver
-    sources:
-      - fact_type: pdf.stage_arrow_diagram
-        priority: 1
-        transform: [arrow_to_maneuver]
-        confidence: medium
-        note: "Stage arrow images; CV-based; medium confidence"
-      - fact_type: cad.geometry
-        priority: 2
-        transform: [maneuver_from_angle_change]
-        confidence: medium
+  - target: "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver"
+    population_mode: "final_score"
     optional: true
-    note: "Maneuver can also be implied by the relative geometry of the two lanes"
-
-  - target: laneSet[].connectsTo[].signalGroup
     sources:
-      - fact_type: pdf.phase_letter
-        priority: 1
-        transform: [phase_letter_to_signal_group]
-        confidence: high
-    excluded_when:
-      - "fact.phase_type == D (Dummy)"
-      - "fact.location_text contains any of [Dummy, DA, Max Timer, Pre-time]"
-    confidence_floor: high
+      - fact_name: "lane_geometry_candidate_from_cad"
+        priority: "P1"
+        fact_group: "movement_semantics"
+        transform: ["maneuver_from_angle_change"]
+      - fact_name: "lane_line_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "movement_semantics"
+        transform: ["maneuver_from_angle_change"]
+      - fact_name: "stage_phase_relationship_from_controller_config"
+        priority: "P2"
+        fact_group: "movement_semantics"
+        transform: ["maneuver_from_angle_change"]
+
+  - target: "mapData.intersections[].laneSet[].connectsTo[].signalGroup"
+    population_mode: "final_score"
     c_roads_mandatory: true
-    note: |
-      Each non-dummy phase letter → signalGroupID. signalGroup +
-      intersectionReferenceID tuple MUST also exist in the SPATEM.
-      For 337L: phases A-T are real → signal groups; U-A2 are Type=D (dummy)
-      and MUST be excluded.
+    sources:
+      - fact_name: "phase_label_from_controller_config"
+        priority: "P1"
+        fact_group: "signal_control_semantics"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "stage_phase_relationship_from_controller_config"
+        priority: "P1"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "movement_phase_mapping_from_controller_config"
+        priority: "P1"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "phase_label_from_utc_form"
+        priority: "P2"
+        fact_group: "signal_control_semantics"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "stage_phase_relationship_from_utc_form"
+        priority: "P2"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "movement_phase_mapping_from_utc_form"
+        priority: "P2"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "phase_label_from_ram_8tx"
+        priority: "P3"
+        fact_group: "signal_control_semantics"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "stage_phase_relationship_from_ram_8tx"
+        priority: "P3"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "movement_phase_mapping_from_ram_8tx"
+        priority: "P3"
+        fact_group: "movement_phase_mapping"
+        transform: ["phase_label_to_signal_group"]
+      - fact_name: "phase_candidate_from_pdf_ocr"
+        priority: "F"
+        fact_group: "signal_control_semantics"
+        transform: ["phase_label_to_signal_group"]
 
-# =============================================================================
-# 4. FORBIDDEN ELEMENTS (must NOT appear in output)
-# =============================================================================
+  - target: "mapData.intersections[].signalHeadLocations[].nodeXY"
+    population_mode: "final_score"
+    optional: true
+    sources:
+      - fact_name: "signal_head_symbol_candidate_from_pdf_vector"
+        priority: "P2"
+        fact_group: "signal_head_geometry"
+        transform: ["relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
+      - fact_name: "signal_head_symbol_candidate_from_pdf_cv"
+        priority: "P3"
+        fact_group: "signal_head_geometry"
+        transform: ["relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
+      - fact_name: "cad_block_reference"
+        priority: "P2"
+        fact_group: "signal_head_geometry"
+        transform: ["relative_to_refpoint", "delta_to_cm", "choose_node_xy_precision"]
+
 forbidden:
+  - target: "mapData.intersections[].laneSet[].maneuvers"
+    reason: "C-Roads prohibits lane-level maneuvers; use connectsTo[].connectingLane.maneuver."
+  - target: "mapData.intersections[].laneSet[].laneAttributes.sharedWith.bit_1"
+    name: "multipleLanesTreatedAsOneLane"
+    reason: "C-Roads requires individual lane modelling."
+  - target: "mapData.intersections[].laneSet[].laneAttributes.sharedWith.bit_9"
+    name: "pedestrianTraffic"
+    reason: "C-Roads uses pedestriansTraffic bit instead."
+  - target: "mapData.intersections[].regional"
+    conditional: "when roadSegments is present"
+    reason: "C-Roads profile restriction."
 
-  - target: laneSet[].maneuvers
-    layer: GenericLane (lane-level)
-    reason: |
-      C-Roads §3.3.3: "this data element shall not be used... explicitly
-      prohibited". Use connectsTo.connectingLane.maneuver instead.
-
-  - target: laneSet[].laneAttributes.sharedWith.bit_1
-    name: multipleLanesTreatedAsOneLane
-    reason: "C-Roads: shall not be used; describe every lane individually"
-
-  - target: laneSet[].laneAttributes.sharedWith.bit_9
-    name: pedestrianTraffic
-    reason: "C-Roads: use bit 6 pedestriansTraffic"
-
-  - target: intersections[].regional
-    conditional: "when MapData.roadSegments is present"
-    reason: "C-Roads: regional shall not be used when roadSegments is used"
-
-# =============================================================================
-# 5. CONFLICT RESOLUTION
-# =============================================================================
-conflict_resolution:
-
-  primary_rule: priority_order
-  description: |
-    When multiple fact sources feed the same target field, take the
-    highest-priority source (lowest 'priority' number) whose confidence
-    meets confidence_floor. Lower-priority sources become 'corroborating'
-    evidence (logged but not used as the value).
-
-  fallback: manual_review
-  fallback_note: |
-    If no source meets confidence_floor, set target value to null and add
-    an entry to manual_review_items.json with all candidate sources, so a
-    human can decide.
-
-  log_destination: validation_report.json
-  log_entries:
-    - target field
-    - chosen source (rule_applied)
-    - chosen value
-    - rejected sources (with reason)
-    - confidence
-    - any constraint violations
-
-# =============================================================================
-# 6. EXPECTED OUTPUT SCHEMA (mapped_evidence.partial.json)
-# =============================================================================
 expected_output_schema:
-  type: list of per-field records
-  record:
-    target_path:    "string (e.g. intersections[0].refPoint.lat)"
-    value:          "any (final matched value)"
-    rule_applied:   "string (which rule from this file)"
-    source_facts:   "list of fact_ids from extracted_facts.partial.json"
-    transforms_run: "list of transform names"
-    confidence:     "high | medium | low"
-    notes:          "string (optional human-readable notes/caveats)"
-    corroborating:  "list of lower-priority sources that also matched"
+  type: "object"
+  top_level_keys:
+    - "mapped_evidence"
+    - "manual_review_items"
+    - "validation_report"
+    - "summary"
+  mapped_evidence_record:
+    target_path: "Concrete MAPEM path with indexes resolved."
+    object_scope: "intersection_ref/lane_ref/connection_ref/node_ref used for grouping."
+    selected_value: "Final transformed MAPEM value."
+    selected_fact_id: "fact_id of the winning candidate."
+    source_facts: "All fact_ids contributing to the selected value."
+    candidate_scores:
+      extract_confidence_score: "0.0..1.0"
+      conflict_agreement_score: "0.0..1.0"
+      source_priority_score: "0.0..1.0"
+      final_score: "weighted score used for selection"
+    conflict:
+      candidate_count: "number of candidates in same target_path + object_scope"
+      agreement_count: "number of candidates agreeing with selected value"
+      disagreement_count: "number of candidates disagreeing with selected value"
+      field_type: "coordinate|node_delta|integer_id|enum|angle|geometry|text|default"
+      tolerance_applied: "tolerance value from conflict_detection"
+      max_divergence: "largest measured divergence where applicable"
+    decision:
+      status: "matched|matched_with_conflict|manual_review_required|unresolved|pending_transform"
+      reason: "short machine-readable reason"
+    provenance:
+      source_file: "file path"
+      evidence_location: "location inside source"
+      fact_name: "extracted fact name"
+      transform: "transform chain used"
+    corroborating: "candidate facts agreeing with the selected value"
+    rejected: "candidate facts not selected, with score and reason"
 
-# =============================================================================
-# END
-# =============================================================================

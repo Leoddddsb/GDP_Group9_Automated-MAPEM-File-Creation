@@ -98,6 +98,14 @@ DEFAULT_CAD_LAYER_RULES = {
     ]
 }
 
+CAD_LANE_CENTRELINE_MIN_LENGTH = 20.0
+CAD_LANE_CENTRELINE_LAYER_PATTERNS = (
+    r"(?:^|[$_\s-])(?:kts_lines|lines|roadcentre|roadcenter|centreline|centerline|r_cl)$",
+)
+CAD_LANE_CENTRELINE_EXCLUDE_PATTERNS = (
+    r"(?:duct|loop|signal|tact|kerb|base|exbase|topo|text|key|dim|border|build|wall|veg|water|rail|fence|slope|verge|channel|hatch|utility|service|title|frame|control|cctv|benchmark|construction|yellow|double|existing|off)",
+)
+
 
 def extract_dxf_facts(path: str | Path) -> list[dict]:
     try:
@@ -208,18 +216,18 @@ def _extract_document_facts(document: object) -> list[dict]:
         if entity_type == "LINE":
             geometry = [_xy(entity.dxf.start), _xy(entity.dxf.end)]
             points.extend(geometry)
-            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, 0.7))
+            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, confidence))
         elif entity_type == "LWPOLYLINE":
             geometry = [_xy(point) for point in entity.get_points()]
             points.extend(geometry)
-            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, 0.75))
+            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
         elif entity_type == "POLYLINE":
             geometry = [_xy(vertex.dxf.location) for vertex in entity.vertices]
             points.extend(geometry)
-            fact_name, payload = _layer_geometry_fact(layer, geometry, layer_rules)
-            facts.append(_fact(fact_name, payload, location, 0.75))
+            fact_name, payload, confidence = _layer_geometry_fact(layer, geometry, layer_rules)
+            facts.append(_fact(fact_name, payload, location, max(confidence, 0.75) if confidence >= 0.7 else confidence))
         elif entity_type in {"TEXT", "MTEXT"}:
             text = entity.plain_text() if hasattr(entity, "plain_text") else entity.dxf.text
             text = str(text).strip()
@@ -238,7 +246,7 @@ def _extract_document_facts(document: object) -> list[dict]:
     return facts
 
 
-def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_rules: dict[str, Any]) -> tuple[str, object]:
+def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_rules: dict[str, Any]) -> tuple[str, object, float]:
     for rule in layer_rules.get("layer_rules", []):
         if not _rule_matches(layer, rule):
             continue
@@ -246,11 +254,38 @@ def _layer_geometry_fact(layer: str, geometry: list[tuple[float, float]], layer_
         semantic_type = str(rule.get("semantic_type") or "")
         if not fact_name:
             continue
-        return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": semantic_type}
+        return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": semantic_type}, 0.7
+    if _is_lane_centreline_candidate(layer, geometry):
+        return (
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": geometry,
+                "layer": layer,
+                "semantic_type": "lane_centreline_candidate",
+                "recognition_basis": "cad_layer_geometry_heuristic",
+                "requires_context_match": True,
+            },
+            0.6,
+        )
     fact_name = _geometry_type(layer)
     if fact_name == "cad_geometry_candidate":
-        return fact_name, geometry
-    return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": _legacy_layer_semantic_type(fact_name)}
+        return fact_name, geometry, 0.7
+    return fact_name, {"geometry": geometry, "layer": layer, "semantic_type": _legacy_layer_semantic_type(fact_name)}, 0.7
+
+
+def _is_lane_centreline_candidate(layer: str, geometry: list[tuple[float, float]]) -> bool:
+    if _geometry_length(geometry) < CAD_LANE_CENTRELINE_MIN_LENGTH:
+        return False
+    if any(re.search(pattern, layer, flags=re.IGNORECASE) for pattern in CAD_LANE_CENTRELINE_EXCLUDE_PATTERNS):
+        return False
+    return any(re.search(pattern, layer, flags=re.IGNORECASE) for pattern in CAD_LANE_CENTRELINE_LAYER_PATTERNS)
+
+
+def _geometry_length(geometry: list[tuple[float, float]]) -> float:
+    length = 0.0
+    for first, second in zip(geometry, geometry[1:]):
+        length += ((first[0] - second[0]) ** 2 + (first[1] - second[1]) ** 2) ** 0.5
+    return length
 
 
 def _legacy_layer_semantic_type(fact_name: str) -> str:

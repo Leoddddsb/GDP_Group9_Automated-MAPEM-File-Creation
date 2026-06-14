@@ -134,7 +134,7 @@ and fuse them into MAPEM fields.
 | OSM | Nodes, ways, and way tags | Road-name candidates; coordinate bounds; approximate bounds-centre junction candidate | OSM data provides reference road names and coordinates |
 | Shapefile, GeoPackage | GIS features, properties, and coordinates through Fiona | Road-name candidates; geometry candidates; coordinate bounds; approximate bounds-centre junction candidate | Structured GIS files provide spatial reference evidence |
 | ZIP | Archive paths and supported nested members | Archive-member facts; rejected unsafe paths; nested parseable-file availability; root and xref DWG candidates; topographic drawing availability; recursively extracted inner facts | ZIP is a container; retaining the member chain preserves the original source provenance |
-| MOVA | File path, executable configuration, and file size | `mova_tools_manual_export_required`; file-size metadata | `.mova` is a proprietary binary dataset; full control facts must come from files exported by MOVA Tools |
+| MOVA | File path, optional executable configuration, and file size | `mova_tools_not_configured_skipped` when MOVA Tools is unavailable; `mova_tools_manual_export_required` when it is configured; file-size metadata | `.mova` is a proprietary binary dataset and is treated as low-priority supplemental evidence. It does not block lane extraction |
 | Unsupported extension | File path and extension | File-level `status: "unsupported"` with no extracted facts | The file remains visible for manual review without guessing its contents |
 
 Every retained fact includes an `evidence_location` chain. For example, a CAD
@@ -309,90 +309,6 @@ treated as required dependency errors when a PDF page with images needs
 recognition. Vector PDF drawing objects are extracted directly from the PDF page
 structure and do not require OCR/CV packages.
 
-### PDF OCR and Computer-vision Implementation Plan
-
-Many local authorities may only provide a PDF as the final fallback. For those
-sites, one-shot extraction from a scanned drawing is not realistic. The planned
-approach is feature extraction plus spatial filtering:
-
-1. Prefer CAD first when available. DWG/DXF geometry is treated as the strongest
-   source for lanes, stop lines, road markings, and signal-head positions.
-2. Use GIS/OSM/Ordnance Survey geometry as a coarse spatial filter. Road names,
-   junction bounds, and approximate centre points narrow the candidate area and
-   reduce unrelated clusters or secondary drawing information.
-3. Convert PDF pages with embedded images to rendered images. `needs_future_recognition`
-   means the page lacks extractable text; `pdf_image_page_candidate` means the
-   page contains image objects and should go through OCR/CV.
-4. Run OCR on cropped title blocks, notes, labels, phase/stage tables, and road
-   labels. These outputs become text candidates with lower confidence than
-   native PDF text unless they are corroborated by CAD/GIS.
-5. Run computer vision and vector-geometry heuristics on drawing regions to
-   produce low-confidence candidates for road markings, lane lines, arrows,
-   stop lines, crossings, and signal-head symbols. Detected features stay as
-   candidate facts until matched against CAD/GIS context.
-6. Assign initial Step 2 confidence conservatively. CAD-confirmed geometry,
-   OCR corroboration, and GIS spatial filtering are not applied in Step 2; they
-   are Step 3 / evidence-fusion responsibilities.
-7. For vector PDFs, read drawing objects directly from `pdfplumber` page
-   structures. Lines, curves, and rectangles are retained as vector candidates
-   before they are matched against CAD/GIS context.
-
-This keeps PDF fallback useful without pretending that scanned drawings can
-directly produce final MAPEM fields. The Step 2 output records the image page,
-OCR text candidates, and raw CV line candidates; later matching/fusion must
-decide whether they support MAPEM fields.
-
-#### Current Image-recognition Process
-
-The implementation is in `src/mapemgen/ingestion/pdf_cv.py`. It is a rule-based
-fallback for PDF drawings, not a trained object-detection model.
-
-Goal:
-
-- keep useful drawing evidence when CAD is unavailable
-- separate directly observed geometry from guessed road semantics
-- mark every guessed semantic feature as requiring later CAD/GIS context match
-
-Path A: vector PDF objects
-
-1. Read `page.lines`, `page.curves`, and `page.rects` from `pdfplumber`.
-2. Emit raw vector facts:
-   `pdf_vector_page_candidate`, `pdf_vector_line_candidate`,
-   `pdf_vector_curve_candidate`, and `pdf_vector_rect_candidate`.
-3. Preserve PDF coordinates such as `x0`, `top`, `x1`, `bottom`, `width`,
-   `height`, and `linewidth`.
-4. Apply simple geometry rules to create low-confidence semantic candidates:
-   lane lines, stop lines, crossings, arrows, road markings, and signal-head
-   symbols.
-5. Do not promote obvious page borders, full-page lines, full-page rectangles,
-   or generic decorative curves to semantic road candidates. These objects stay
-   available as raw vector facts only.
-
-Path B: raster image pages
-
-1. Render the page to pixels with `pymupdf` / `fitz`.
-2. Run OCR with `pytesseract` and emit non-empty text as
-   `pdf_ocr_text_candidate`.
-3. Scan OCR text for control keywords such as `phase`, `stage`, `detector`,
-   `timing`, and `control`.
-4. Run OpenCV line detection on the rendered pixels:
-   grayscale -> Otsu threshold -> morphology close -> Canny edges ->
-   probabilistic Hough lines.
-5. Emit raw pixel line facts as `pdf_cv_line_candidate`.
-6. Derive low-confidence semantic candidates from those lines, such as
-   `road_marking_candidate_from_pdf_cv`, `lane_line_candidate_from_pdf_cv`, and
-   `stop_line_candidate_from_pdf_cv`.
-
-Output rule:
-
-- vector geometry is stronger than pixel CV because it comes from the PDF
-  drawing structure
-- OCR text is weaker than native PDF text because it comes from rendered pixels
-- CV line detection only proves that a line-like shape was found; it does not
-  prove the line is a road marking
-- semantic drawing candidates always include `requires_context_match: true`
-- when in doubt, keep raw geometry and suppress the guessed semantic candidate
-
 ### DXF and DWG Parser
 
 Implement `src/mapemgen/ingestion/cad.py`.
@@ -460,6 +376,27 @@ Current starter layer rules:
 | `KERB`, `CarriagewayKerb`, `ROAD-EDGE`, `Road Or Track`, `channel` | `cad_context_geometry_candidate` | Road/kerb context geometry, not direct lane evidence |
 | `OS`, `TOPO`, `ExBase`, `BASE` | `cad_context_geometry_candidate` | Background/topographic context geometry |
 
+Lane centreline extraction uses an additional conservative heuristic because
+many local CAD drawings do not have a literal `LANE_*` layer. Long line or
+polyline geometry on terminal `LINES`, `KTS_LINES`, `centreline`,
+`centerline`, `roadcentre`, `roadcenter`, or `R_CL` layers can be emitted as
+`lane_geometry_candidate_from_cad` with:
+
+```json
+{
+  "semantic_type": "lane_centreline_candidate",
+  "recognition_basis": "cad_layer_geometry_heuristic",
+  "requires_context_match": true
+}
+```
+
+These candidates use lower confidence (`0.60`) than explicitly named lane
+layers. Broad or noisy layers such as `GENLINE`, `ROAD`, `GENPECK`,
+`Construction Lines`, `YELLOW_LINES`, `existing-LINES-OFF`, duct, loop, signal,
+kerb, OS/base/topographic, text, title, frame, building, vegetation, water, rail
+and utility layers are not promoted to lane geometry. This prevents CADs such
+as 950L from producing hundreds of false lanes from background road geometry.
+
 When a CAD file is recognised as a standalone topographic/background file, such
 as `OS-TOPO.dwg`, extraction still limits it to CAD metadata and coordinate
 bounds at the site-folder coordinator level. This prevents dense background
@@ -511,8 +448,13 @@ warnings or silent fallbacks.
 Add `src/mapemgen/ingestion/mova.py`.
 
 `.mova` is a proprietary binary dataset format used by the official MOVA Tools
-application. Full extraction must use MOVA Tools as an external conversion
-boundary, in the same way that DWG extraction uses ODA File Converter:
+application. MOVA data can be useful later for controller logic, but it is
+lower priority than CAD/PDF geometry for lane extraction. If MOVA Tools is not
+configured, the parser records `mova_tools_not_configured_skipped` and continues
+with the rest of the site folder.
+
+Full MOVA extraction must use MOVA Tools as an external conversion boundary, in
+the same way that DWG extraction uses ODA File Converter:
 
 ```text
 .mova binary dataset
@@ -530,16 +472,17 @@ Python parser
 detector, control, phase, stage, stream, timing, and plan facts
 ```
 
-The external tool is required because the repository samples are opaque binary
-files, the binary schema is not published, and guessing byte offsets would
-produce unreliable MAPEM evidence. TRL describes MOVA Tools as the official
-program for creating, editing, and converting MOVA dataset files.
+The external tool is required for detailed MOVA facts because the repository
+samples are opaque binary files, the binary schema is not published, and
+guessing byte offsets would produce unreliable MAPEM evidence. TRL describes
+MOVA Tools as the official program for creating, editing, and converting MOVA
+dataset files.
 
-The Python integration must read a `MOVA_TOOLS_PATH` environment variable that
-points to the installed MOVA Tools executable. The exact automated export
-command must be confirmed against the installed MOVA Tools version before it is
-enabled. If that version provides only a graphical export workflow, export the
-files manually and place them in the site folder for the Python parsers.
+When MOVA evidence is needed, set `MOVA_TOOLS_PATH` to the installed MOVA Tools
+executable. The exact automated export command must be confirmed against the
+installed MOVA Tools version before it is enabled. If that version provides only
+a graphical export workflow, export the files manually and place them in the
+site folder for the Python parsers.
 
 ## Dependency Policy
 
@@ -554,7 +497,7 @@ Dependency failures are handled as follows:
 | --- | --- |
 | Required Python package missing | Stop with an actionable error |
 | `.dwg` encountered without ODA File Converter | Stop with an actionable error |
-| `.mova` encountered without MOVA Tools | Stop full MOVA extraction with an actionable error |
+| `.mova` encountered without MOVA Tools | Record `mova_tools_not_configured_skipped`, keep file metadata, and continue extraction |
 | Individual source file is corrupt or malformed | Record file-level `parser_error` and continue |
 | PDF page has no extractable text | Emit `needs_future_recognition` |
 | PDF page contains image objects | Emit `pdf_image_page_candidate`, run OCR/CV, and require the optional `cv` packages |
@@ -621,8 +564,9 @@ cd C:\Users\leovo\Desktop\GDP
 | `pyproj` | British National Grid to WGS84 coordinate conversion |
 
 TXT, 8TX, ZIP, GeoJSON, JSON, and OSM extraction use Python standard-library
-modules and do not need additional parser packages. Full MOVA extraction
-additionally requires the external MOVA Tools application described below.
+modules and do not need additional parser packages. Full MOVA extraction can
+use the external MOVA Tools application described below, but missing MOVA Tools
+does not block extraction.
 
 To install the parser packages explicitly instead of installing the project:
 
@@ -726,6 +670,11 @@ datasets directly because the binary schema is proprietary and not published.
 MOVA Tools is the official application for creating, editing, and converting
 these datasets.
 
+MOVA is lower-priority supplemental evidence for this extraction stage. If
+MOVA Tools is not installed or `MOVA_TOOLS_PATH` is not set, `mapemgen extract`
+does not fail. It records `mova_tools_not_configured_skipped` and continues with
+CAD, PDF, DOCX, text, GIS, and ZIP extraction.
+
 After installation, replace `<path-to-MOVATools.exe>` with the actual path of
 the installed executable:
 
@@ -794,11 +743,6 @@ This stage handles two different relationships:
 | Geometry relationship | Lane lines, stop lines, crossings, road markings, signal-head symbols, CAD/GIS/PDF drawing geometry | `target_scope.intersection_ref`, and `target_scope.lane_ref` when a nearest lane can be identified in the same coordinate space |
 | Semantic relationship | Phase labels, stage relationships, detector labels, signal-group labels, road names, control/timing labels | `target_scope.intersection_ref` plus direct semantic references such as `phase_ref`, `stage_ref`, `detector_ref`, `signal_group_ref`, `approach_ref`, or `label_ref` |
 
-Important: non-geometry facts are not forced onto a lane. A fact such as
-`Phase A` is assigned to the site intersection and `phase_A`; it only gets a
-`lane_ref` later if matching/fusion finds reliable movement or geometry context
-that connects that phase to a lane.
-
 Input:
 
 ```text
@@ -824,8 +768,9 @@ The output contains:
 | Field | Meaning |
 | --- | --- |
 | `intersections[]` | Intersection references inferred from junction-centre facts, or a default site intersection when no centre is available |
+| `approaches[]` | Groups of nearby parallel lanes in the same source file and coordinate space, with shared CAD-context validation evidence |
 | `lanes[]` | Stable `lane_ref` values created from lane-like geometry facts |
-| `assigned_facts[]` | Geometry facts with `target_scope.intersection_ref` and, when possible, `target_scope.lane_ref` |
+| `assigned_facts[]` | Geometry facts with `target_scope.intersection_ref`, `target_scope.approach_ref`, and, when possible, `target_scope.lane_ref` |
 | `semantic_assignments[]` | Non-geometry facts with intersection-level scope and direct semantic refs such as `phase_ref`, `stage_ref`, `detector_ref`, or `approach_ref` |
 | `movement_lane_mappings[]` | Conservative `movement_ref -> lane_ref` links when lane source labels directly expose the movement; unmatched movements are retained with `requires_context_match: true` |
 | `geometry_summary` | Centroid, bounds, coordinate space, and PDF page reference when applicable |
@@ -838,6 +783,7 @@ Geometry assignment example:
   "fact_name": "stop_line_from_cad",
   "target_scope": {
     "intersection_ref": "intersection_1",
+    "approach_ref": "approach_1",
     "lane_ref": "lane_3"
   },
   "assignment_method": "nearest_lane_centroid",
@@ -899,23 +845,68 @@ Rules:
   create low-confidence lane proxies as the final fallback. Lower-priority
   lane-like facts remain evidence, but they do not create additional lanes when
   a stronger source is available.
+- CAD lane candidates from standalone topographic/reference drawings, CAD files
+  whose filename indicates a different site id, or non-vehicle/background lane
+  layers such as cycle coloured-area layers are retained as facts but are not
+  allowed to define MAPEM lanes.
+- Heuristic CAD lane-centreline candidates are clustered into lane corridors
+  before `lane_ref` values are created. This avoids one CAD segment becoming
+  one output lane when a CAD layer splits the same centreline into many small
+  entities.
+- Nearby parallel lanes from the same source file and coordinate space are then
+  grouped into `approaches[]`. This lets the extractor confirm a controlled
+  approach automatically when stop lines, signal heads, arrows, movement labels,
+  CAD blocks, poles, or road markings are distributed across adjacent lanes
+  instead of attached to every individual lane.
+- Heuristic CAD lanes keep `requires_context_match: true` in `lanes[]`. They
+  are useful routing geometry for later matching, but they are not treated as
+  fully confirmed lane semantics until corroborated by labels, arrows, GIS,
+  CAD blocks, or other source context.
+- After geometry assignment, heuristic CAD lanes are validated against other
+  CAD facts assigned to the same lane or the same confirmed approach in the
+  same modelspace. Evidence groups include stop lines, signal heads, signal
+  geometry, directional arrows, movement labels, road/text labels, CAD blocks,
+  poles, and road markings. A lane is marked
+  `lane_validation_status: "cad_context_confirmed"` and
+  `requires_context_match: false` when either the lane itself or its approach
+  has at least two evidence groups from at least two distinct CAD entity
+  locations. Otherwise it remains
+  `lane_validation_status: "needs_context_match"`.
+- `lane_confirmation_basis` records whether confirmation came from
+  `direct_lane_context_validation` or `approach_context_validation`.
+- If an unconfirmed heuristic CAD lane is close to CAD context evidence already
+  assigned to a confirmed approach, it can be adopted into that approach with
+  `lane_confirmation_basis: "nearby_confirmed_approach_adoption"`. This handles
+  common drawings where adjacent approach lanes are split into separate CAD
+  segments and not every segment has its own signal-head or stop-line evidence.
+- If an unconfirmed heuristic CAD lane is far from every confirmed CAD context,
+  it is marked `lane_validation_status: "out_of_scope_candidate"` with
+  `lane_confirmation_basis: "distant_insufficient_context"`. This keeps likely
+  background or non-target lane candidates out of later MAPEM matching without
+  deleting the original extracted facts.
+- Validation evidence is summarized with `validation_evidence_groups`,
+  `validation_evidence_counts`, `validation_evidence_fact_ids`, and
+  `validation_evidence_fact_count`. The fact id list is capped so the output
+  does not become dominated by repeated CAD block references.
+- Unconfirmed heuristic CAD lanes also include `unconfirmed_reason`,
+  `missing_validation_evidence_group_count`, and
+  `nearest_validation_candidates[]`. These diagnostics show why the lane still
+  needs context matching and list the nearest CAD context candidates in the same
+  CAD modelspace, including fact id, fact name, evidence group, evidence
+  location, assigned lane, and distance to this lane.
+- Nearest validation candidates are for manual review and rule tuning. A nearby
+  candidate is not automatically treated as confirmation if it was assigned to a
+  different lane or does not satisfy the independent evidence threshold.
 - When PDF is the only lane source, similar PDF lane-line segments are clustered
   into lane corridors so the output does not create one lane per vector segment.
-- PDF page-space geometry is assigned only to lanes on the same PDF page and
-  source file. It is not mixed with CAD modelspace or GIS coordinates.
-- Phase, stage, detector, signal-group, road-name, and label facts are assigned
-  to semantic refs only when that reference is directly visible in the extracted
-  text.
-- Generic headings such as `Phases, Stages and Streams` stay at intersection
-  scope and are not promoted to a specific `phase_ref` or `stage_ref`.
-- Non-geometry facts keep `lane_ref: null` unless there is a reliable geometry
-  anchor. This avoids falsely assigning one phase or label to the nearest lane.
 - Phase-to-movement facts can be routed to lanes through `movement_lane_mappings[]`
   only when assignment can read a matching `movement_ref`, `movement_text`,
   lane label, or road-name label from the lane source facts.
 - CAD movement labels with coordinates can also produce `movement_lane_mappings[]`
   after assignment places the label near a lane; these mappings use
-  `assignment_method: "cad_movement_label_nearest_lane"`.
+  `assignment_method: "cad_movement_label_nearest_lane"`. Labels on key,
+  legend, note, dimension, or title layers are not auto-mapped because they
+  often describe drawing symbols rather than real lane movements.
 - Directional CAD signal-arrow lane proxies can map only matching turn
   movements, such as `right_turn` or `left_turn`; these mappings use
   `assignment_method: "cad_signal_arrow_direction_match"` and still keep

@@ -93,13 +93,17 @@ class ExtractionTest(unittest.TestCase):
         rejected = next(fact for fact in facts if fact["fact_name"] == "archive_member_rejected")
         self.assertEqual(rejected["payload"]["value"], "../outside.txt")
 
-    def test_mova_parser_requires_mova_tools(self):
+    def test_mova_parser_skips_without_mova_tools(self):
         path = _test_dir() / "site.mova"
         path.write_bytes(b"\x00binary mova dataset\xff")
 
         with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaisesRegex(RuntimeError, "MOVA Tools"):
-                extract_mova_facts(path)
+            facts = extract_mova_facts(path)
+
+        self.assertEqual(facts[0]["fact_name"], "mova_tools_not_configured_skipped")
+        self.assertTrue(facts[0]["payload"]["value"]["skipped"])
+        self.assertEqual(facts[0]["payload"]["value"]["priority"], "low")
+        self.assertEqual(facts[1]["payload"]["value"], {"file_size_bytes": path.stat().st_size})
 
     def test_mova_parser_records_official_export_requirement(self):
         folder = _test_dir()
@@ -163,8 +167,9 @@ class ExtractionTest(unittest.TestCase):
         self.assertTrue(any(fact["fact_name"] == "coordinate_bounds" for fact in facts))
 
     def test_dxf_parser_requires_ezdxf(self):
-        with self.assertRaisesRegex(RuntimeError, "ezdxf"):
-            extract_dxf_facts(_test_dir() / "site.dxf")
+        with patch.dict(sys.modules, {"ezdxf": None}):
+            with self.assertRaisesRegex(RuntimeError, "ezdxf"):
+                extract_dxf_facts(_test_dir() / "site.dxf")
 
     def test_dwg_parser_requires_oda_file_converter(self):
         with self.assertRaisesRegex(RuntimeError, "ODA File Converter"):
@@ -573,6 +578,52 @@ class ExtractionTest(unittest.TestCase):
         self.assertEqual(layer_by_name["modelspace entity 1 layer DUCTS"], "cad_geometry_candidate")
         self.assertEqual(layer_by_name["modelspace entity 2 layer LOOPS"], "detector_loop_candidate_from_cad")
         self.assertEqual(layer_by_name["modelspace entity 3 layer LANE_MAIN"], "lane_geometry_candidate_from_cad")
+
+    def test_dxf_parser_promotes_long_generic_cad_lines_to_lane_candidates(self):
+        entities = [
+            _Entity("LINE", "KTS_LINES", start=(0, 0), end=(40, 0)),
+            _Entity("LINE", "LINES", start=(0, 1), end=(2, 1)),
+            _Entity("LINE", "du-UTMCDUCT-F1", start=(0, 2), end=(80, 2)),
+        ]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        lane_candidates = [fact for fact in facts if fact["fact_name"] == "lane_geometry_candidate_from_cad"]
+        self.assertEqual(len(lane_candidates), 1)
+        payload = lane_candidates[0]["payload"]["value"]
+        self.assertEqual(payload["layer"], "KTS_LINES")
+        self.assertEqual(payload["semantic_type"], "lane_centreline_candidate")
+        self.assertEqual(payload["recognition_basis"], "cad_layer_geometry_heuristic")
+        self.assertTrue(payload["requires_context_match"])
+        self.assertLess(lane_candidates[0]["confidence"], 0.7)
+
+    def test_dxf_parser_keeps_broad_road_layers_out_of_lane_candidates(self):
+        entities = [
+            _Entity("LINE", "GENLINE", start=(0, 0), end=(80, 0)),
+            _Entity("LINE", "ROAD", start=(0, 1), end=(80, 1)),
+            _Entity("LINE", "GENPECK", start=(0, 2), end=(80, 2)),
+        ]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        self.assertFalse(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in facts))
+
+    def test_dxf_parser_keeps_non_lane_line_layers_out_of_lane_candidates(self):
+        entities = [
+            _Entity("LINE", "Construction Lines", start=(0, 0), end=(80, 0)),
+            _Entity("LINE", "T-ROAD_MARKINGS_YELLOW_LINES", start=(0, 1), end=(80, 1)),
+            _Entity("LINE", "zz-existing-LINES-OFF", start=(0, 2), end=(80, 2)),
+        ]
+        fake_ezdxf = types.SimpleNamespace(readfile=lambda _path: types.SimpleNamespace(modelspace=lambda: entities))
+
+        with patch.dict(sys.modules, {"ezdxf": fake_ezdxf}):
+            facts = extract_dxf_facts("site.dxf")
+
+        self.assertFalse(any(fact["fact_name"] == "lane_geometry_candidate_from_cad" for fact in facts))
 
     def test_dxf_parser_extracts_classic_polyline_vertices(self):
         polyline = _Entity("POLYLINE", "LANE_MAIN")

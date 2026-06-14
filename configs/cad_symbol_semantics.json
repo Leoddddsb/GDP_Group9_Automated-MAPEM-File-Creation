@@ -8,6 +8,13 @@
       "description": "Tactile paving block near pedestrian crossing facilities."
     },
     {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])(?:tactpblk|tactknob|tactpave)(?:$|[^a-z0-9])",
+      "semantic_type": "tactile_paving",
+      "fact_name": "cad_pedestrian_facility_candidate",
+      "description": "Tactile paving variants seen in Leeds and xref-prefixed CAD files."
+    },
+    {
       "match": "exact",
       "pattern": "pole",
       "semantic_type": "pole",
@@ -15,11 +22,25 @@
       "description": "Pole or post asset."
     },
     {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])(?:pole|wbpole|poleno|stubpole|crpole|polesock)(?:$|[^a-z0-9])",
+      "semantic_type": "pole",
+      "fact_name": "cad_pole_candidate",
+      "description": "Pole/post symbol variants including xref-prefixed and Leeds naming."
+    },
+    {
       "match": "prefix",
       "pattern": "HD",
       "semantic_type": "signal_head",
       "fact_name": "cad_signal_head_candidate",
       "description": "Common signal-head block naming pattern, for example HD084 or HD001S."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])(?:HD[0-9]{3}[A-Z]*|Signal-Symbol-[0-9]{3}[A-Z]*)(?:$|[^a-z0-9])",
+      "semantic_type": "signal_head",
+      "fact_name": "cad_signal_head_candidate",
+      "description": "Signal-head symbols inside xrefs or named Signal-Symbol-001P."
     },
     {
       "match": "exact",
@@ -33,6 +54,17 @@
       "description": "Directional signal-head block with arrow-like geometry in the block definition."
     },
     {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])HD003P(?:$|[^a-z0-9])",
+      "semantic_type": "signal_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "right",
+        "requires_context_match": true
+      },
+      "description": "Xref-prefixed HD003P directional signal-head block."
+    },
+    {
       "match": "exact",
       "pattern": "HD004P",
       "semantic_type": "signal_arrow",
@@ -42,6 +74,39 @@
         "requires_context_match": true
       },
       "description": "Directional signal-head block with arrow-like geometry in the block definition."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:^|[$_\\s-])HD004P(?:$|[^a-z0-9])",
+      "semantic_type": "signal_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "left",
+        "requires_context_match": true
+      },
+      "description": "Xref-prefixed HD004P directional signal-head block."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:right|1038r|arrow-r|r-arrow)",
+      "semantic_type": "directional_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "right",
+        "requires_context_match": true
+      },
+      "description": "Right-turn road-marking or arrow block variants."
+    },
+    {
+      "match": "regex",
+      "pattern": "(?:left|1038l|arrow-l|l-arrow)",
+      "semantic_type": "directional_arrow",
+      "fact_name": "cad_arrow_block_candidate",
+      "payload": {
+        "arrow_direction_candidate": "left",
+        "requires_context_match": true
+      },
+      "description": "Left-turn road-marking or arrow block variants."
     },
     {
       "match": "contains",
