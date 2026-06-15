@@ -324,13 +324,6 @@ fields:
     - bng_to_wgs84_OSTN15
     - take_lat
     - wgs84_to_int_1e7
-  - fact_name: lane_line_candidate_from_pdf_vector
-    priority: P2
-    fact_group: drawing_geometry
-    transform:
-    - polyline_centroid
-    - take_lat
-    - wgs84_to_int_1e7
   - fact_name: lane_centreline_geometry_from_annotated_drawing
     priority: P2
     fact_group: road_layout_geometry
@@ -385,13 +378,6 @@ fields:
     transform:
     - geometry_bounds_centre
     - bng_to_wgs84_OSTN15
-    - take_long
-    - wgs84_to_int_1e7
-  - fact_name: lane_line_candidate_from_pdf_vector
-    priority: P2
-    fact_group: drawing_geometry
-    transform:
-    - polyline_centroid
     - take_long
     - wgs84_to_int_1e7
   - fact_name: lane_centreline_geometry_from_annotated_drawing
