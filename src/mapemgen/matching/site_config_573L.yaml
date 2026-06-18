@@ -1,156 +1,103 @@
-# Site Configuration — Simplified Version
+# =============================================================================
+# Site Configuration — 573L (573L)
+# =============================================================================
+# Per-site config consumed by matching_engine.py alongside matching_rules.yaml.
+# One file per site. Anything omitted falls back to matching_rules.yaml `config:`.
+# Items marked TBD MUST be confirmed before a production run.
 # =============================================================================
 
-# This file contains site-specific settings used by the MAPEM matching pipeline.
-# One configuration file should be prepared for each site.
-
-# The file is divided into two sections:
-
-# [A] Current site configuration
-#     Fields currently used by the matching engine. These should be checked and
-#     updated when processing a new site.
-
-# [B] Reserved fields for future connection
-#     Fields kept for future extension. They describe useful site information,
-#     but are not currently read by the running code.
-
-# Empty or commented fields will fall back to the values defined in
-# matching_rules.yaml, where applicable.
-
-# Do not rename or move fields in Section A unless the matching engine is also
-# updated to read the new location.
-# =============================================================================
-
-
-# =============================================================================
-# Site-change quick note
-
-# For a new site, update Section [A] only:
-#   A1 site: update the site ID and check dummy_phases against the site's PDF
-#      phase table.
-#   A2 region_code: reuse the same value for sites within the same authority.
-#   A3 manual: fill only when automatic extraction is missing or incorrect.
-#   A4 priority_overrides: leave empty unless site-specific priorities are needed.
-
-# Section [B] is reserved for future use and can be ignored for normal site changes.
-# =============================================================================
-
-
-
-# [A] Required when changing site (currently read by the engine; must be
-# confirmed/filled for each site)
-
-# --- A1. Site identity + dummy_phases ---
-# Note: dummy_phases must be placed under site: because the engine reads it from
-# site.dummy_phases.
+# 0. Site metadata (informational; not used by engine logic)
 site:
-  id:           "573L"                       # ★ Change: site ID
+  id:          "573L"
+  name:        "573L"
+  authority:   "Leeds City Council"
+  description: "TBD: junction type / road names"
+  source_files:
+    pdf:       "TBD"
+    dwg:       "TBD"
+  prepared_by: "TBD"
+  prepared_on: "2026-06-16"
 
-  # dummy_phases: phase letters where Type="D" (Dummy) in the PDF "USE OF PHASES" table.
-  # These are controller placeholders, not real signal groups, and must be excluded;
-  # otherwise the signalGroup mapping will be wrong.
-  # ⚠️ When changing site, always re-check the phase table in that site's PDF.
-  #    Never copy this list directly from another site!
-  # For 337L: A-T are real phases, while U-A2 are Dummy.
-  dummy_phases: ["R"]       # ★ Must change: check the site's PDF phase table
+# =============================================================================
+# 1. REQUIRED project-level config (overrides matching_rules.yaml `config:`)
+# =============================================================================
+station_id: 100                  # sender ITS-S id; project-chosen integer
+region_code: 50000               # TBD: 50 (UK) + 3-digit authority code
+default_lane_width_m: 3.5        # UK urban standard; override if this site differs
+crs_source: EPSG:27700           # TBD: confirm the DWG/DXF is BNG, not local coords
+auto_signal_group_start: 1       # fallback only; real controller/manual mappings override it
 
-# --- A2. Region code
-# Used for mapData.intersections[].id.region.
-# Format used here: UK country code 50 + local authority code (3-digit code).
-# Confirm the local authority code with the client if required.
-# ⚠️ If this is wrong, the whole intersection ID will be wrong.
-region_code: 50050
+# =============================================================================
+# 2. REQUIRED site-specific domain knowledge (cannot be auto-extracted)
+# =============================================================================
+# Dummy phases: letters with Type="D" in the PDF USE OF PHASES table. These are
+# controller placeholders, NOT real signal groups — they MUST be excluded from
+# signalGroup mapping. List them here.
+dummy_phases: []                 # TBD: e.g. [U, V, W, X, Y, Z]
 
-# --- A3. manual overrides (top level; fill only when automatic extraction is wrong;
-# normally keep commented out) ---
-# Each item becomes a priority-0 fact and overrides all automatic sources.
-#Below are the 337L example values
+# Conflict-area hint (optional): helps refPoint extraction pick the right polygon.
+conflict_area:
+  layer_name_hint: "TBD"
+  type: "polygon"
+
+# =============================================================================
+# 3. OPTIONAL manual overrides (fill ONLY if auto-extraction is wrong)
+# =============================================================================
+# Each manual.* entry becomes a highest-priority fact, beating all auto sources.
 manual:
-  # Intersection ID: if the PDF does not extract id.id and it appears as null,
-  # uncomment the line below and fill it manually:
-  # intersection_id: 337
-
-  # Reference point: if the refPoint calculated from CAD is wrong, uncomment and
-  # manually fill the correct WGS84 coordinates:
   # refpoint:
   #   lat:  53.8007550
   #   long: -1.5490770
-  #   note: "Hand-picked from OS basemap"
-
-  # Lane type: if a lane type is classified incorrectly, override it by laneID
-  # individually. Run the pipeline once first to obtain laneID values:
+  #   note: "Hand-picked centre."
+  # intersection_id: 573
+  # connection_signal_groups:
+  #   - lane_ref: lane_1
+  #     target_lane_ref: lane_29
+  #     signalGroup: 1
+  #     reason: "Verified from controller phase/stage table."
+  # disable_auto_signal_groups: true
   # lanetype_overrides:
   #   - laneID: 12
   #     value: crosswalkLane
-  #     reason: "Manually verified — Toucan crossing"
+  #     reason: "Verified — Toucan crossing."
 
-# --- A4. priority_overrides (top level; use only when site data quality is unusual;
-# default is empty) ---
+# =============================================================================
+# 4. OPTIONAL priority overrides (when this site's data quality differs)
+# =============================================================================
+# Adjust priority for specific (target, fact_name) pairs. Labels: P1<P2<P3<F.
+# Leave empty for most sites.
 priority_overrides: []
+  # - target: mapData.intersections[].refPoint.lat
+  #   fact_name: junction_centre_from_open_street_map
+  #   priority: P1     # this site's OSM is better than its CAD geometry
 
-
-# #############################################################################
-# [B] Reserved for future connection (interfaces designed, but not yet read by
-# the current code — no need to fill when changing site for now)
-# #############################################################################
-# The fields below are not yet read by the current engine/parser. Filling them in
-# currently has no effect; they are kept here for future integration.
-# When changing site, you can skip this entire section for now. Fill these fields
-# per site only after the corresponding pipeline components have been connected.
-# (Note: the engine explicitly excludes these from config merging, so keeping them
-# here does not affect the run.)
-
-# --- station_id: project-level constant (100 for all sites); the engine reads it,
-# but it is normally not changed ---
-station_id: 100
-
-# --- default_lane_width_m: default value used when lane width cannot be derived
-# (UK standard 3.5 m) ---
-default_lane_width_m: 3.5
-
-# --- crs_source: drawing coordinate system. The current coordinate transform is
-# hard-coded as BNG inside the transform logic. This field is not yet read. Once
-# connected, it will be used to declare/validate the coordinate system per site. ---
-crs_source: EPSG:27700                       # Reserved: confirm whether BNG
-
-# --- conflict_area: layer hint for the conflict area, used to support refPoint
-# extraction. Not currently connected. ---
-conflict_area:
-  layer_name_hint: "CONFLICT_ZONE"           # Reserved
-  type: "polygon"
-
-# --- parser_hints: hints for the extraction stage. The current extraction code
-# scans automatically and does not read this configuration yet. ---
+# =============================================================================
+# 5. OPTIONAL parser hints (passed to Week-2 parsers)
+# =============================================================================
 parser_hints:
   pdf:
-    # The extractor automatically scans all pages. These page numbers are not
-    # currently used and do not need to be filled in.
-    use_of_phases_page: null                 # Reserved (automatic page scan; usually not needed)
-    stage_table_page: null
-    detector_table_page: null
+    site_id_page: 1
+    use_of_phases_page: null       # TBD
+    stage_table_page: null         # TBD
   cad:
-    # ⚠️ Important reserved item: lane-line layer names. The current extractor does
-    # not filter by layer yet, which is one of the root causes of lane recognition
-    # failure. Once "recognise lane lines by layer" is connected in the extraction
-    # stage, fill in the layer names here for each site.
-    lane_centerline_layer: ""                # Reserved (fill after connection, e.g. "A1-WHITE-LINES")
-    stop_line_layer: ""                      # Reserved
-    signal_head_block: ["STANDARD POLE", "BOXSIGN1"]   # Reserved
+    lane_centerline_layer: ""      # TBD; blank = auto-detect
+    stop_line_layer: ""            # TBD
   gis:
-    # OSM bounding box. Not currently connected; once connected, fill in the
-    # latitude/longitude boundary for this junction per site (±200 m).
-    osm_bbox_wgs84:                          # Reserved
-      min_lat: null
+    osm_bbox_wgs84:
+      min_lat: null                # TBD
       max_lat: null
       min_long: null
       max_long: null
 
-# --- expected: output reasonableness checks, such as lane-count / signal-group
-# count ranges. Whether this is consumed depends on the engine. If filled, it can
-# help detect abnormal outputs, such as lane-count explosion. ---
-expected:                                    # Reserved (optional, useful for QA)
+# =============================================================================
+# 6. OPTIONAL sanity-check expectations (cross-checked into validation_report)
+# =============================================================================
+expected:
   num_intersections: 1
-  num_lanes_min: null
+  num_lanes_min: null              # TBD
   num_lanes_max: null
   num_signal_groups_min: null
   num_signal_groups_max: null
+# =============================================================================
+# END
+# =============================================================================

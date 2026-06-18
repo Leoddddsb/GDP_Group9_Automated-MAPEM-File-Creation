@@ -338,10 +338,7 @@
       "wgs84_to_int_1e7"
     ],
     "mapData.intersections[].refPoint.lat||lane_geometry_candidate_from_cad": [
-      "polyline_centroid",
-      "bng_to_wgs84_OSTN15",
-      "take_lat",
-      "wgs84_to_int_1e7"
+      "junction_centre_lat"
     ],
     "mapData.intersections[].refPoint.lat||lane_line_candidate_from_pdf_vector": [
       "polyline_centroid",
@@ -363,10 +360,7 @@
       "wgs84_to_int_1e7"
     ],
     "mapData.intersections[].refPoint.long||lane_geometry_candidate_from_cad": [
-      "polyline_centroid",
-      "bng_to_wgs84_OSTN15",
-      "take_long",
-      "wgs84_to_int_1e7"
+      "junction_centre_long"
     ],
     "mapData.intersections[].refPoint.long||lane_line_candidate_from_pdf_vector": [
       "polyline_centroid",
@@ -374,16 +368,61 @@
       "wgs84_to_int_1e7"
     ],
     "mapData.intersections[].laneSet[].ingressApproach||lane_geometry_candidate_from_cad": [
-      "cluster_by_direction"
+      "approach_id_ingress"
+    ],
+    "mapData.intersections[].laneSet[].ingressApproach||approach_assignment_candidate_from_cad": [
+      "approach_id_ingress"
     ],
     "mapData.intersections[].laneSet[].ingressApproach||lane_line_candidate_from_pdf_vector": [
-      "cluster_by_direction"
+      "approach_id_ingress"
     ],
     "mapData.intersections[].laneSet[].egressApproach||lane_geometry_candidate_from_cad": [
-      "cluster_by_direction"
+      "approach_id_egress"
+    ],
+    "mapData.intersections[].laneSet[].egressApproach||approach_assignment_candidate_from_cad": [
+      "approach_id_egress"
     ],
     "mapData.intersections[].laneSet[].egressApproach||lane_line_candidate_from_pdf_vector": [
-      "cluster_by_direction"
+      "approach_id_egress"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_cad": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_cad": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_annotated_drawing": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_annotated_drawing": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_ordnance_survey": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_ordnance_survey": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_open_street_map": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_open_street_map": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_cad": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_annotated_drawing": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_controller_config": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_utc_form": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_ram_8tx": [
+      "arrow_to_maneuver"
     ],
     "mapData.intersections[].laneSet[].laneAttributes.directionalUse||lane_geometry_candidate_from_cad": [
       "infer_lane_direction"
@@ -454,6 +493,12 @@
     ],
     "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||stage_phase_relationship_from_controller_config": [
       "maneuver_from_angle_change"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||manual_connection_signal_group": [
+      "signal_group_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||auto_connection_signal_group_from_connection": [
+      "signal_group_id"
     ],
     "mapData.intersections[].laneSet[].connectsTo[].signalGroup||phase_label_from_controller_config": [
       "phase_label_to_signal_group"

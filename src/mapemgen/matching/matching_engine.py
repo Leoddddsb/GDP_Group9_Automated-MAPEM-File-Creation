@@ -525,6 +525,118 @@ class MatchingEngine:
         return warns
 
     # ---- public API -------------------------------------------------------
+    def _manual_connection_signal_group_facts(self, site_config: dict) -> list[Fact]:
+        manual = site_config.get("manual", {}) or {}
+        entries = manual.get("connection_signal_groups") or []
+        facts = []
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            lane_ref = entry.get("lane_ref")
+            target_lane_ref = entry.get("target_lane_ref")
+            connection_ref = entry.get("connection_ref")
+            signal_group = entry.get("signalGroup", entry.get("signal_group"))
+            if signal_group is None or not lane_ref:
+                continue
+            if not connection_ref and target_lane_ref:
+                connection_ref = f"connection_{lane_ref}_to_{target_lane_ref}"
+            if not connection_ref:
+                continue
+            facts.append(Fact.from_dict({
+                "fact_id": f"manual_connection_signal_group_{i + 1}",
+                "fact_name": "manual_connection_signal_group",
+                "payload": {
+                    "intersection_ref": entry.get("intersection_ref", "intersection_1"),
+                    "lane_ref": lane_ref,
+                    "connection_ref": connection_ref,
+                    "target_lane_ref": target_lane_ref,
+                    "signalGroup": signal_group,
+                    "value": signal_group,
+                    "_source": "site_config.manual.connection_signal_groups",
+                },
+                "confidence": "high",
+                "source_file": "site_config.manual",
+            }))
+        return facts
+
+    def _auto_connection_signal_group_facts(self, facts: list[Fact], site_config: dict) -> list[Fact]:
+        """Generate deterministic fallback signalGroup values for lane connections.
+
+        This is intentionally lower priority than manual/controller signal facts.
+        It only fills connections that have topology evidence but no scoped signal
+        semantics, so the output stays complete without pretending a controller
+        phase table was parsed.
+        """
+        manual = site_config.get("manual", {}) or {}
+        if manual.get("disable_auto_signal_groups"):
+            return []
+
+        signal_fact_names = {
+            "manual_connection_signal_group",
+            "phase_label_from_controller_config",
+            "stage_phase_relationship_from_controller_config",
+            "movement_phase_mapping_from_controller_config",
+            "phase_label_from_utc_form",
+            "stage_phase_relationship_from_utc_form",
+            "movement_phase_mapping_from_utc_form",
+            "phase_label_from_ram_8tx",
+            "stage_phase_relationship_from_ram_8tx",
+            "movement_phase_mapping_from_ram_8tx",
+            "phase_candidate_from_pdf_ocr",
+            "movement_phase_mapping_from_annotated_drawing",
+        }
+        used = set()
+        covered = set()
+        for fact in facts:
+            if fact.fact_name not in signal_fact_names or not isinstance(fact.payload, dict):
+                continue
+            value = fact.payload.get("signalGroup", fact.payload.get("signal_group", fact.payload.get("value")))
+            if value is not None:
+                try:
+                    used.add(int(value))
+                except (TypeError, ValueError):
+                    pass
+            lane_ref = fact.payload.get("lane_ref")
+            connection_ref = fact.payload.get("connection_ref")
+            if lane_ref and connection_ref:
+                covered.add((lane_ref, connection_ref))
+
+        generated = []
+        next_signal_group = int(site_config.get("auto_signal_group_start", 1) or 1)
+        seen_connections = set()
+        for fact in facts:
+            if fact.fact_name != "lane_connection_candidate_from_cad" or not isinstance(fact.payload, dict):
+                continue
+            lane_ref = fact.payload.get("lane_ref")
+            connection_ref = fact.payload.get("connection_ref")
+            if not lane_ref or not connection_ref:
+                continue
+            key = (lane_ref, connection_ref)
+            if key in seen_connections or key in covered:
+                continue
+            seen_connections.add(key)
+            while next_signal_group in used:
+                next_signal_group += 1
+            signal_group = next_signal_group
+            used.add(signal_group)
+            next_signal_group += 1
+            generated.append(Fact.from_dict({
+                "fact_id": f"auto_signal_group_{len(generated) + 1}",
+                "fact_name": "auto_connection_signal_group_from_connection",
+                "payload": {
+                    "intersection_ref": fact.payload.get("intersection_ref", "intersection_1"),
+                    "lane_ref": lane_ref,
+                    "connection_ref": connection_ref,
+                    "target_lane_ref": fact.payload.get("target_lane_ref"),
+                    "signalGroup": signal_group,
+                    "value": signal_group,
+                    "_source": "auto generated from lane_connection_candidate_from_cad",
+                },
+                "confidence": "low",
+                "source_file": "auto_connection_signal_group",
+            }))
+        return generated
+
     def run(self, facts: list, site_config: dict) -> dict:
         input_warnings = self._validate_inputs(facts, site_config)
         facts = [Fact.from_dict(f) if isinstance(f, dict) else f for f in facts]
@@ -550,6 +662,9 @@ class MatchingEngine:
                 "confidence": "high",
             }))
 
+        facts.extend(self._manual_connection_signal_group_facts(site_config))
+        facts.extend(self._auto_connection_signal_group_facts(facts, site_config))
+
         resolver = InstanceResolver(facts)
 
         # merged config: rule-file defaults < site_config
@@ -564,7 +679,12 @@ class MatchingEngine:
             "config": cfg,
             "manual": manual,
             "site_config": site_config,
-            "resolved": {},  # filled progressively (e.g. refPoint for later nodes)
+            "resolved": {
+                "lane_id_by_ref": {
+                    lane_ref: idx + 1
+                    for idx, lane_ref in enumerate(resolver._distinct("lane", {}))
+                }
+            },  # filled progressively (e.g. refPoint for later nodes)
         }
 
         records: list[EvidenceRecord] = []
@@ -669,7 +789,7 @@ class MatchingEngine:
                 continue
             lr = f.payload.get("lane_ref")
             poly = (f.payload.get("polyline") or f.payload.get("vertices") or
-                    f.payload.get("points"))
+                    f.payload.get("points") or f.payload.get("geometry"))
             if lr and poly and lr not in lanes:
                 lanes[lr] = poly
         if not lanes:
@@ -681,6 +801,14 @@ class MatchingEngine:
             # BNG reference centroid from all lane points
             all_pts = [p for poly in polylines for p in poly]
             ref = polyc(all_pts)
+            to_wgs84 = getattr(mod, "bng_to_wgs84_OSTN15", None)
+            to_int = getattr(mod, "wgs84_to_int_1e7", None)
+            if to_wgs84 and to_int:
+                wgs84 = to_wgs84(ref)
+                ctx["resolved"]["junction_centre"] = {
+                    "lat": to_int(wgs84["lat"]),
+                    "long": to_int(wgs84.get("lon", wgs84.get("long"))),
+                }
             clusters = cluster(polylines, ref)
             appr = {}
             for r, poly, cid in zip(lane_refs, polylines, clusters):
@@ -855,12 +983,19 @@ class MatchingEngine:
             c["final"] = (w.get("extract_confidence", 0.15) * conf
                           + w.get("conflict_agreement", 0.35) * c["agreement"]
                           + w.get("source_priority", 0.5) * prio)
+        selectable = computable or enriched
+        if rule["target"].endswith(".laneAttributes.directionalUse"):
+            explicit = [c for c in selectable if c["value"] in {"10", "01", "11"}]
+            if explicit:
+                selectable = explicit
         # sort by final desc; tie-breakers: priority rank, confidence, source order
-        order = sorted(enriched,
+        order = sorted(selectable,
                        key=lambda c: (-c["final"], eff_priority(c["src"]),
                                       -self._conf_score(c["fact"].confidence)))
         winner = (order[0]["src"], order[0]["fact"])
-        corro = [(c["src"], c["fact"]) for c in order[1:]]
+        winner_fact_id = order[0]["fact"].fact_id
+        corro = [(c["src"], c["fact"]) for c in enriched
+                 if c["fact"].fact_id != winner_fact_id]
         return (winner, corro, [])
 
     def _process_sources(self, rule, rec, scope, facts, ctx, priority_overrides):
@@ -909,8 +1044,14 @@ class MatchingEngine:
             }
             return self._finalise_mandatory(rec, rule)
 
-        # primary group = winner with the best effective priority
-        primary_g = min(winners, key=lambda g: eff_priority(winners[g][0]))
+        # primary group = winner that should provide the field value. Some
+        # required groups are context only: for connectsTo[].signalGroup,
+        # connection_topology proves the connection scope, but the value must
+        # come from signal_semantics.
+        if rec.target_path.endswith(".signalGroup") and "signal_semantics" in winners:
+            primary_g = "signal_semantics"
+        else:
+            primary_g = min(winners, key=lambda g: eff_priority(winners[g][0]))
         primary_source, primary_fact = winners[primary_g]
 
         # 4. value — expose ALL group winners to the transform (AND inputs),
@@ -1057,6 +1198,9 @@ class MatchingEngine:
             return
         for f in facts:
             if not f.matches_name(fact_name):
+                continue
+            required_scope = source.get("requires_scope") or []
+            if any(not (isinstance(f.payload, dict) and f.payload.get(f"{level}_ref")) for level in required_scope):
                 continue
             if not self._fact_in_scope(f, scope):
                 continue

@@ -19,18 +19,18 @@
 # --- A1. 站点身份 + dummy_phases ---
 # 注:dummy_phases 必须放在 site: 下(引擎从 site.dummy_phases 读取)。
 site:
-  id:           "950L"                       # ★改:站点编号
-  name:         "A63 Selby Road / Ninelands Lane"          # ★改:路口名
+  id:           "337L"                       # ★改:站点编号
+  name:         "Rodley Roundabout"          # ★改:路口名
   source_files:
-    pdf:        "950L CH 16-05-24.pdf"   # ★改:PDF文件名
-    dwg:        "UTC-950L A63 Selby Rd Ninelands La EDIT.dwg"                # ★改:DWG文件名
-  prepared_by:  "TODO: Xin Dai"            # ★改:你的名字
+    pdf:        "337L RODLEY RBOUT SPEC 15_6_15.pdf"   # ★改:PDF文件名
+    dwg:        "UTC_716709_AJB_2a.dwg"                # ★改:DWG文件名
+  prepared_by:  "TODO: your name"            # ★改:你的名字
 
   # dummy_phases:PDF "USE OF PHASES" 表里 Type="D"(Dummy)的相位字母。
   # 是控制器占位符、不是真信号组,必须排除否则 signalGroup 映射出错。
   # ⚠️ 换站点必须重查那个站点的 PDF 相位表,绝对不能照抄!
   # 337L:A-T 是真相位,U-A2 是 Dummy。
-  dummy_phases: [J, K, L, M]       # ★必改:查该站点PDF相位表
+  dummy_phases: [U, V, W, X, Y, Z, A2]       # ★必改:查该站点PDF相位表
 
 # --- A2. region_code(顶层;进 MAPEM 路口 id.region)---
 # C-Roads 规则:2位国家码(英国=50) + 3位机构码。
@@ -45,10 +45,10 @@ manual:
   # intersection_id: 337
 
   # 参考点:如果 CAD 算出的 refPoint 不对,取消注释手填正确 WGS84:
-    refpoint:
-    lat:  53.7831585
-    long: -1.3787800
-    note: "Auto bbox-centre wrong; hand-set to Garforth junction"
+  # refpoint:
+  #   lat:  53.8007550
+  #   long: -1.5490770
+  #   note: "Hand-picked from OS basemap"
 
   # 车道类型:如果某条车道类型判错,按 laneID 单独覆盖(先跑一次拿 laneID):
   # lanetype_overrides:

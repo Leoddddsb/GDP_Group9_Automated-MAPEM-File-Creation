@@ -50,27 +50,89 @@ def resolve_egress_lane_from_stage(value: Any,
     return None
 
 
+def connecting_lane_id(value: Any, resolved=None, **_ignore):
+    if isinstance(value, Mapping):
+        if value.get("target_lane_id") is not None:
+            return int(value["target_lane_id"])
+        target_ref = value.get("target_lane_ref") or value.get("target_lane") or value.get("value")
+        lane_ids = (resolved or {}).get("lane_id_by_ref", {})
+        if target_ref in lane_ids:
+            return lane_ids[target_ref]
+        if isinstance(target_ref, str):
+            digits = "".join(ch for ch in target_ref if ch.isdigit())
+            if digits:
+                return int(digits)
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def signal_group_id(value: Any, **_ignore):
+    if isinstance(value, Mapping):
+        value = value.get("signalGroup", value.get("signal_group", value.get("value")))
+    if value is None:
+        return None
+    return int(value)
+
+
 # ---------------------------------------------------------------------------
 # (B2 fix) approach-id lookups — ingress/egress approach is a CROSS-LANE result
 # (lanes are clustered by bearing around the junction). The engine prepass runs
 # the clustering once and stores per-lane results in resolved['approach']; these
 # transforms just read the right one for the current lane (scope['lane']).
 # ---------------------------------------------------------------------------
-def _approach_for(scope, resolved, want_dir):
+def _approach_number(value: Any):
+    if isinstance(value, Mapping):
+        ref = value.get("approach_ref") or value.get("value")
+        if isinstance(ref, int):
+            return ref
+        if isinstance(ref, str):
+            digits = "".join(ch for ch in ref if ch.isdigit())
+            if digits:
+                return int(digits)
+    return None
+
+
+def _approach_for(value, scope, resolved, want_dir):
+    if isinstance(value, Mapping):
+        direction = str(value.get("direction") or "").lower()
+        if direction:
+            if direction not in {want_dir, "both"}:
+                return None
+            return _approach_number(value)
+
     appr = (resolved or {}).get("approach", {})
     lane = (scope or {}).get("lane")
     info = appr.get(lane)
-    if not info or info.get("dir") != want_dir:
+    if info and info.get("dir") == want_dir:
+        return assign_approach_id(info["id"])  # noqa: F405 (from teammate via *)
+    if isinstance(value, Mapping):
         return None
-    return assign_approach_id(info["id"])  # noqa: F405 (from teammate via *)
+    return _approach_number(value)
 
 
 def ingress_approach_id(value: Any, scope=None, resolved=None, **_ignore):
-    return _approach_for(scope, resolved, "ingress")
+    return _approach_for(value, scope, resolved, "ingress")
 
 
 def egress_approach_id(value: Any, scope=None, resolved=None, **_ignore):
-    return _approach_for(scope, resolved, "egress")
+    return _approach_for(value, scope, resolved, "egress")
+
+
+def directional_use_from_label(value: Any) -> str:
+    if isinstance(value, Mapping):
+        direction = str(value.get("direction") or "").lower()
+        if direction in {"ingress", "egress", "both"}:
+            return direction
+        return "unknown"
+    return _base.directional_use_from_label(value)
+
+
+def arrow_to_maneuver(value: Any) -> str:
+    if isinstance(value, Mapping):
+        value = (value.get("arrow_direction_candidate") or value.get("movement")
+                 or value.get("label") or value.get("value") or value)
+    return _base.arrow_to_maneuver(value)
 
 
 # ---------------------------------------------------------------------------
@@ -97,8 +159,12 @@ def take_label(value: Any, **_ignore):
 
 TRANSFORMS.update({
     "resolve_egress_lane_from_stage": resolve_egress_lane_from_stage,
+    "connecting_lane_id": connecting_lane_id,
+    "signal_group_id": signal_group_id,
     "ingress_approach_id": ingress_approach_id,
     "egress_approach_id": egress_approach_id,
+    "directional_use_from_label": directional_use_from_label,
+    "arrow_to_maneuver": arrow_to_maneuver,
     "take_polyline": take_polyline,
     "take_label": take_label,
 })
@@ -114,8 +180,15 @@ TRANSFORMS.update({
 # 1. extract_int_from_identifier  (site/scn/intersection identifier -> int)
 extract_int_from_identifier = extract_int_from_site_code          # noqa: F405
 
-# 2. phase_label_to_signal_group  (== existing phase_letter_to_signal_group)
-phase_label_to_signal_group = phase_letter_to_signal_group        # noqa: F405
+# 2. phase_label_to_signal_group  (payload-aware phase letter -> signalGroup)
+def phase_label_to_signal_group(value: Any, dummy_phase_set=None, phase_order=None):
+    if isinstance(value, Mapping):
+        inner = value.get("value", value)
+        if isinstance(inner, Mapping):
+            value = inner.get("phase_label", inner.get("phase", inner.get("label", inner.get("value"))))
+        else:
+            value = inner
+    return phase_letter_to_signal_group(value, dummy_phase_set=dummy_phase_set, phase_order=phase_order)  # noqa: F405
 
 # 3. phase_type_to_lane_type  (== existing phase_type_to_lanetype)
 phase_type_to_lane_type = phase_type_to_lanetype                  # noqa: F405
@@ -303,3 +376,146 @@ def polygon_centroid(value, **_ignore):
 
 
 TRANSFORMS["polygon_centroid"] = polygon_centroid
+
+
+# --- cluster_by_direction override (fix lat/lon ref_point) ------------------
+# Problem: cluster_by_direction() computes each lane's BEARING relative to the
+# reference point. Lane geometry is in BNG metres, but the ref_point handed in
+# (resolved refPoint) is WGS84 {lat, lon} in degrees. The base as_point() does
+# not recognise lat/lon keys -> "Cannot read point coordinates from keys
+# ['lat','lon']"; and even if it did, mixing degrees with BNG metres would give
+# a wrong bearing. Fix: convert the WGS84 ref_point back to BNG so it shares the
+# lane geometry's coordinate space, then run the original clustering.
+from pyproj import Transformer as _Transformer
+_WGS84_TO_BNG = _Transformer.from_crs("EPSG:4326", "EPSG:27700", always_xy=True)
+
+
+def _ref_point_to_bng(ref_point):
+    """Accept a ref_point in WGS84 {lat,lon} OR already-BNG forms, return BNG (x,y)."""
+    if isinstance(ref_point, Mapping):
+        # WGS84 lat/lon (degrees) -> project to BNG metres
+        if "lat" in ref_point and ("lon" in ref_point or "long" in ref_point):
+            lat = float(ref_point["lat"])
+            lon = float(ref_point.get("lon", ref_point.get("long")))
+            # values may be stored as int(deg * 1e7); detect and rescale
+            if abs(lat) > 1000:
+                lat /= 1e7
+            if abs(lon) > 1000:
+                lon /= 1e7
+            x, y = _WGS84_TO_BNG.transform(lon, lat)  # always_xy -> (lon,lat)->(east,north)
+            return (x, y)
+    # otherwise assume it's already a usable BNG point/shape
+    return as_point(ref_point)                        # noqa: F405
+
+
+def relative_to_refpoint(point, ref_point, **_ignore):
+    if isinstance(ref_point, Mapping) and "lat" in ref_point and (
+            "lon" in ref_point or "long" in ref_point):
+        return _base.relative_to_refpoint(point, _ref_point_to_bng(ref_point))
+    return _base.relative_to_refpoint(point, ref_point)
+
+
+TRANSFORMS["relative_to_refpoint"] = relative_to_refpoint
+
+
+def choose_node_xy_precision(offsets, **_ignore):
+    if isinstance(offsets, Mapping):
+        offsets = [offsets]
+    elif isinstance(offsets, Sequence) and len(offsets) >= 2 and all(
+            isinstance(x, (int, float)) for x in offsets[:2]):
+        offsets = [offsets]
+    return _base.choose_node_xy_precision(offsets)
+
+
+TRANSFORMS["choose_node_xy_precision"] = choose_node_xy_precision
+
+
+def cluster_by_direction(lanes, ref_point, bearing_tolerance_deg=25.0, **_ignore):
+    ref = _ref_point_to_bng(ref_point)
+    clusters = []
+    assignments = []
+    for lane in lanes:
+        midpoint = polyline_centroid(lane)            # overlay's unwrapping version
+        bearing = bearing_degrees(ref, midpoint)      # noqa: F405
+        for index, cb in enumerate(clusters, start=1):
+            if abs(angle_delta(bearing, cb)) <= bearing_tolerance_deg:  # noqa: F405
+                assignments.append(index)
+                break
+        else:
+            clusters.append(bearing)
+            assignments.append(len(clusters))
+    return assignments
+
+
+TRANSFORMS["cluster_by_direction"] = cluster_by_direction
+
+
+# --- approach id from cross-lane prepass -------------------------------------
+# The engine's _analyze_lanes prepass clusters ALL lanes into approaches once
+# (correct: clustering needs every lane together) and stores the result in
+# ctx['resolved']['approach'] keyed by lane_ref. The per-lane ingressApproach /
+# egressApproach fields must NOT re-run clustering on a single lane (that fails:
+# one lane can't be clustered). Instead they read the prepass result for their
+# own lane_ref. These transforms do exactly that.
+def _approach_lookup(value, resolved=None, scope=None, want_dir=None, **_ignore):
+    """value carries the lane's payload (with lane_ref). resolved['approach']
+    maps lane_ref -> {id, dir}. Return the approach id, but only if the lane's
+    direction matches want_dir ('ingress'/'egress'); otherwise None."""
+    if isinstance(value, Mapping):
+        direction = str(value.get("direction") or "").lower()
+        if direction:
+            if want_dir and direction not in {want_dir, "both"}:
+                return None
+            return _approach_number(value)
+
+    resolved = resolved or {}
+    appr = resolved.get("approach") or {}
+    # find this lane's ref: from payload dict, or from scope
+    lane_ref = None
+    if isinstance(value, Mapping):
+        lane_ref = value.get("lane_ref")
+    if not lane_ref and isinstance(scope, Mapping):
+        lane_ref = scope.get("lane_ref") or scope.get("lane")
+    if not lane_ref or lane_ref not in appr:
+        return None
+    info = appr[lane_ref]
+    if want_dir and info.get("dir") != want_dir:
+        return None          # this lane is not of the requested direction
+    return info.get("id")
+
+
+def approach_id_ingress(value, resolved=None, scope=None, **_ignore):
+    return _approach_lookup(value, resolved=resolved, scope=scope, want_dir="ingress")
+
+
+def approach_id_egress(value, resolved=None, scope=None, **_ignore):
+    return _approach_lookup(value, resolved=resolved, scope=scope, want_dir="egress")
+
+
+TRANSFORMS["approach_id_ingress"] = approach_id_ingress
+TRANSFORMS["approach_id_egress"] = approach_id_egress
+
+
+# --- refPoint from junction centre (prepass) --------------------------------
+# refPoint is the JUNCTION reference point. Picking one lane's centroid made it
+# disagree with the other lanes' centroids by 100s of metres (a real but
+# unhelpful "conflict"). The _analyze_lanes prepass already computes the
+# centroid of ALL lane geometry — the natural junction centre — and stores it
+# (WGS84, int 1e7) in ctx['resolved']['junction_centre']. These transforms read
+# that single value so every lane agrees on one refPoint.
+def junction_centre_lat(value, resolved=None, **_ignore):
+    jc = (resolved or {}).get("junction_centre")
+    if not jc or jc.get("lat") is None:
+        raise TransformError("no junction_centre from prepass")  # noqa: F405
+    return jc["lat"]
+
+
+def junction_centre_long(value, resolved=None, **_ignore):
+    jc = (resolved or {}).get("junction_centre")
+    if not jc or jc.get("long") is None:
+        raise TransformError("no junction_centre from prepass")  # noqa: F405
+    return jc["long"]
+
+
+TRANSFORMS["junction_centre_lat"] = junction_centre_lat
+TRANSFORMS["junction_centre_long"] = junction_centre_long

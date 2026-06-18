@@ -32,6 +32,7 @@ Usage:
 """
 import argparse
 import json
+import math
 import sys
 
 
@@ -70,6 +71,8 @@ def confidence_to_level(c, high=0.8, medium=0.5):
 #   the same geometry via transform).
 FACT_NAME_ALIASES = {
     "lane_centreline_candidate": "lane_centreline_geometry_from_cad",
+    "phase_candidate": "phase_label_from_controller_config",
+    "control_candidate": "movement_phase_mapping_from_controller_config",
 }
 
 
@@ -80,6 +83,25 @@ def _apply_alias(name):
 def _fact_name(fact):
     raw = fact.get("fact_name") or fact.get("fact_type") or ""
     return _apply_alias(raw)
+
+
+def _site_id_fact(extracted):
+    if not isinstance(extracted, dict):
+        return None
+    site_id = extracted.get("site_id")
+    if not site_id:
+        site = extracted.get("site") or {}
+        if isinstance(site, dict):
+            site_id = site.get("id") or site.get("site_id")
+    if not site_id:
+        return None
+    return {
+        "fact_id": "site_id_official_intersection_id",
+        "fact_name": "official_intersection_id_from_cad",
+        "payload": {"value": str(site_id)},
+        "confidence": "high",
+        "source_file": "site_id",
+    }
 
 
 # --- geometry shape normalisation (Plan B: unified payload contract) --------
@@ -191,8 +213,236 @@ def build_scope_map(assignments):
             scope[fid] = {k: v for k, v in {
                 "intersection_ref": ts.get("intersection_ref"),
                 "lane_ref": ts.get("lane_ref"),
+                "approach_ref": ts.get("approach_ref"),
+                "connection_ref": ts.get("connection_ref"),
+                "node_ref": ts.get("node_ref"),
             }.items() if v is not None}
     return scope
+
+
+def _point_xy(point):
+    if isinstance(point, dict) and "x" in point and "y" in point:
+        return [float(point["x"]), float(point["y"])]
+    if isinstance(point, (list, tuple)) and len(point) >= 2:
+        return [float(point[0]), float(point[1])]
+    return None
+
+
+def _point_list(value):
+    if isinstance(value, dict):
+        for key in ("geometry", "polyline", "vertices", "points", "coordinates"):
+            if key in value:
+                return _point_list(value[key])
+        return None
+    if not isinstance(value, list):
+        return None
+    points = []
+    for point in value:
+        xy = _point_xy(point)
+        if xy is not None:
+            points.append(xy)
+    return points or None
+
+
+def _centroid_xy(item):
+    if not isinstance(item, dict):
+        return None
+    centroid = item.get("centroid")
+    if centroid is not None:
+        return _point_xy(centroid)
+    return None
+
+
+def _cad_center(assignments):
+    points = []
+    for key in ("approaches", "lanes"):
+        for item in (assignments or {}).get(key, []) or []:
+            point = _centroid_xy(item)
+            if point is not None:
+                points.append(point)
+    if not points:
+        return None
+    return [
+        sum(point[0] for point in points) / len(points),
+        sum(point[1] for point in points) / len(points),
+    ]
+
+
+def _distance(a, b):
+    return math.hypot(float(a[0]) - float(b[0]), float(a[1]) - float(b[1]))
+
+
+def _direction_from_geometry(polyline, center, tolerance=1.0):
+    points = _point_list(polyline)
+    if not points or len(points) < 2 or center is None:
+        return None
+    start_distance = _distance(points[0], center)
+    end_distance = _distance(points[-1], center)
+    if abs(start_distance - end_distance) <= tolerance:
+        return None
+    return "ingress" if end_distance < start_distance else "egress"
+
+
+def _raw_fact_payload(fact):
+    payload = fact.get("payload")
+    if isinstance(payload, dict) and "value" in payload:
+        return payload["value"]
+    return payload
+
+
+def _fact_lookup(facts):
+    return {fact.get("fact_id"): fact for fact in facts if fact.get("fact_id")}
+
+
+def _stop_line_lanes(assignments):
+    lanes = set()
+    for item in (assignments or {}).get("assigned_facts", []) or []:
+        if item.get("fact_name") != "stop_line_from_cad":
+            continue
+        scope = item.get("target_scope") or {}
+        lane_ref = scope.get("lane_ref")
+        if lane_ref:
+            lanes.add(lane_ref)
+    return lanes
+
+
+def _approaches_with_stop_lines(assignments, stop_line_lanes):
+    approaches = set()
+    for lane in (assignments or {}).get("lanes", []) or []:
+        if lane.get("lane_ref") in stop_line_lanes and lane.get("approach_ref"):
+            approaches.add(lane["approach_ref"])
+    return approaches
+
+
+def _lane_source_geometries(lane, facts_by_id):
+    ids = []
+    if lane.get("source_fact_id"):
+        ids.append(lane["source_fact_id"])
+    ids.extend(lane.get("clustered_from") or [])
+    for fact_id in ids:
+        fact = facts_by_id.get(fact_id)
+        if not fact:
+            continue
+        points = _point_list(_raw_fact_payload(fact))
+        if points:
+            yield points
+
+
+def _approach_assignment_payloads(assignments, source_facts=None):
+    if not assignments:
+        return []
+    facts_by_id = _fact_lookup(source_facts or [])
+    stop_line_lanes = _stop_line_lanes(assignments)
+    approaches_with_stop_lines = _approaches_with_stop_lines(assignments, stop_line_lanes)
+    center = _cad_center(assignments)
+    payloads = []
+    for lane in assignments.get("lanes", []) or []:
+        lane_ref = lane.get("lane_ref")
+        approach_ref = lane.get("approach_ref")
+        if not lane_ref or not approach_ref:
+            continue
+        payload = {
+            "intersection_ref": lane.get("intersection_ref", "intersection_1"),
+            "lane_ref": lane_ref,
+            "approach_ref": approach_ref,
+            "value": approach_ref,
+        }
+        if lane_ref in stop_line_lanes:
+            payload["direction"] = "ingress"
+            payload["direction_basis"] = "cad_stop_line"
+        else:
+            for polyline in _lane_source_geometries(lane, facts_by_id):
+                direction = _direction_from_geometry(polyline, center)
+                if direction:
+                    payload["direction"] = direction
+                    payload["direction_basis"] = "geometry_relative_to_cad_center"
+                    break
+            if "direction" not in payload and approach_ref in approaches_with_stop_lines:
+                payload["direction"] = "egress"
+                payload["direction_basis"] = "approach_stop_line_complement"
+        if lane.get("requires_context_match"):
+            payload["requires_context_match"] = True
+        payload["_source_file"] = lane.get("source_file", "geometry_assignment")
+        payloads.append(payload)
+    return payloads
+
+
+def build_approach_assignment_facts(assignments, source_facts=None):
+    """Expose assignment-stage lane->approach grouping to matching.
+
+    Geometry assignment has already grouped lanes into approaches. Matching rules
+    need a normal fact to use that result; otherwise approach_ref stays trapped
+    in geometry_assignments.partial.json and cannot populate MAPEM fields.
+    """
+    facts = []
+    for payload in _approach_assignment_payloads(assignments, source_facts):
+        lane_ref = payload["lane_ref"]
+        source_file = payload.pop("_source_file", "geometry_assignment")
+        facts.append({
+            "fact_id": f"approach_assignment_{lane_ref}",
+            "fact_name": "approach_assignment_candidate_from_cad",
+            "payload": payload,
+            "confidence": "high",
+            "source_file": source_file,
+        })
+    return facts
+
+
+def build_connection_candidate_facts(assignments, source_facts=None, max_distance_m=120.0):
+    """Create conservative lane connection candidates from confirmed directions.
+
+    This fills the connection scope needed by connectsTo[] only when assignment
+    has already classified lanes as ingress/egress. It does not invent signal
+    groups; signalGroup remains unresolved unless a signal/phase fact exists.
+    """
+    payloads = _approach_assignment_payloads(assignments, source_facts)
+    lane_items = {
+        lane.get("lane_ref"): lane
+        for lane in (assignments or {}).get("lanes", []) or []
+        if lane.get("lane_ref")
+    }
+    ingress = [p for p in payloads if p.get("direction") == "ingress"]
+    egress = [p for p in payloads if p.get("direction") == "egress"]
+    if not ingress or not egress:
+        return []
+
+    facts = []
+    for src in ingress:
+        src_lane = lane_items.get(src["lane_ref"], {})
+        src_centroid = _centroid_xy(src_lane)
+        if src_centroid is None:
+            continue
+        best = None
+        for dst in egress:
+            dst_lane = lane_items.get(dst["lane_ref"], {})
+            dst_centroid = _centroid_xy(dst_lane)
+            if dst_centroid is None:
+                continue
+            distance = _distance(src_centroid, dst_centroid)
+            if best is None or distance < best[0]:
+                best = (distance, dst, dst_lane)
+        if best is None or best[0] > max_distance_m:
+            continue
+        distance, dst, _dst_lane = best
+        connection_ref = f"connection_{src['lane_ref']}_to_{dst['lane_ref']}"
+        facts.append({
+            "fact_id": f"lane_connection_{src['lane_ref']}_to_{dst['lane_ref']}",
+            "fact_name": "lane_connection_candidate_from_cad",
+            "payload": {
+                "intersection_ref": src.get("intersection_ref", "intersection_1"),
+                "lane_ref": src["lane_ref"],
+                "connection_ref": connection_ref,
+                "target_lane_ref": dst["lane_ref"],
+                "target_approach_ref": dst.get("approach_ref"),
+                "distance_m": distance,
+                "value": dst["lane_ref"],
+                "connection_basis": "nearest_confirmed_egress_centroid",
+                "requires_context_match": True,
+            },
+            "confidence": "medium",
+            "source_file": src.get("_source_file", "geometry_assignment"),
+        })
+    return facts
 
 
 def build_movement_to_lane(assignments, movement_map=None):
@@ -299,6 +549,11 @@ def _inject_nongeometry_scope(fact, payload, movement_to_lane):
 def adapt(extracted, assignments=None, movement_map=None,
           high=0.8, medium=0.5):
     facts = flatten_facts(extracted)
+    site_fact = _site_id_fact(extracted)
+    if site_fact and not any(_fact_name(f) == "official_intersection_id_from_cad" for f in facts):
+        facts.insert(0, site_fact)
+    facts.extend(build_approach_assignment_facts(assignments, facts))
+    facts.extend(build_connection_candidate_facts(assignments, facts))
     scope_map = build_scope_map(assignments)
     movement_to_lane = build_movement_to_lane(assignments, movement_map)
     out = []

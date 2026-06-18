@@ -287,10 +287,7 @@ fields:
     priority: P1
     fact_group: lane_geometry
     transform:
-    - polyline_centroid
-    - bng_to_wgs84_OSTN15
-    - take_lat
-    - wgs84_to_int_1e7
+    - junction_centre_lat
   - fact_name: lane_centreline_geometry_from_cad
     priority: P1
     fact_group: lane_geometry
@@ -329,10 +326,7 @@ fields:
     priority: P1
     fact_group: lane_geometry
     transform:
-    - polyline_centroid
-    - bng_to_wgs84_OSTN15
-    - take_long
-    - wgs84_to_int_1e7
+    - junction_centre_long
   - fact_name: lane_centreline_geometry_from_cad
     priority: P1
     fact_group: lane_geometry
@@ -383,7 +377,12 @@ fields:
     priority: P1
     fact_group: lane_geometry
     transform:
-    - cluster_by_direction
+    - approach_id_ingress
+  - fact_name: approach_assignment_candidate_from_cad
+    priority: P1
+    fact_group: lane_geometry
+    transform:
+    - approach_id_ingress
   - fact_name: lane_direction_from_cad
     priority: P1
     fact_group: road_layout_geometry
@@ -397,7 +396,7 @@ fields:
     priority: P2
     fact_group: drawing_geometry
     transform:
-    - cluster_by_direction
+    - approach_id_ingress
   - fact_name: lane_direction_from_annotated_drawing
     priority: P2
     fact_group: road_layout_geometry
@@ -416,7 +415,12 @@ fields:
     priority: P1
     fact_group: lane_geometry
     transform:
-    - cluster_by_direction
+    - approach_id_egress
+  - fact_name: approach_assignment_candidate_from_cad
+    priority: P1
+    fact_group: lane_geometry
+    transform:
+    - approach_id_egress
   - fact_name: lane_direction_from_cad
     priority: P1
     fact_group: road_layout_geometry
@@ -430,7 +434,7 @@ fields:
     priority: P2
     fact_group: drawing_geometry
     transform:
-    - cluster_by_direction
+    - approach_id_egress
   - fact_name: lane_direction_from_annotated_drawing
     priority: P2
     fact_group: road_layout_geometry
@@ -649,9 +653,13 @@ fields:
   - fact_name: lane_connection_candidate_from_cad
     priority: P1
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: target_lane_candidate_from_cad
     priority: P1
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: movement_direction_candidate_from_cad
     priority: P1
     fact_group: movement_semantics
@@ -663,18 +671,26 @@ fields:
   - fact_name: lane_connection_candidate_from_annotated_drawing
     priority: P2
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: target_lane_candidate_from_annotated_drawing
     priority: P2
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: movement_direction_candidate_from_annotated_drawing
     priority: P2
     fact_group: movement_semantics
   - fact_name: lane_connection_candidate_from_ordnance_survey
     priority: P3
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: target_lane_candidate_from_ordnance_survey
     priority: P3
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: movement_direction_candidate_from_controller_config
     priority: P3
     fact_group: movement_semantics
@@ -684,9 +700,13 @@ fields:
   - fact_name: lane_connection_candidate_from_open_street_map
     priority: F
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: target_lane_candidate_from_open_street_map
     priority: F
     fact_group: connection_topology
+    transform:
+    - connecting_lane_id
   - fact_name: movement_direction_candidate_from_ram_8tx
     priority: F
     fact_group: movement_semantics
@@ -697,35 +717,61 @@ fields:
   - fact_name: movement_direction_candidate_from_cad
     priority: P1
     fact_group: movement_semantics
+    transform:
+    - arrow_to_maneuver
   - fact_name: movement_direction_candidate_from_annotated_drawing
     priority: P2
     fact_group: movement_semantics
+    transform:
+    - arrow_to_maneuver
   - fact_name: movement_direction_candidate_from_controller_config
     priority: P3
     fact_group: movement_semantics
+    transform:
+    - arrow_to_maneuver
   - fact_name: movement_direction_candidate_from_utc_form
     priority: P3
     fact_group: movement_semantics
+    transform:
+    - arrow_to_maneuver
   - fact_name: movement_direction_candidate_from_ram_8tx
     priority: F
     fact_group: movement_semantics
+    transform:
+    - arrow_to_maneuver
 - target: mapData.intersections[].laneSet[].connectsTo[].signalGroup
   population_mode: final_score
   c_roads_mandatory: true
   sources:
+  - fact_name: manual_connection_signal_group
+    priority: P1
+    fact_group: signal_control_semantics
+    transform:
+    - signal_group_id
+  - fact_name: auto_connection_signal_group_from_connection
+    priority: F
+    fact_group: signal_control_semantics
+    transform:
+    - signal_group_id
   - fact_name: phase_label_from_controller_config
     priority: P1
     fact_group: signal_control_semantics
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: stage_phase_relationship_from_controller_config
     priority: P1
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: movement_phase_mapping_from_controller_config
     priority: P1
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: lane_connection_candidate_from_cad
@@ -734,16 +780,22 @@ fields:
   - fact_name: phase_label_from_utc_form
     priority: P2
     fact_group: signal_control_semantics
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: stage_phase_relationship_from_utc_form
     priority: P2
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: movement_phase_mapping_from_utc_form
     priority: P2
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: lane_connection_candidate_from_annotated_drawing
@@ -752,16 +804,22 @@ fields:
   - fact_name: phase_label_from_ram_8tx
     priority: P3
     fact_group: signal_control_semantics
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: stage_phase_relationship_from_ram_8tx
     priority: P3
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: movement_phase_mapping_from_ram_8tx
     priority: P3
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: lane_connection_candidate_from_ordnance_survey
@@ -770,11 +828,15 @@ fields:
   - fact_name: phase_candidate_from_pdf_ocr
     priority: F
     fact_group: signal_control_semantics
+    requires_scope:
+    - lane
     transform:
     - phase_label_to_signal_group
   - fact_name: movement_phase_mapping_from_annotated_drawing
     priority: F
     fact_group: movement_phase_mapping
+    requires_scope:
+    - lane
   - fact_name: lane_connection_candidate_from_open_street_map
     priority: F
     fact_group: connection_topology
