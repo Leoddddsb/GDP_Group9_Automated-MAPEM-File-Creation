@@ -29,7 +29,7 @@
               "sharedWith": "0000000000",
               "laneType": {
                 "choice": "vehicle",
-                "attributes": "0000000000000000"
+                "attributes": "00000000"
               }
             },
             "nodeList": {
@@ -59,7 +59,7 @@
               "sharedWith": "0000000000",
               "laneType": {
                 "choice": "vehicle",
-                "attributes": "0000000000000000"
+                "attributes": "00000000"
               }
             },
             "nodeList": {
@@ -80,7 +80,7 @@
               "sharedWith": "0000000000",
               "laneType": {
                 "choice": "vehicle",
-                "attributes": "0000000000000000"
+                "attributes": "00000000"
               }
             },
             "nodeList": {
@@ -110,7 +110,7 @@
               "sharedWith": "0000000000",
               "laneType": {
                 "choice": "vehicle",
-                "attributes": "0000000000000000"
+                "attributes": "00000000"
               }
             },
             "nodeList": {
