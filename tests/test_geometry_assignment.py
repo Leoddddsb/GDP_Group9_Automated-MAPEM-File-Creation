@@ -940,6 +940,99 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(mapping["assignment_method"], "cad_signal_arrow_direction_match")
         self.assertEqual(mapping["requires_context_match"], True)
 
+    def test_uses_assigned_cad_arrow_to_map_controller_movement_to_existing_lane(self):
+        lane = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[0, 0], [10, 0]],
+                "layer": "LANE_MAIN",
+            },
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        arrow = _fact(
+            "movement_direction_candidate_from_cad",
+            {
+                "name": "HD003P",
+                "geometry": {"x": 5, "y": 1},
+                "semantic_type": "signal_arrow",
+                "arrow_direction_candidate": "right",
+                "requires_context_match": True,
+            },
+            "site.dxf -> modelspace entity 2 layer SIGNALS",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "movement_phase_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_C",
+                "movement_ref": "movement_london_road_outbound_right_turn",
+                "movement_text": "LONDON ROAD OUTBOUND RIGHT TURN",
+                "road_name": "London Road",
+                "direction": "outbound",
+                "maneuver": "right_turn",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([lane, arrow, movement]))
+
+        mapping = next(
+            item
+            for item in output["movement_lane_mappings"]
+            if item["movement_ref"] == "movement_london_road_outbound_right_turn"
+        )
+        self.assertEqual(mapping["lane_ref"], "lane_1")
+        self.assertEqual(mapping["phase_refs"], ["phase_C"])
+        self.assertEqual(mapping["assignment_method"], "assigned_cad_arrow_direction_match")
+        self.assertEqual(mapping["requires_context_match"], True)
+
+    def test_uses_assigned_cad_phase_label_to_map_controller_phase_to_existing_lane(self):
+        lane = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[0, 0], [10, 0]],
+                "layer": "LANE_MAIN",
+            },
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        phase_label = _fact(
+            "road_marking_or_sign_note_from_cad",
+            {
+                "text": "C",
+                "geometry": {"x": 5, "y": 1},
+            },
+            "site.dxf -> modelspace entity 2 layer phases",
+            source_file="site.dxf",
+        )
+        movement = _fact(
+            "movement_phase_mapping_from_controller_config",
+            {
+                "phase_ref": "phase_C",
+                "movement_ref": "movement_london_road_outbound_right_turn",
+                "movement_text": "LONDON ROAD OUTBOUND RIGHT TURN",
+                "road_name": "London Road",
+                "direction": "outbound",
+                "maneuver": "right_turn",
+            },
+            "config.pdf -> page 6 table 1 row 2",
+            source_file="config.pdf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([lane, phase_label, movement]))
+
+        mapping = next(
+            item
+            for item in output["movement_lane_mappings"]
+            if item["movement_ref"] == "movement_london_road_outbound_right_turn"
+        )
+        self.assertEqual(mapping["lane_ref"], "lane_1")
+        self.assertEqual(mapping["phase_refs"], ["phase_C"])
+        self.assertEqual(mapping["assignment_method"], "cad_phase_label_anchor")
+        self.assertEqual(mapping["requires_context_match"], False)
+
     def test_creates_semantic_lane_proxy_for_unmatched_structured_movement(self):
         movement = _fact(
             "movement_phase_mapping_from_controller_config",
@@ -967,6 +1060,95 @@ class GeometryAssignmentTest(unittest.TestCase):
         self.assertEqual(mapping["lane_ref"], "lane_1")
         self.assertEqual(mapping["assignment_method"], "semantic_movement_lane_proxy")
         self.assertEqual(mapping["requires_context_match"], True)
+
+    def test_splits_single_corridor_and_crossing_into_movement_lane_prototypes(self):
+        road = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[-100, 0], [100, 0]],
+                "layer": "LANE_MAIN",
+            },
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        crossing = _fact(
+            "crossing_candidate_from_cad",
+            {"geometry": [[0, -20], [0, 20]], "label": "Toucan crossing"},
+            "site.dxf -> modelspace entity 2 layer Tactpave",
+            source_file="site.dxf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([road, crossing], site_id="397L"))
+
+        self.assertEqual(len(output["lanes"]), 8)
+        lane_by_ref = {lane["lane_ref"]: lane for lane in output["lanes"]}
+        self.assertEqual(lane_by_ref["lane_1"]["direction"], "ingress")
+        self.assertEqual(lane_by_ref["lane_2"]["direction"], "egress")
+        self.assertEqual(lane_by_ref["lane_3"]["direction"], "ingress")
+        self.assertEqual(lane_by_ref["lane_4"]["direction"], "egress")
+        self.assertEqual(lane_by_ref["lane_5"]["lane_type"], "crosswalk")
+        self.assertEqual(lane_by_ref["lane_8"]["lane_type"], "crosswalk")
+        self.assertEqual(lane_by_ref["lane_1"]["approach_ref"], "approach_1")
+        self.assertEqual(lane_by_ref["lane_2"]["approach_ref"], "approach_1")
+        self.assertEqual(lane_by_ref["lane_3"]["approach_ref"], "approach_2")
+        self.assertEqual(lane_by_ref["lane_4"]["approach_ref"], "approach_2")
+        self.assertEqual(lane_by_ref["lane_5"]["approach_ref"], "approach_3")
+        self.assertEqual(lane_by_ref["lane_6"]["approach_ref"], "approach_4")
+        self.assertEqual(lane_by_ref["lane_7"]["approach_ref"], "approach_4")
+        self.assertEqual(lane_by_ref["lane_8"]["approach_ref"], "approach_3")
+        self.assertEqual(
+            [(item["lane_ref"], item["target_lane_ref"], item["maneuver"]) for item in output["movement_lane_mappings"]],
+            [
+                ("lane_1", "lane_2", "straight"),
+                ("lane_3", "lane_4", "straight"),
+                ("lane_5", "lane_6", "crossing"),
+                ("lane_7", "lane_8", "crossing"),
+            ],
+        )
+
+    def test_splits_two_corridors_and_crossing_into_puffin_movement_lane_prototypes(self):
+        road_a = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[-100, 5], [100, 5]],
+                "layer": "LANE_MAIN",
+            },
+            "site.dxf -> modelspace entity 1 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        road_b = _fact(
+            "lane_geometry_candidate_from_cad",
+            {
+                "geometry": [[100, -5], [-100, -5]],
+                "layer": "LANE_MAIN",
+            },
+            "site.dxf -> modelspace entity 2 layer LANE_MAIN",
+            source_file="site.dxf",
+        )
+        crossing = _fact(
+            "crossing_candidate_from_cad",
+            {"geometry": [[0, -20], [0, 20]], "label": "Puffin crossing"},
+            "site.dxf -> modelspace entity 3 layer Tactpave",
+            source_file="site.dxf",
+        )
+
+        output = assign_geometry_to_lanes(_extracted([road_a, road_b, crossing], site_id="1084"))
+
+        self.assertEqual(len(output["lanes"]), 6)
+        lane_by_ref = {lane["lane_ref"]: lane for lane in output["lanes"]}
+        self.assertEqual([lane_by_ref[f"lane_{idx}"]["direction"] for idx in range(1, 7)], ["ingress", "egress", "ingress", "egress", "ingress", "egress"])
+        self.assertEqual([lane_by_ref[f"lane_{idx}"]["lane_type"] for idx in range(1, 7)], ["vehicle", "vehicle", "vehicle", "vehicle", "crosswalk", "crosswalk"])
+        self.assertEqual(
+            [(item["lane_ref"], item["target_lane_ref"], item["maneuver"]) for item in output["movement_lane_mappings"]],
+            [
+                ("lane_1", "lane_2", "straight"),
+                ("lane_3", "lane_4", "straight"),
+                ("lane_5", "lane_6", "crossing"),
+            ],
+        )
+        self.assertEqual([item["signal_group"] for item in output["movement_lane_mappings"][:3]], [1, 1, 2])
+        self.assertEqual(lane_by_ref["lane_5"]["use_label"], "pedestrian crossing")
+        self.assertTrue(all(len(lane_by_ref[f"lane_{idx}"]["geometry"]) == 2 for idx in range(1, 7)))
 
 
 def _fact(fact_name: str, value: object, location: str, source_file: str = "site.dxf") -> dict:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mapemgen.ingestion.fact_records import make_fact
 from mapemgen.ingestion.movement_tables import extract_utc_form_movement_facts
 from mapemgen.ingestion.text_facts import extract_keyword_facts, extract_metadata_facts
 
@@ -32,14 +31,9 @@ def extract_docx_facts(path: str | Path) -> list[dict]:
                 continue
             value = " | ".join(cells)
             location = f"table {table_index} row {row_index}"
-            facts.append(_fact("docx_table_row", value, location, 0.8))
             facts.extend(extract_keyword_facts([value], location, exact_location=True, source_role=source_role))
             facts.extend(extract_metadata_facts([value], location, exact_location=True))
         table_matrices.append(table_matrix)
     if source_role == "utc_form":
         facts.extend(extract_utc_form_movement_facts(table_matrices))
     return facts
-
-
-def _fact(fact_name: str, value: object, location: str, confidence: float) -> dict:
-    return make_fact(fact_name, value, location, confidence)

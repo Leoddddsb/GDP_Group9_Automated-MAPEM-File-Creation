@@ -251,6 +251,26 @@ fields:
 - target: mapData.intersections
   population_mode: must_exist
   c_roads_mandatory: true
+- target: mapData.dataParameters.processMethod
+  population_mode: client_configured
+  optional: true
+  config_key: dataParameters.processMethod
+- target: mapData.dataParameters.processAgency
+  population_mode: client_configured
+  optional: true
+  config_key: dataParameters.processAgency
+- target: mapData.dataParameters.lastCheckedDate
+  population_mode: client_configured
+  optional: true
+  config_key: dataParameters.lastCheckedDate
+- target: mapData.dataParameters.geoidUsed
+  population_mode: client_configured
+  optional: true
+  config_key: dataParameters.geoidUsed
+- target: mapData.intersections[].name
+  population_mode: client_configured
+  optional: true
+  config_key: intersection.name
 - target: mapData.intersections[].id.region
   population_mode: client_configured
   c_roads_mandatory: true
@@ -283,6 +303,11 @@ fields:
   population_mode: final_score
   c_roads_mandatory: true
   sources:
+  - fact_name: manual_refpoint_from_site_config
+    priority: P1
+    fact_group: coordinate_reference
+    transform:
+    - take_lat
   - fact_name: lane_geometry_candidate_from_cad
     priority: P1
     fact_group: lane_geometry
@@ -297,6 +322,9 @@ fields:
   - fact_name: approach_arm_geometry_from_cad
     priority: P1
     fact_group: road_layout_geometry
+  - fact_name: coordinate_reference_system_evidence_from_cad
+    priority: P1
+    fact_group: coordinate_reference
   - fact_name: junction_centre_from_ordnance_survey
     priority: P2
     fact_group: gis_geometry
@@ -322,6 +350,11 @@ fields:
   population_mode: final_score
   c_roads_mandatory: true
   sources:
+  - fact_name: manual_refpoint_from_site_config
+    priority: P1
+    fact_group: coordinate_reference
+    transform:
+    - take_long
   - fact_name: lane_geometry_candidate_from_cad
     priority: P1
     fact_group: lane_geometry
@@ -364,6 +397,15 @@ fields:
   population_mode: default
   default_value: 350
   optional: true
+- target: mapData.intersections[].laneSet[].name
+  population_mode: final_score
+  optional: true
+  sources:
+  - fact_name: manual_lane_name
+    priority: P1
+    fact_group: lane_identity
+    transform:
+    - take_label
 - target: mapData.intersections[].laneSet[].laneID
   population_mode: system_generated
   c_roads_mandatory: true
@@ -585,6 +627,11 @@ fields:
   population_mode: final_score
   c_roads_mandatory: true
   sources:
+  - fact_name: lane_node_candidate_from_assignment
+    priority: P1
+    fact_group: lane_geometry
+    transform:
+    - node_xy_from_payload
   - fact_name: lane_geometry_candidate_from_cad
     priority: P1
     fact_group: lane_geometry
@@ -645,16 +692,16 @@ fields:
   population_mode: final_score
   c_roads_mandatory: true
   sources:
-  - fact_name: lane_geometry_candidate_from_cad
-    priority: P1
-    fact_group: connection_topology
-    transform:
-    - pair_ingress_egress_by_geometry
   - fact_name: lane_connection_candidate_from_cad
     priority: P1
     fact_group: connection_topology
     transform:
     - connecting_lane_id
+  - fact_name: lane_geometry_candidate_from_cad
+    priority: P2
+    fact_group: connection_topology
+    transform:
+    - pair_ingress_egress_by_geometry
   - fact_name: target_lane_candidate_from_cad
     priority: P1
     fact_group: connection_topology
@@ -743,6 +790,11 @@ fields:
   population_mode: final_score
   c_roads_mandatory: true
   sources:
+  - fact_name: lane_connection_candidate_from_cad
+    priority: P1
+    fact_group: signal_control_semantics
+    transform:
+    - explicit_signal_group_id
   - fact_name: manual_connection_signal_group
     priority: P1
     fact_group: signal_control_semantics
@@ -824,7 +876,7 @@ fields:
     - phase_label_to_signal_group
   - fact_name: lane_connection_candidate_from_ordnance_survey
     priority: F
-    fact_group: connection_topology
+    fact_group: signal_control_semantics
   - fact_name: phase_candidate_from_pdf_ocr
     priority: F
     fact_group: signal_control_semantics
@@ -839,11 +891,16 @@ fields:
     - lane
   - fact_name: lane_connection_candidate_from_open_street_map
     priority: F
-    fact_group: connection_topology
+    fact_group: signal_control_semantics
 - target: mapData.intersections[].signalHeadLocations[].nodeXY
   population_mode: final_score
   optional: true
   sources:
+  - fact_name: manual_signal_head_location
+    priority: P1
+    fact_group: signal_head_geometry
+    transform:
+    - signal_head_node_xy
   - fact_name: signal_head_location_candidate_from_cad
     priority: P1
     fact_group: signal_head_geometry
@@ -868,6 +925,15 @@ fields:
     - relative_to_refpoint
     - delta_to_cm
     - choose_node_xy_precision
+- target: mapData.intersections[].signalHeadLocations[].signalGroupID
+  population_mode: final_score
+  optional: true
+  sources:
+  - fact_name: manual_signal_head_location
+    priority: P1
+    fact_group: signal_head_semantics
+    transform:
+    - signal_group_id
 forbidden:
 - target: mapData.intersections[].laneSet[].maneuvers
   reason: C-Roads prohibits lane-level maneuvers; use connectsTo[].connectingLane.maneuver.

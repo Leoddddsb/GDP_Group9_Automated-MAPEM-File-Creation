@@ -7,19 +7,7 @@ from typing import Iterable
 from mapemgen.ingestion.fact_records import make_fact
 
 
-DEFAULT_KEYWORD_FACTS = {
-    "phase": "phase_candidate",
-    "stage": "stage_candidate",
-    "stream": "stream_candidate",
-    "intergreen": "intergreen_candidate",
-    "detector": "detector_candidate",
-    "i/o": "io_allocation_candidate",
-    "input/output": "io_allocation_candidate",
-    "scoot": "scoot_link_candidate",
-    "timing": "timing_candidate",
-    "override": "ram_override_candidate",
-    "control": "control_candidate",
-}
+DEFAULT_KEYWORD_FACTS: dict[str, str] = {}
 
 ROLE_KEYWORD_FACTS = {
     "ram_8tx": {
@@ -98,8 +86,6 @@ def extract_metadata_facts(lines: Iterable[str], location_prefix: str = "line", 
             facts.append(_fact("site_description", description.group(1).strip(), location, 0.9))
         for value in SCN_PATTERN.findall(line):
             facts.append(_fact("scn", value.upper(), location, 0.9))
-        for value in IP_ADDRESS_PATTERN.findall(line):
-            facts.append(_fact("ip_address", value, location, 0.9))
     return facts
 
 

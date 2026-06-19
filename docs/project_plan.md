@@ -36,28 +36,26 @@ Note: "Related GitHub Folder" means where the code, configuration, or documentat
 
 ### Step 1: Build File Inventory
 
-For each site, the program should automatically generate a local `site_inventory.partial.json`. This inventory is based on file path, file extension, and filename keywords. It records what files are available for the site, their formats, useful filename hints, readability status, and the parser that should handle each file.
+For each site, the program should take a site folder path as input and automatically generate a local `site_inventory.partial.json`. This step is a folder-level file inventory, not a MAPEM fact extraction step. It records what files are available in the folder, how many files there are, their formats, useful filename hints, basic readability status, and the parser that should handle each file.
 
 ```text
 site_id
 site_name
 local_authority_or_dataset
+input_folder_path
+inventory_summary:
+  - total_files
+  - file_type_counts
+  - readable_files
+  - unreadable_files
 source_files:
   - file_path
   - file_type
+  - file_size_bytes
   - filename_hints
   - readable_status
   - parser_to_use
   - notes
-junction_type
-controller_type
-control_method
-stream_count
-stage_count
-phase_labels
-known_special_logic
-confidence
-manual_questions
 ```
 
 Parser routing:
@@ -90,20 +88,37 @@ Example:
 ```json
 {
   "site_id": "1003",
+  "site_name": "London Rd Cleveland Bridge",
+  "local_authority_or_dataset": "DCIS/Bathnes",
+  "input_folder_path": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge",
+  "inventory_summary": {
+    "total_files": 3,
+    "file_type_counts": {
+      "txt": 1,
+      "zip": 1,
+      "8tx": 1
+    },
+    "readable_files": 3,
+    "unreadable_files": 0
+  },
   "source_files": [
     {
-      "file_path": "1003_UTCForm_May24.docx",
-      "file_type": "docx",
-      "filename_hints": ["possible UTC form", "possible site metadata", "possible staging"],
+      "file_path": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place.txt",
+      "file_type": "txt",
+      "file_size_bytes": 12345,
+      "filename_hints": ["possible site notes", "possible controller or RAM text"],
       "readable_status": "text_readable",
-      "parser_to_use": "docx_parser"
+      "parser_to_use": "ram_text_parser",
+      "notes": ""
     },
     {
-      "file_path": "T1003 Cleveland Place.dwg",
-      "file_type": "dwg",
-      "filename_hints": ["possible CAD drawing"],
-      "readable_status": "needs_dxf_conversion",
-      "parser_to_use": "cad_parser_after_conversion"
+      "file_path": "local_data/other_site_data/DCIS/1003_LondonRdClevelandBridge/T1003 Cleveland Place - Standard.zip",
+      "file_type": "zip",
+      "file_size_bytes": 67890,
+      "filename_hints": ["possible CAD package", "possible standard controller export package"],
+      "readable_status": "archive_readable",
+      "parser_to_use": "zip_inventory_parser",
+      "notes": "Inspect archive members in Step 1, but do not extract MAPEM facts yet."
     }
   ]
 }

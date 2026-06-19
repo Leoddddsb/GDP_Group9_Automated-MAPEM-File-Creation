@@ -17,8 +17,8 @@ def generate_json_mapem(source):
     if "header" in raw:
         output["header"] = _normalise_value(raw["header"])
     output["mapData"] = _normalise_value(raw["mapData"])
-
     _remove_lane_level_maneuvers(output)
+    _assign_connection_ids(output["mapData"])
     return encode_model(output)
 
 
@@ -58,3 +58,24 @@ def _remove_lane_level_maneuvers(model: dict[str, Any]) -> None:
     for intersection in map_data.get("intersections") or []:
         for lane in intersection.get("laneSet") or []:
             lane.pop("maneuvers", None)
+
+
+def _assign_connection_ids(map_data):
+    if not isinstance(map_data, Mapping):
+        return
+    next_id = 1
+    for intersection in map_data.get("intersections", []) or []:
+        if not isinstance(intersection, Mapping):
+            continue
+        for lane in intersection.get("laneSet", []) or []:
+            if not isinstance(lane, Mapping):
+                continue
+            connections = lane.get("connectsTo") or []
+            if not isinstance(connections, list):
+                continue
+            for connection in connections:
+                if not isinstance(connection, Mapping):
+                    continue
+                if connection.get("connectionID") is None:
+                    connection["connectionID"] = next_id
+                next_id = max(next_id, int(connection["connectionID"]) + 1)

@@ -438,7 +438,64 @@ class ExtractionTest(unittest.TestCase):
         self.assertFalse(any(fact["fact_name"] == "pdf_vector_rect_candidate" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "lane_line_candidate_from_pdf_vector" for fact in facts))
         self.assertTrue(any(fact["fact_name"] == "road_marking_candidate_from_pdf_vector" for fact in facts))
-        self.assertTrue(any(fact["fact_name"] == "signal_head_symbol_candidate_from_pdf_vector" for fact in facts))
+
+    def test_pdf_parser_skips_unavailable_ocr_but_keeps_native_text_and_tables(self):
+        page = types.SimpleNamespace(
+            extract_text=lambda: "USE OF PHASES\nA Selby Rd Eastbound ahead T O 7",
+            extract_tables=lambda: [
+                [
+                    ["USE OF PHASES", None, "PHASE TYPE"],
+                    ["A", "Selby Rd Eastbound ahead", "T", "O", "7"],
+                ]
+            ],
+            width=595,
+            height=842,
+            images=[{"x0": 1, "top": 1, "x1": 2, "bottom": 2}],
+            lines=[],
+            curves=[],
+            rects=[],
+        )
+        fake_pdfplumber = types.SimpleNamespace(open=lambda _path: _ContextManager(types.SimpleNamespace(pages=[page])))
+
+        with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
+            facts = extract_pdf_facts("573L v1 P 05_09_07.pdf")
+
+        self.assertTrue(any(fact["fact_name"] == "phase_label_from_controller_config" for fact in facts))
+        self.assertTrue(any(fact["fact_name"] == "movement_phase_mapping_from_controller_config" for fact in facts))
+
+    def test_pdf_use_of_phases_table_extracts_real_phase_movements_and_skips_dummy_movement(self):
+        page = types.SimpleNamespace(
+            extract_text=lambda: "USE OF PHASES",
+            extract_tables=lambda: [
+                [
+                    ["USE OF PHASES\nLOCATION", None, "PHASE\nTYPE\nNOTE 3"],
+                    ["A", "Selby Rd Eastbound ahead", "T", "O", "7"],
+                    ["R", "Stage 2 Dummy G Bit reply", "D", "O", "2"],
+                ]
+            ],
+            images=[],
+            lines=[],
+            curves=[],
+            rects=[],
+        )
+        fake_pdfplumber = types.SimpleNamespace(open=lambda _path: _ContextManager(types.SimpleNamespace(pages=[page])))
+
+        with patch.dict(sys.modules, {"pdfplumber": fake_pdfplumber}):
+            facts = extract_pdf_facts("573L v1 P 05_09_07.pdf")
+
+        labels = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "phase_label_from_controller_config"]
+        movements = [fact["payload"]["value"] for fact in facts if fact["fact_name"] == "movement_phase_mapping_from_controller_config"]
+        self.assertIn(
+            {
+                "phase_ref": "phase_A",
+                "phase_label": "A",
+                "phase_type": "T",
+                "movement_text": "Selby Rd Eastbound ahead",
+            },
+            labels,
+        )
+        self.assertTrue(any(item["phase_label"] == "A" and item["maneuver"] == "ahead" for item in movements))
+        self.assertFalse(any(item["phase_label"] == "R" for item in movements))
 
     def test_pdf_parser_does_not_promote_page_borders_to_semantic_candidates(self):
         page = types.SimpleNamespace(

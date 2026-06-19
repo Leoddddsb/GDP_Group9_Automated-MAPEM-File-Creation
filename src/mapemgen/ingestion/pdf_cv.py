@@ -11,13 +11,6 @@ from mapemgen.ingestion.text_facts import extract_metadata_facts
 
 PDF_OCR_KEYWORD_FACTS = {
     "phase": "phase_candidate_from_pdf_ocr",
-    "stage": "stage_candidate_from_pdf_ocr",
-    "stream": "stream_candidate_from_pdf_ocr",
-    "intergreen": "intergreen_candidate_from_pdf_ocr",
-    "detector": "detector_candidate_from_pdf_ocr",
-    "scoot": "scoot_candidate_from_pdf_ocr",
-    "timing": "timing_candidate_from_pdf_ocr",
-    "control": "control_candidate_from_pdf_ocr",
 }
 
 
@@ -34,7 +27,7 @@ def describe_image_page(page: Any, page_number: int) -> list[dict]:
         "image_count": len(images),
         "image_boxes": [_image_box(image) for image in images[:20]],
     }
-    return [_fact("pdf_image_page_candidate", value, f"page {page_number}", 0.8)]
+    return []
 
 
 def extract_pdf_vector_facts(page: Any, page_number: int) -> list[dict]:
@@ -46,34 +39,18 @@ def extract_pdf_vector_facts(page: Any, page_number: int) -> list[dict]:
     page_width = _number_or_none(getattr(page, "width", None))
     page_height = _number_or_none(getattr(page, "height", None))
 
-    facts = [
-        _fact(
-            "pdf_vector_page_candidate",
-            {
-                "page_width": page_width,
-                "page_height": page_height,
-                "line_count": len(lines),
-                "curve_count": len(curves),
-                "rect_count": len(rects),
-            },
-            f"page {page_number}",
-            0.85,
-        )
-    ]
+    facts: list[dict] = []
     for index, line in enumerate(lines, start=1):
         value = _vector_object(line)
         location = f"page {page_number} vector line {index}"
-        facts.append(_fact("pdf_vector_line_candidate", value, location, 0.75))
         facts.extend(_semantic_line_candidates(value, location, "pdf_vector", page_width, page_height))
     for index, curve in enumerate(curves, start=1):
         value = _vector_object(curve)
         location = f"page {page_number} vector curve {index}"
-        facts.append(_fact("pdf_vector_curve_candidate", value, location, 0.70))
         facts.extend(_semantic_curve_candidates(value, location, "pdf_vector", page_width, page_height))
     for index, rect in enumerate(rects, start=1):
         value = _vector_object(rect)
         location = f"page {page_number} vector rect {index}"
-        facts.append(_fact("pdf_vector_rect_candidate", value, location, 0.70))
         facts.extend(_semantic_rect_candidates(value, location, "pdf_vector", page_width, page_height))
     return facts
 
@@ -116,10 +93,7 @@ def _extract_ocr_facts(image: Any, pytesseract: Any, location_prefix: str) -> li
     text = pytesseract.image_to_string(image, config="--psm 6")
     lines = [" ".join(line.split()) for line in text.splitlines()]
     lines = [line for line in lines if line]
-    facts = [
-        _fact("pdf_ocr_text_candidate", line, f"{location_prefix} ocr line {index}", 0.55)
-        for index, line in enumerate(lines, start=1)
-    ]
+    facts: list[dict] = []
     facts.extend(_extract_ocr_keyword_facts(lines, location_prefix))
     facts.extend(extract_metadata_facts(lines, f"{location_prefix} ocr line"))
     return facts
@@ -151,7 +125,6 @@ def _extract_line_facts(image: Any, cv2: Any, location_prefix: str) -> list[dict
         x1, y1, x2, y2 = _line_coordinates(line)
         value = {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
         location = f"{location_prefix} cv line {index}"
-        facts.append(_fact("pdf_cv_line_candidate", value, location, 0.5))
         facts.extend(_semantic_line_candidates(value, location, "pdf_cv", None, None))
     return facts
 
@@ -219,15 +192,6 @@ def _semantic_line_candidates(
                 0.45,
             )
         )
-    if _is_near_axis_aligned(value) and 20 <= length <= 250:
-        facts.append(
-            _fact(
-                f"stop_line_candidate_from_{source}",
-                _semantic_payload(value, "axis-aligned line segment candidate"),
-                location,
-                0.43,
-            )
-        )
     return facts
 
 
@@ -241,15 +205,6 @@ def _semantic_curve_candidates(
     if _is_page_border_or_margin(value, page_width, page_height):
         return []
     facts: list[dict] = []
-    if _is_arrow_like_curve(value):
-        facts.append(
-            _fact(
-                f"arrow_candidate_from_{source}",
-                _semantic_payload(value, "arrow-like curve/path candidate"),
-                location,
-                0.40,
-            )
-        )
     if _is_compact_symbol(value):
         facts.append(
             _fact(
@@ -272,15 +227,6 @@ def _semantic_rect_candidates(
     if _is_page_border_or_margin(value, page_width, page_height):
         return []
     facts: list[dict] = []
-    if _is_crossing_like_rect(value):
-        facts.append(
-            _fact(
-                f"crossing_candidate_from_{source}",
-                _semantic_payload(value, "crossing-like rectangle candidate"),
-                location,
-                0.40,
-            )
-        )
     if _is_compact_symbol(value):
         facts.append(
             _fact(

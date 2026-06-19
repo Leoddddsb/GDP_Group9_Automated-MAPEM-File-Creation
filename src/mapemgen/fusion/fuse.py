@@ -14,9 +14,6 @@ Fusion does NOT encode. It:
        manual_review_required / unresolved / pending_transform
                              -> leave null, record as a gap
   4. Runs cross-field consistency checks (lane ids, signal groups, references).
-       [STANDARD: C-Roads MAPEM/SPATEM 3.2.0] Consistency checks enforce the
-       structural integrity expected by the MAPEM model (unique ids, resolvable
-       references, valid coordinate ranges).
   5. Emits:
        fused_model.json   — nested MAPEM-shaped values (null where unresolved)
        fusion_report.json — per-field decision + provenance + gaps + conflicts
@@ -87,6 +84,7 @@ def set_nested(root, parsed, value):
 # --- adjudication ------------------------------------------------------------
 TAKE = {"matched", "matched_with_conflict"}
 GAP = {"manual_review_required", "unresolved", "pending_transform"}
+SKIP = {"not_applicable"}
 
 
 def fuse(evidence):
@@ -108,7 +106,9 @@ def fuse(evidence):
 
         parsed = parse_path(path)
         value = r.get("value")
-        if status in TAKE:
+        if status in SKIP:
+            decision = "skipped"
+        elif status in TAKE:
             set_nested(model, parsed, value)
             decision = "accepted"
             if status == "matched_with_conflict":
@@ -151,6 +151,7 @@ def fuse(evidence):
         "summary": {
             "total_leaf_fields": len(decisions),
             "accepted": sum(1 for d in decisions if d["decision"] == "accepted"),
+            "skipped": sum(1 for d in decisions if d["decision"] == "skipped"),
             "gaps": len(gaps),
             "provisional_needs_review": len(needs_review),
             "conflicts": len(conflicts),
@@ -172,12 +173,6 @@ def fuse(evidence):
 # rule id and severity. These are GENERIC structural-integrity rules (reference
 # integrity, uniqueness, required/non-empty, range sanity) — they do NOT encode
 # MAPEM/C-Roads-specific semantics; add those as new rules once confirmed.
-#
-# [STANDARD: C-Roads MAPEM/SPATEM 3.2.0] The structural expectations checked
-# below follow the MAPEM message structure: an intersection requires an id and
-# a refPoint; lane ids and signal-group ids are unique; connectsTo references
-# must resolve to existing lanes. These are integrity checks over the MAPEM
-# model, not value-level profile semantics.
 CONSISTENCY_RULES = []
 
 
@@ -235,9 +230,6 @@ def _r03(model):
             yield {"where": f"intersections[{ix}].refPoint", "issue": "reference point not fully resolved"}
 
 
-# [STANDARD: MAPEM refPoint encoding] Latitude/Longitude are transmitted as
-# integers of 1e-7 degrees (deg x 10^7). Valid global bounds are therefore
-# +/-90 deg -> +/-900000000 and +/-180 deg -> +/-1800000000.
 @_rule("R04_latlong_in_range", "lat/long (1e-7 deg ints) within valid global bounds.", "warning")
 def _r04(model):
     for ix, inter in enumerate(_intersections(model)):

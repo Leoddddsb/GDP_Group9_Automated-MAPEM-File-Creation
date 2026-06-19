@@ -11,6 +11,7 @@ data/raw/
 data/processed/
 outputs/
 docs/file_extraction_ch.md
+local_data/
 
 # Python
 __pycache__/
@@ -22,6 +23,11 @@ __pycache__/
 htmlcov/
 .venv/
 venv/
+.python_deps/
+.python_deps_download/
+.pip-tmp/
+.push_english_local/
+.push_main_direct_*/
 
 # IDE / OS
 .DS_Store

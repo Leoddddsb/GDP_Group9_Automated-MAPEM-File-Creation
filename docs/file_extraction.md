@@ -158,12 +158,12 @@ This keeps `extracted_facts.partial.json` useful for later matching without
 turning topographic background drawings, unrelated site drawings, or duplicated
 archive members into lane-level evidence.
 
-### Structured Movement Mapping Facts
+### Phase / Movement Mapping Facts
 
-Some controller and UTC documents explicitly describe the relationship between
-phase letters, SCOOT links, stages, and traffic movements. Step 2 now extracts
-these relationships as structured facts so the adapter can route `signalGroup`
-through `movement_ref` before resolving the movement to a lane.
+Some controller config and UTC form tables explicitly say which phase, SCOOT
+link, stage, and movement belong together. Step 2 extracts that relationship so
+later matching can connect `signalGroup` to a traffic movement before trying to
+attach that movement to a lane.
 
 | Fact name | Source pattern | Meaning |
 | --- | --- | --- |
@@ -173,9 +173,19 @@ through `movement_ref` before resolving the movement to a lane.
 | `scoot_link_stage_mapping_from_utc_form` | UTC form `Link Letter | ... | UTC Green Stage No's` table | Maps SCOOT link refs to UTC green stage numbers |
 
 These facts intentionally emit `movement_ref`, `phase_ref`, `scoot_link_ref`,
-and `stage_refs`, not `lane_ref`. `lane_ref` is created by geometry assignment,
-so the later adapter/matching step should join movement semantics to assigned
-lanes using road name, direction, maneuver, CAD labels, and geometry context.
+and `stage_refs`. They do not emit `lane_ref`.
+
+The split is:
+
+```text
+controller / UTC tables -> phase_ref, movement_ref, stage_refs
+CAD/PDF/GIS assignment  -> lane_ref
+matching                -> joins movement_ref to lane_ref when there is enough context
+```
+
+This avoids pretending that a phase table alone proves which physical lane is
+controlled. Lane attachment still needs geometry context, CAD labels, arrows,
+road names, direction, or maneuver evidence.
 
 ### Fact Names for Future MAPEM Matching
 
@@ -836,93 +846,97 @@ Unmatched movement example:
 }
 ```
 
-Rules:
+### Lane Confirmation Strategy
 
-- CAD and GIS geometry can be assigned by nearest geometry centroid.
-- Lane definitions use the highest-priority available lane source: CAD first,
-  then Ordnance Survey, then PDF fallback. If PDF fallback is suppressed because
-  it creates too many generic clusters, directional CAD signal-arrow blocks can
-  create low-confidence lane proxies as the final fallback. Lower-priority
-  lane-like facts remain evidence, but they do not create additional lanes when
-  a stronger source is available.
-- CAD lane candidates from standalone topographic/reference drawings, CAD files
-  whose filename indicates a different site id, or non-vehicle/background lane
-  layers such as cycle coloured-area layers are retained as facts but are not
-  allowed to define MAPEM lanes.
-- Heuristic CAD lane-centreline candidates are clustered into lane corridors
-  before `lane_ref` values are created. This avoids one CAD segment becoming
-  one output lane when a CAD layer splits the same centreline into many small
-  entities.
-- Nearby parallel lanes from the same source file and coordinate space are then
-  grouped into `approaches[]`. This lets the extractor confirm a controlled
-  approach automatically when stop lines, signal heads, arrows, movement labels,
-  CAD blocks, poles, or road markings are distributed across adjacent lanes
-  instead of attached to every individual lane.
-- Heuristic CAD lanes keep `requires_context_match: true` in `lanes[]`. They
-  are useful routing geometry for later matching, but they are not treated as
-  fully confirmed lane semantics until corroborated by labels, arrows, GIS,
-  CAD blocks, or other source context.
-- After geometry assignment, heuristic CAD lanes are validated against other
-  CAD facts assigned to the same lane or the same confirmed approach in the
-  same modelspace. Evidence groups include stop lines, signal heads, signal
-  geometry, directional arrows, movement labels, road/text labels, CAD blocks,
-  poles, and road markings. A lane is marked
-  `lane_validation_status: "cad_context_confirmed"` and
-  `requires_context_match: false` when either the lane itself or its approach
-  has at least two evidence groups from at least two distinct CAD entity
-  locations. Otherwise it remains
-  `lane_validation_status: "needs_context_match"`.
-- `lane_confirmation_basis` records whether confirmation came from
-  `direct_lane_context_validation` or `approach_context_validation`.
-- If an unconfirmed heuristic CAD lane is close to CAD context evidence already
-  assigned to a confirmed approach, it can be adopted into that approach with
-  `lane_confirmation_basis: "nearby_confirmed_approach_adoption"`. This handles
-  common drawings where adjacent approach lanes are split into separate CAD
-  segments and not every segment has its own signal-head or stop-line evidence.
-- If an unconfirmed heuristic CAD lane is far from every confirmed CAD context,
-  it is marked `lane_validation_status: "out_of_scope_candidate"` with
-  `lane_confirmation_basis: "distant_insufficient_context"`. This keeps likely
-  background or non-target lane candidates out of later MAPEM matching without
-  deleting the original extracted facts.
-- Validation evidence is summarized with `validation_evidence_groups`,
-  `validation_evidence_counts`, `validation_evidence_fact_ids`, and
-  `validation_evidence_fact_count`. The fact id list is capped so the output
-  does not become dominated by repeated CAD block references.
-- Unconfirmed heuristic CAD lanes also include `unconfirmed_reason`,
-  `missing_validation_evidence_group_count`, and
-  `nearest_validation_candidates[]`. These diagnostics show why the lane still
-  needs context matching and list the nearest CAD context candidates in the same
-  CAD modelspace, including fact id, fact name, evidence group, evidence
-  location, assigned lane, and distance to this lane.
-- Nearest validation candidates are for manual review and rule tuning. A nearby
-  candidate is not automatically treated as confirmation if it was assigned to a
-  different lane or does not satisfy the independent evidence threshold.
-- When PDF is the only lane source, similar PDF lane-line segments are clustered
-  into lane corridors so the output does not create one lane per vector segment.
-- Phase-to-movement facts can be routed to lanes through `movement_lane_mappings[]`
-  only when assignment can read a matching `movement_ref`, `movement_text`,
-  lane label, or road-name label from the lane source facts.
-- CAD movement labels with coordinates can also produce `movement_lane_mappings[]`
-  after assignment places the label near a lane; these mappings use
-  `assignment_method: "cad_movement_label_nearest_lane"`. Labels on key,
-  legend, note, dimension, or title layers are not auto-mapped because they
-  often describe drawing symbols rather than real lane movements.
-- Directional CAD signal-arrow lane proxies can map only matching turn
-  movements, such as `right_turn` or `left_turn`; these mappings use
-  `assignment_method: "cad_signal_arrow_direction_match"` and still keep
-  `requires_context_match: true` because the proxy is not full lane geometry.
-- If assignment still cannot see which lane belongs to a structured movement,
-  it creates a `semantic_movement_lane_proxy` so the movement still has a stable
-  `lane_ref`. These mappings use
-  `assignment_method: "semantic_movement_lane_proxy"` and always keep
-  `requires_context_match: true` because the proxy was created from movement
-  semantics rather than observed lane geometry.
-- Facts that cannot be converted to points, bounds, or centroids remain
-  unassigned.
-- Raw geometry remains available; assignment adds scope but does not remove or
-  rewrite parser facts.
-- Later matching/fusion must still decide which assigned facts fill MAPEM
-  fields such as `laneSet[].nodeList`, `connectsTo`, or `signalGroup`.
+Assignment does not generate MAPEM directly. It first turns lane-like geometry
+into stable `lane_ref` values, then marks which heuristic lanes have enough CAD
+context to be trusted automatically.
+
+#### 1. Lane Source Priority
+
+Lane definitions use the highest-priority available source:
+
+1. CAD `lane_geometry_candidate_from_cad`
+2. Ordnance Survey `lane_geometry_candidate_from_ordnance_survey`
+3. PDF `lane_line_candidate_from_pdf_vector` / `lane_line_candidate_from_pdf_cv`
+4. CAD directional-arrow fallback
+5. semantic movement proxy fallback
+
+Lower-priority lane-like facts remain as evidence, but they do not create extra
+`lanes[]` when a stronger source exists. CAD candidates from standalone topo or
+reference drawings, other-site filenames, cycle coloured-area layers, or
+background/non-vehicle layers are not allowed to define MAPEM lanes.
+
+#### 2. CAD Heuristic Lane Clustering
+
+CAD lane geometry is often split into many short entities. Assignment clusters
+nearby, similarly oriented CAD lane-like geometry into lane corridors before it
+creates `lane_ref` values.
+
+CAD road-marking geometry can also be promoted to
+`lane_geometry_candidate_from_cad` when it is long enough and anchored by nearby
+independent CAD context, such as stop lines, signal heads, CAD blocks, poles,
+movement labels, or lane text. Assignment accepts both the current dictionary
+fact name `road_marking_candidate_from_cad` and the older parser name
+`road_marking_or_sign_note_from_cad`.
+
+Anchored CAD road-marking lanes use a 15 m merge distance. This preserves dense
+multi-lane roundabout geometry better than 20 m, which can merge adjacent road
+marking corridors too aggressively.
+
+#### 3. Lane Validation
+
+Heuristic CAD lanes start as requiring context:
+
+```json
+{
+  "lane_validation_status": "needs_context_match",
+  "requires_context_match": true
+}
+```
+
+Assignment validates them against CAD context in the same modelspace. Evidence
+groups include stop lines, signal heads, signal geometry, directional arrows,
+movement labels, road/text labels, CAD blocks, poles, and road markings.
+
+A lane is confirmed when either the lane itself or its approach has at least two
+independent evidence groups from at least two distinct CAD entity locations:
+
+```json
+{
+  "lane_validation_status": "cad_context_confirmed",
+  "requires_context_match": false
+}
+```
+
+The output keeps `validation_evidence_groups`,
+`validation_evidence_counts`, `validation_evidence_fact_ids`, and
+`validation_evidence_fact_count` so the confirmation can be audited.
+
+#### 4. Approach Auto-Confirmation
+
+Assignment creates `approaches[]` after lanes are built:
+
+1. Only lanes from the same source file and coordinate space are grouped.
+2. Only nearby, similarly oriented lanes are grouped.
+3. CAD context from stop lines, signal heads, arrows, movement labels, CAD
+   block/text, poles, and road markings is aggregated at approach level.
+4. If the approach meets the lane validation rule, its heuristic CAD lanes can
+   be confirmed automatically.
+
+`lane_confirmation_basis` explains the result:
+
+| Value | Meaning |
+| --- | --- |
+| `direct_lane_context_validation` | The lane itself has enough CAD context |
+| `approach_context_validation` | The lane belongs to a confirmed approach |
+| `nearby_confirmed_approach_adoption` | The lane has weak direct evidence but is close enough to a confirmed approach |
+| `insufficient_context` | Neither the lane nor its approach has enough evidence |
+| `distant_insufficient_context` | The lane is far from confirmed CAD context and is marked `out_of_scope_candidate` |
+
+`out_of_scope_candidate` does not delete the original facts. It means the lane
+is likely outside the target MAPEM site and should not be treated as confirmed
+lane evidence by later matching.
 
 ## Testing
 

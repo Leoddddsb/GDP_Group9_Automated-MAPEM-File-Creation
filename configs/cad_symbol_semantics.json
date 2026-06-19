@@ -4,49 +4,49 @@
       "match": "exact",
       "pattern": "tactpblk",
       "semantic_type": "tactile_paving",
-      "fact_name": "cad_pedestrian_facility_candidate",
+      "fact_name": "lane_facility_geometry_candidate_from_cad",
       "description": "Tactile paving block near pedestrian crossing facilities."
     },
     {
       "match": "regex",
       "pattern": "(?:^|[$_\\s-])(?:tactpblk|tactknob|tactpave)(?:$|[^a-z0-9])",
       "semantic_type": "tactile_paving",
-      "fact_name": "cad_pedestrian_facility_candidate",
+      "fact_name": "lane_facility_geometry_candidate_from_cad",
       "description": "Tactile paving variants seen in Leeds and xref-prefixed CAD files."
     },
     {
       "match": "exact",
       "pattern": "pole",
       "semantic_type": "pole",
-      "fact_name": "cad_pole_candidate",
+      "fact_name": "lane_facility_geometry_candidate_from_cad",
       "description": "Pole or post asset."
     },
     {
       "match": "regex",
       "pattern": "(?:^|[$_\\s-])(?:pole|wbpole|poleno|stubpole|crpole|polesock)(?:$|[^a-z0-9])",
       "semantic_type": "pole",
-      "fact_name": "cad_pole_candidate",
+      "fact_name": "lane_facility_geometry_candidate_from_cad",
       "description": "Pole/post symbol variants including xref-prefixed and Leeds naming."
     },
     {
       "match": "prefix",
       "pattern": "HD",
       "semantic_type": "signal_head",
-      "fact_name": "cad_signal_head_candidate",
+      "fact_name": "cad_block_reference",
       "description": "Common signal-head block naming pattern, for example HD084 or HD001S."
     },
     {
       "match": "regex",
       "pattern": "(?:^|[$_\\s-])(?:HD[0-9]{3}[A-Z]*|Signal-Symbol-[0-9]{3}[A-Z]*)(?:$|[^a-z0-9])",
       "semantic_type": "signal_head",
-      "fact_name": "cad_signal_head_candidate",
+      "fact_name": "cad_block_reference",
       "description": "Signal-head symbols inside xrefs or named Signal-Symbol-001P."
     },
     {
       "match": "exact",
       "pattern": "HD003P",
       "semantic_type": "signal_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "right",
         "requires_context_match": true
@@ -57,7 +57,7 @@
       "match": "regex",
       "pattern": "(?:^|[$_\\s-])HD003P(?:$|[^a-z0-9])",
       "semantic_type": "signal_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "right",
         "requires_context_match": true
@@ -68,7 +68,7 @@
       "match": "exact",
       "pattern": "HD004P",
       "semantic_type": "signal_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "left",
         "requires_context_match": true
@@ -79,7 +79,7 @@
       "match": "regex",
       "pattern": "(?:^|[$_\\s-])HD004P(?:$|[^a-z0-9])",
       "semantic_type": "signal_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "left",
         "requires_context_match": true
@@ -90,7 +90,7 @@
       "match": "regex",
       "pattern": "(?:right|1038r|arrow-r|r-arrow)",
       "semantic_type": "directional_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "right",
         "requires_context_match": true
@@ -101,7 +101,7 @@
       "match": "regex",
       "pattern": "(?:left|1038l|arrow-l|l-arrow)",
       "semantic_type": "directional_arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "payload": {
         "arrow_direction_candidate": "left",
         "requires_context_match": true
@@ -112,21 +112,21 @@
       "match": "contains",
       "pattern": "arrow",
       "semantic_type": "arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "description": "Arrow symbol block."
     },
     {
       "match": "contains",
       "pattern": "left",
       "semantic_type": "arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "description": "Left-turn or directional symbol block."
     },
     {
       "match": "contains",
       "pattern": "right",
       "semantic_type": "arrow",
-      "fact_name": "cad_arrow_block_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "description": "Right-turn or directional symbol block."
     }
   ],
@@ -135,7 +135,7 @@
       "match": "regex",
       "pattern": "\\b(?:LEFT|RIGHT|AHEAD|STRAIGHT|INBOUND|OUTBOUND|NB|SB|EB|WB)\\b",
       "semantic_type": "movement_label",
-      "fact_name": "cad_movement_label_candidate",
+      "fact_name": "movement_direction_candidate_from_cad",
       "derive_movement": true,
       "description": "Text that directly describes a vehicle movement."
     },
@@ -143,7 +143,7 @@
       "match": "regex",
       "pattern": "\\bKEEP\\s+CLEAR\\b",
       "semantic_type": "lane_use",
-      "fact_name": "cad_lane_use_label_candidate",
+      "fact_name": "lane_use_label_from_cad",
       "label": "keep_clear",
       "description": "Keep-clear marking or lane-use note."
     }

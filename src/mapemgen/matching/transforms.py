@@ -412,10 +412,6 @@ def maneuver_from_angle_change(
     incoming = bearing_degrees(ingress[-2], ingress[-1])
     outgoing = bearing_degrees(egress[0], egress[1])
     delta = angle_delta(outgoing, incoming)
-    # [STANDARD: C-Roads 3.2.0 section 3.3.5.1 connectingLane.maneuver,
-    #  DE_AllowedManeuvers per SAE J2735] Maneuver semantics (straight / left /
-    #  right / U-turn) are classified here from the ingress->egress heading
-    #  change; the encoder later maps these to the J2735 AllowedManeuvers bits.
     if abs(delta) <= 30:
         return "straight"
     if 30 < delta <= 150:
@@ -542,9 +538,6 @@ def directional_use_from_label(value: Any) -> str:
 
 def encode_bit_string_2(directional_use: Any) -> str:
     text = normalise_text(directional_use).lower()
-    # [STANDARD: C-Roads 3.2.0 section 3.3.2.3 — Directional Use]
-    # 2-bit string: ingressPath(0), egressPath(1). "10"=ingress, "01"=egress,
-    # "11"=both (bidirectional), "00"=no travel (impassable / unknown).
     mapping = {
         "ingress": "10",
         "egress": "01",

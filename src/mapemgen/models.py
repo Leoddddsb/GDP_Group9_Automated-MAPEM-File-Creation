@@ -7,8 +7,32 @@ from typing import Any
 Coordinate = tuple[float, float]
 
 
-def _string_list(values: list[Any] | None) -> list[str]:
+def _string_list(values: list[Any] | str | None) -> list[str]:
+    if isinstance(values, str):
+        return [values]
     return [str(value) for value in values or []]
+
+
+@dataclass(frozen=True)
+class ItsPduHeader:
+    protocol_version: int
+    message_id: int
+    station_id: int
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "ItsPduHeader":
+        return cls(
+            protocol_version=int(raw["protocolVersion"]),
+            message_id=int(raw["messageID"]),
+            station_id=int(raw["stationID"]),
+        )
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "protocolVersion": self.protocol_version,
+            "messageID": self.message_id,
+            "stationID": self.station_id,
+        }
 
 
 @dataclass(frozen=True)
@@ -21,7 +45,7 @@ class Position3D:
     def from_dict(cls, raw: dict[str, Any]) -> "Position3D":
         return cls(
             lat=float(raw["lat"]),
-            lon=float(raw["lon"]),
+            lon=float(raw["lon"] if "lon" in raw else raw["long"]),
             elevation=float(raw["elevation"]) if raw.get("elevation") is not None else None,
         )
 
@@ -60,8 +84,11 @@ class LaneAttributes:
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> "LaneAttributes":
         raw = raw or {}
+        lane_type = raw.get("laneType", raw.get("lane_type", "vehicle"))
+        if isinstance(lane_type, dict):
+            lane_type = lane_type.get("choice", "vehicle")
         return cls(
-            lane_type=str(raw.get("laneType", raw.get("lane_type", "vehicle"))),
+            lane_type=str(lane_type),
             directional_use=str(
                 raw.get("directionalUse", raw.get("directional_use", "ingress"))
             ),
@@ -84,6 +111,8 @@ class NodeXY:
     @classmethod
     def from_value(cls, raw: dict[str, Any] | list[Any] | tuple[Any, ...]) -> "NodeXY":
         if isinstance(raw, dict):
+            if "delta" in raw and isinstance(raw["delta"], dict):
+                raw = raw["delta"]
             return cls(x=float(raw["x"]), y=float(raw["y"]))
         return cls(x=float(raw[0]), y=float(raw[1]))
 
@@ -185,7 +214,8 @@ class GenericLane:
         )
         node_list = NodeList.from_dict(raw.get("nodeList", raw.get("centerline", [])))
         legacy_signal_group = raw.get("signal_group")
-        connections = [Connection.from_dict(value) for value in raw.get("connectsTo", raw.get("connects_to", []))]
+        raw_connections = raw.get("connectsTo", raw.get("connects_to", [])) or []
+        connections = [Connection.from_dict(value) for value in raw_connections]
         if legacy_signal_group is not None:
             connections = [
                 Connection(
@@ -221,10 +251,11 @@ class GenericLane:
             "laneID": self.lane_id,
             "name": self.name,
             "laneAttributes": self.lane_attributes.as_dict(),
-            "maneuvers": self.maneuvers,
             "nodeList": self.node_list.as_dict(),
             "connectsTo": [connection.as_dict() for connection in self.connects_to],
         }
+        if self.maneuvers:
+            value["maneuvers"] = self.maneuvers
         if self.ingress_approach is not None:
             value["ingressApproach"] = self.ingress_approach
         if self.egress_approach is not None:
@@ -337,6 +368,8 @@ class IntersectionGeometry:
             signal_head_locations=[
                 SignalHeadLocation.from_dict(value)
                 for value in raw.get("signalHeadLocations", [])
+                if isinstance(value, dict)
+                and isinstance(value.get("nodeXY"), (dict, list, tuple))
             ],
         )
 
@@ -417,12 +450,18 @@ class MapData:
 @dataclass(frozen=True)
 class SiteModel:
     map_data: MapData
+    header: ItsPduHeader | None = None
     source_notes: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "SiteModel":
         if "mapData" in raw:
             return cls(
+                header=(
+                    ItsPduHeader.from_dict(raw["header"])
+                    if raw.get("header") is not None
+                    else None
+                ),
                 map_data=MapData.from_dict(raw["mapData"]),
                 source_notes=_string_list(raw.get("sourceNotes", raw.get("source_notes", []))),
             )
@@ -458,6 +497,8 @@ class SiteModel:
 
     def as_dict(self) -> dict:
         value = {"mapData": self.map_data.as_dict()}
+        if self.header is not None:
+            value = {"header": self.header.as_dict(), **value}
         if self.source_notes:
             value["sourceNotes"] = self.source_notes
         return value

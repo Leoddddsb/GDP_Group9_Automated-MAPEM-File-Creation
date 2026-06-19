@@ -69,10 +69,47 @@ def connecting_lane_id(value: Any, resolved=None, **_ignore):
 
 def signal_group_id(value: Any, **_ignore):
     if isinstance(value, Mapping):
-        value = value.get("signalGroup", value.get("signal_group", value.get("value")))
+        value = value.get(
+            "signalGroup",
+            value.get("signalGroupID", value.get("signal_group", value.get("signal_group_id", value.get("value")))),
+        )
     if value is None:
         return None
     return int(value)
+
+
+def explicit_signal_group_id(value: Any, **_ignore):
+    if not isinstance(value, Mapping):
+        return None
+    for key in ("signalGroup", "signalGroupID", "signal_group", "signal_group_id"):
+        if value.get(key) is not None:
+            return int(value[key])
+    return None
+
+
+def signal_head_node_xy(value: Any, **_ignore):
+    if isinstance(value, Mapping):
+        node_xy = value.get("nodeXY", value.get("node_xy", value.get("value")))
+        if isinstance(node_xy, Mapping):
+            return {"x": float(node_xy["x"]), "y": float(node_xy["y"])}
+    return value
+
+
+def node_xy_from_payload(value: Any, ref_point=None, **_ignore):
+    point = None
+    if isinstance(value, Mapping):
+        if isinstance(value.get("value"), Mapping):
+            inner = value["value"]
+            if inner.get("x") is not None and inner.get("y") is not None:
+                point = {"x": float(inner["x"]), "y": float(inner["y"])}
+        if value.get("x") is not None and value.get("y") is not None:
+            point = {"x": float(value["x"]), "y": float(value["y"])}
+    if point is not None:
+        if ref_point is not None:
+            offset = relative_to_refpoint(point, ref_point)
+            return {"x": float(offset[0]), "y": float(offset[1])}
+        return point
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +168,10 @@ def directional_use_from_label(value: Any) -> str:
 def arrow_to_maneuver(value: Any) -> str:
     if isinstance(value, Mapping):
         value = (value.get("arrow_direction_candidate") or value.get("movement")
-                 or value.get("label") or value.get("value") or value)
+                 or value.get("maneuver") or value.get("label") or value.get("value")
+                 or value)
+    if str(value).strip().lower() == "crossing":
+        return "straight"
     return _base.arrow_to_maneuver(value)
 
 
@@ -161,6 +201,9 @@ TRANSFORMS.update({
     "resolve_egress_lane_from_stage": resolve_egress_lane_from_stage,
     "connecting_lane_id": connecting_lane_id,
     "signal_group_id": signal_group_id,
+    "explicit_signal_group_id": explicit_signal_group_id,
+    "signal_head_node_xy": signal_head_node_xy,
+    "node_xy_from_payload": node_xy_from_payload,
     "ingress_approach_id": ingress_approach_id,
     "egress_approach_id": egress_approach_id,
     "directional_use_from_label": directional_use_from_label,
@@ -240,16 +283,10 @@ def infer_lane_direction(value, ref_point=None, **_ignore):
 
 
 # 7. marking_to_shared_with  (road-marking / lane-use label -> sharedWith bits)
-# [STANDARD: C-Roads 3.2.0 section 3.3.2.2 — sharedWith / LaneSharing]
-# sharedWith is a bit string. Official bit positions (from the handbook):
-#   overlappingLaneDescriptionProvided (0), otherNonMotorizedTrafficTypes (2),
-#   individualMotorizedVehicleTraffic (3), busVehicleTraffic (4),
-#   taxiVehicleTraffic (5), pedestriansTraffic (6), cyclistVehicleTraffic (7),
-#   trackedVehicleTraffic (8).
-# A lane NOT shared with other specific road users leaves the bit string all-0
-# (represented here as []). Per the C-Roads profile, bits 1
-# (multipleLanesTreatedAsOneLane) and 9 (pedestrianTraffic) shall NEVER be set
-# (pedestrian traffic is covered by pedestriansTraffic, bit 6).
+# C-Roads 3.2.0 sharedWith bit positions (section 3.3.2.2). A lane that is NOT
+# shared with other specific road users leaves the bit string all-0 (= []).
+# Only the bits below may be used per the C-Roads profile; bits 1
+# (multipleLanesTreatedAsOneLane) and 9 (pedestrianTraffic) shall NEVER be set.
 SHARED_WITH_BITS = {
     "overlappingLaneDescriptionProvided": 0,
     "otherNonMotorizedTrafficTypes": 2,

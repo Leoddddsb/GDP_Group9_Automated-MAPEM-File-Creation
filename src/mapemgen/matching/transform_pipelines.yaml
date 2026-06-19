@@ -35,10 +35,22 @@ pipelines:
   # grid is installed (see conflict_rules.md / README). Without it pyproj falls
   # back to a ~metre-level Helmert transform.
   - target: "*.refPoint.lat"
-    fact_name: "*"
+    fact_name: lane_geometry_candidate_from_cad
+    transform: [junction_centre_lat]
+  - target: "*.refPoint.long"
+    fact_name: lane_geometry_candidate_from_cad
+    transform: [junction_centre_long]
+  - target: "*.refPoint.lat"
+    fact_name: stop_line_from_cad
     transform: [polygon_centroid, bng_to_wgs84_OSTN15, take_lat, wgs84_to_int_1e7]
   - target: "*.refPoint.long"
-    fact_name: "*"
+    fact_name: stop_line_from_cad
+    transform: [polygon_centroid, bng_to_wgs84_OSTN15, take_long, wgs84_to_int_1e7]
+  - target: "*.refPoint.lat"
+    fact_name: approach_arm_geometry_from_cad
+    transform: [polygon_centroid, bng_to_wgs84_OSTN15, take_lat, wgs84_to_int_1e7]
+  - target: "*.refPoint.long"
+    fact_name: approach_arm_geometry_from_cad
     transform: [polygon_centroid, bng_to_wgs84_OSTN15, take_long, wgs84_to_int_1e7]
 
   # ---- lane node offsets (point → offset from refPoint → cm) --------------
@@ -53,6 +65,9 @@ pipelines:
   - target: "*.signalGroup"
     fact_name: phase_label_from_utc_form
     transform: [phase_letter_to_signal_group]
+  - target: "*.signalGroup"
+    fact_name: lane_connection_candidate_from_cad
+    transform: [explicit_signal_group_id]
 
   # ---- lane attribute classification --------------------------------------
   - target: "*.laneAttributes.laneType"
@@ -76,6 +91,9 @@ pipelines:
     transform: [egress_approach_id]
 
   # ---- connecting lane (resolved via geometry pairing in the engine prepass) --
+  - target: "*.connectingLane.lane"
+    fact_name: lane_connection_candidate_from_cad
+    transform: [connecting_lane_id]
   - target: "*.connectingLane.lane"
     fact_name: "*"
     transform: [resolve_egress_lane_from_stage]

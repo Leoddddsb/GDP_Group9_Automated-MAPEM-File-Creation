@@ -184,10 +184,6 @@ class InstanceResolver:
       - Distinct values of those keys define the set of instances at each level.
       - If no relevant facts exist, a collection has zero instances (and any
         c_roads_mandatory rule on it raises manual_review).
-        # [STANDARD: C-Roads MAPEM/SPATEM 3.2.0] A field flagged c_roads_mandatory
-        # is REQUIRED by the C-Roads message profile (not merely ASN.1-optional).
-        # When such a field cannot be populated, it must be surfaced for review
-        # rather than silently omitted.
 
     This is intentionally isolated: when the Week-2 parser fact format is final,
     only this class changes — never the engine core.
@@ -197,6 +193,7 @@ class InstanceResolver:
         "intersections": "intersection",
         "laneSet": "lane",
         "connectsTo": "connection",
+        "signalHeadLocations": "signal_head",
         "nodes": "node",
     }
 
@@ -563,6 +560,84 @@ class MatchingEngine:
             }))
         return facts
 
+    def _manual_signal_head_location_facts(self, site_config: dict) -> list[Fact]:
+        manual = site_config.get("manual", {}) or {}
+        entries = manual.get("signal_head_locations") or []
+        facts = []
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            node_xy = entry.get("nodeXY", entry.get("node_xy"))
+            signal_group = entry.get("signalGroupID", entry.get("signal_group_id"))
+            if node_xy is None or signal_group is None:
+                continue
+            signal_head_ref = entry.get("signal_head_ref") or f"signal_head_{i + 1}"
+            facts.append(Fact.from_dict({
+                "fact_id": f"manual_signal_head_location_{i + 1}",
+                "fact_name": "manual_signal_head_location",
+                "payload": {
+                    "intersection_ref": entry.get("intersection_ref", "intersection_1"),
+                    "signal_head_ref": signal_head_ref,
+                    "nodeXY": node_xy,
+                    "signalGroupID": signal_group,
+                    "value": node_xy,
+                    "_source": "site_config.manual.signal_head_locations",
+                },
+                "confidence": "high",
+                "source_file": "site_config.manual",
+            }))
+        return facts
+
+    def _manual_lane_name_facts(self, site_config: dict) -> list[Fact]:
+        manual = site_config.get("manual", {}) or {}
+        entries = manual.get("lane_names") or []
+        facts = []
+        for i, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                continue
+            lane_ref = entry.get("lane_ref")
+            name = entry.get("name")
+            if not lane_ref or not name:
+                continue
+            facts.append(Fact.from_dict({
+                "fact_id": f"manual_lane_name_{i + 1}",
+                "fact_name": "manual_lane_name",
+                "payload": {
+                    "intersection_ref": entry.get("intersection_ref", "intersection_1"),
+                    "lane_ref": lane_ref,
+                    "value": name,
+                    "_source": "site_config.manual.lane_names",
+                },
+                "confidence": "high",
+                "source_file": "site_config.manual",
+            }))
+        return facts
+
+    def _manual_refpoint_facts(self, site_config: dict) -> list[Fact]:
+        manual = site_config.get("manual", {}) or {}
+        refpoint = manual.get("refpoint") or manual.get("refPoint")
+        if not isinstance(refpoint, dict):
+            return []
+        lat = refpoint.get("lat")
+        lon = refpoint.get("long", refpoint.get("lon"))
+        if lat is None or lon is None:
+            return []
+        return [
+            Fact.from_dict({
+                "fact_id": "manual_refpoint_from_site_config",
+                "fact_name": "manual_refpoint_from_site_config",
+                "payload": {
+                    "intersection_ref": refpoint.get("intersection_ref", "intersection_1"),
+                    "lat": lat,
+                    "long": lon,
+                    "value": {"lat": lat, "long": lon},
+                    "_source": "site_config.manual.refpoint",
+                },
+                "confidence": "high",
+                "source_file": "site_config.manual",
+            })
+        ]
+
     def _auto_connection_signal_group_facts(self, facts: list[Fact], site_config: dict) -> list[Fact]:
         """Generate deterministic fallback signalGroup values for lane connections.
 
@@ -574,6 +649,7 @@ class MatchingEngine:
         manual = site_config.get("manual", {}) or {}
         if manual.get("disable_auto_signal_groups"):
             return []
+        dummy_phases = self._dummy_phase_set(site_config)
 
         signal_fact_names = {
             "manual_connection_signal_group",
@@ -592,9 +668,15 @@ class MatchingEngine:
         used = set()
         covered = set()
         for fact in facts:
-            if fact.fact_name not in signal_fact_names or not isinstance(fact.payload, dict):
+            if not isinstance(fact.payload, dict):
                 continue
             value = fact.payload.get("signalGroup", fact.payload.get("signal_group", fact.payload.get("value")))
+            has_explicit_connection_signal = (
+                fact.fact_name == "lane_connection_candidate_from_cad"
+                and value is not None
+            )
+            if fact.fact_name not in signal_fact_names and not has_explicit_connection_signal:
+                continue
             if value is not None:
                 try:
                     used.add(int(value))
@@ -614,6 +696,9 @@ class MatchingEngine:
             lane_ref = fact.payload.get("lane_ref")
             connection_ref = fact.payload.get("connection_ref")
             if not lane_ref or not connection_ref:
+                continue
+            phase_refs = fact.payload.get("phase_refs") or []
+            if phase_refs and all(self._normalise_phase_ref(ref) in dummy_phases for ref in phase_refs):
                 continue
             key = (lane_ref, connection_ref)
             if key in seen_connections or key in covered:
@@ -641,6 +726,27 @@ class MatchingEngine:
             }))
         return generated
 
+    @staticmethod
+    def _dummy_phase_set(site_config: dict) -> set[str]:
+        manual = site_config.get("manual", {}) or {}
+        site = site_config.get("site", {}) or {}
+        values = (
+            manual.get("dummy_phases")
+            or site.get("dummy_phases")
+            or site_config.get("dummy_phases")
+            or []
+        )
+        return {MatchingEngine._normalise_phase_ref(value) for value in values}
+
+    @staticmethod
+    def _normalise_phase_ref(value: Any) -> str:
+        text = str(value).strip().upper()
+        if text.startswith("PHASE_"):
+            text = text[6:]
+        elif text.startswith("PHASE "):
+            text = text[6:]
+        return text
+
     def run(self, facts: list, site_config: dict) -> dict:
         input_warnings = self._validate_inputs(facts, site_config)
         facts = [Fact.from_dict(f) if isinstance(f, dict) else f for f in facts]
@@ -667,6 +773,9 @@ class MatchingEngine:
             }))
 
         facts.extend(self._manual_connection_signal_group_facts(site_config))
+        facts.extend(self._manual_signal_head_location_facts(site_config))
+        facts.extend(self._manual_lane_name_facts(site_config))
+        facts.extend(self._manual_refpoint_facts(site_config))
         facts.extend(self._auto_connection_signal_group_facts(facts, site_config))
 
         resolver = InstanceResolver(facts)
@@ -860,6 +969,11 @@ class MatchingEngine:
                              population_mode=rule.get("population_mode", ""))
         mode = rule.get("population_mode")
 
+        if not self._applies_when(rule.get("applies_when"), scope, facts):
+            rec.status = "not_applicable"
+            rec.notes = f"rule condition not met: {rule.get('applies_when')}"
+            return rec
+
         # ---- non-source population modes ----
         if mode == "constant":
             rec.value, rec.confidence = rule.get("value"), "high"
@@ -867,9 +981,9 @@ class MatchingEngine:
 
         if mode == "client_configured":
             key = rule.get("config_key")
-            val = ctx["config"].get(key) if key else None
+            val = self._config_value(ctx["config"], key) if key else None
             if val is None and rule.get("fallback_config_key"):
-                val = ctx["config"].get(rule["fallback_config_key"])
+                val = self._config_value(ctx["config"], rule["fallback_config_key"])
             rec.value = val
             rec.confidence = "high"
             rec.source_facts = [f"site_config.{key}"] if key else []
@@ -918,6 +1032,17 @@ class MatchingEngine:
         rec.status = "pending_transform"
         rec.notes = f"population_mode '{mode}' has no machine-usable sources yet"
         return self._finalise_mandatory(rec, rule)
+
+    @staticmethod
+    def _config_value(config: dict, key: str | None):
+        if not key:
+            return None
+        current = config
+        for part in str(key).split("."):
+            if not isinstance(current, dict) or part not in current:
+                return None
+            current = current[part]
+        return current
 
     # ---- sources matching (group-aware: within-group OR, across-group AND) --
     def _logical_name(self, fact_group: str) -> str:
@@ -989,10 +1114,6 @@ class MatchingEngine:
                           + w.get("source_priority", 0.5) * prio)
         selectable = computable or enriched
         if rule["target"].endswith(".laneAttributes.directionalUse"):
-            # [STANDARD: C-Roads 3.2.0 section 3.3.2.3 — Directional Use]
-            # directionalUse is a 2-bit string: ingressPath(0), egressPath(1).
-            # "10" = ingress only, "01" = egress only, "11" = both directions.
-            # Prefer candidates that carry an explicit travel direction.
             explicit = [c for c in selectable if c["value"] in {"10", "01", "11"}]
             if explicit:
                 selectable = explicit
@@ -1002,7 +1123,7 @@ class MatchingEngine:
                                       -self._conf_score(c["fact"].confidence)))
         winner = (order[0]["src"], order[0]["fact"])
         winner_fact_id = order[0]["fact"].fact_id
-        corro = [(c["src"], c["fact"]) for c in enriched
+        corro = [(c["src"], c["fact"]) for c in selectable
                  if c["fact"].fact_id != winner_fact_id]
         return (winner, corro, [])
 
@@ -1020,6 +1141,44 @@ class MatchingEngine:
             name = source.get("fact_name") or source.get("fact_type")
             for f in self._facts_of_name(facts, name, scope, source):
                 by_logical.setdefault(lname, []).append((source, f))
+        if ".laneAttributes." in rule.get("target", "") and scope.get("lane"):
+            by_logical = {
+                lname: self._prefer_lane_scoped_candidates(cands, scope["lane"])
+                for lname, cands in by_logical.items()
+            }
+        if (
+            any(rule.get("target", "").endswith(suffix) for suffix in (".ingressApproach", ".egressApproach", ".name"))
+            and scope.get("lane")
+        ):
+            by_logical = {
+                lname: self._prefer_lane_scoped_candidates(cands, scope["lane"])
+                for lname, cands in by_logical.items()
+            }
+        if rule.get("target", "").endswith(".ingressApproach"):
+            by_logical = {
+                lname: self._prefer_directional_candidates(cands, "ingress")
+                for lname, cands in by_logical.items()
+            }
+        if rule.get("target", "").endswith(".egressApproach"):
+            by_logical = {
+                lname: self._prefer_directional_candidates(cands, "egress")
+                for lname, cands in by_logical.items()
+            }
+        if ".nodeList.nodes" in rule.get("target", "") and scope.get("node"):
+            by_logical = {
+                lname: self._prefer_node_scoped_candidates(cands, scope["node"])
+                for lname, cands in by_logical.items()
+            }
+        if ".connectsTo[]" in rule.get("target", "") and scope.get("connection"):
+            by_logical = {
+                lname: self._prefer_connection_scoped_candidates(cands, scope["connection"])
+                for lname, cands in by_logical.items()
+            }
+        if ".signalHeadLocations" in rule.get("target", "") and scope.get("signal_head"):
+            by_logical = {
+                lname: self._prefer_signal_head_scoped_candidates(cands, scope["signal_head"])
+                for lname, cands in by_logical.items()
+            }
 
         # 2. WITHIN each logical group: select the best source.
         #    v3 'scoring' present → final-score selection; else priority-only.
@@ -1058,6 +1217,16 @@ class MatchingEngine:
         # come from signal_semantics.
         if rec.target_path.endswith(".signalGroup") and "signal_semantics" in winners:
             primary_g = "signal_semantics"
+        elif (
+            (rec.target_path.endswith(".refPoint.lat") or rec.target_path.endswith(".refPoint.long"))
+            and "geometry" in winners
+            and "coordinate_reference" in winners
+            and (
+                winners["coordinate_reference"][0].get("fact_name")
+                == "coordinate_reference_system_evidence_from_cad"
+            )
+        ):
+            primary_g = "geometry"
         else:
             primary_g = min(winners, key=lambda g: eff_priority(winners[g][0]))
         primary_source, primary_fact = winners[primary_g]
@@ -1106,6 +1275,62 @@ class MatchingEngine:
             rec.target_path, declared, group_sel, primary_g, values_pending,
             ctx, missing)
         return rec
+
+    @staticmethod
+    def _prefer_lane_scoped_candidates(candidates, lane_ref):
+        scoped = [
+            candidate
+            for candidate in candidates
+            if isinstance(candidate[1].payload, dict)
+            and candidate[1].payload.get("lane_ref") == lane_ref
+        ]
+        return scoped or candidates
+
+    @staticmethod
+    def _prefer_node_scoped_candidates(candidates, node_ref):
+        scoped = [
+            candidate
+            for candidate in candidates
+            if isinstance(candidate[1].payload, dict)
+            and candidate[1].payload.get("node_ref") == node_ref
+        ]
+        return scoped or candidates
+
+    @staticmethod
+    def _prefer_connection_scoped_candidates(candidates, connection_ref):
+        scoped = [
+            candidate
+            for candidate in candidates
+            if isinstance(candidate[1].payload, dict)
+            and candidate[1].payload.get("connection_ref") == connection_ref
+        ]
+        return scoped or candidates
+
+    @staticmethod
+    def _prefer_signal_head_scoped_candidates(candidates, signal_head_ref):
+        scoped = [
+            candidate
+            for candidate in candidates
+            if isinstance(candidate[1].payload, dict)
+            and candidate[1].payload.get("signal_head_ref") == signal_head_ref
+        ]
+        return scoped or candidates
+
+    @staticmethod
+    def _prefer_directional_candidates(candidates, direction):
+        directional = [
+            candidate
+            for candidate in candidates
+            if isinstance(candidate[1].payload, dict)
+            and candidate[1].payload.get("direction") in {"ingress", "egress", "both"}
+        ]
+        if directional:
+            return [
+                candidate
+                for candidate in directional
+                if candidate[1].payload.get("direction") in {direction, "both"}
+            ]
+        return candidates
 
     def _build_grouped_conflict(self, target, declared, group_sel, primary_g,
                                 pending, ctx, missing):
@@ -1192,6 +1417,27 @@ class MatchingEngine:
         # presence of facts that would populate it.
         rec.value = None
         rec.notes = rule.get("note", "container must exist")
+        if rule.get("target", "").endswith(".connectsTo"):
+            lane_refs = {
+                f.payload.get("lane_ref")
+                for f in facts
+                if isinstance(f.payload, dict) and f.payload.get("lane_ref")
+            }
+            connection_present = any(
+                f.fact_name == "lane_connection_candidate_from_cad"
+                and isinstance(f.payload, dict)
+                and f.payload.get("lane_ref") == scope.get("lane")
+                for f in facts
+            )
+            if connection_present:
+                rec.status = "ok"
+            elif len(lane_refs) <= 1:
+                rec.status = "not_applicable"
+                rec.notes = "single-lane intersection has no connectsTo target"
+            else:
+                rec.status = "manual_review"
+                rec.notes = "multi-lane intersection has no connection evidence"
+            return rec
         # if any fact is scoped to this instance, treat as satisfied
         has_any = any(self._fact_in_scope(f, scope) for f in facts)
         rec.status = "ok" if has_any else "manual_review"
@@ -1222,6 +1468,37 @@ class MatchingEngine:
                 return False
         return True
 
+    def _applies_when(self, condition, scope, facts) -> bool:
+        if not condition:
+            return True
+        text = str(condition).strip().lower()
+        if text.startswith("lane.directionaluse contains "):
+            expected = text.rsplit(" ", 1)[-1]
+            lane_ref = scope.get("lane")
+            if not lane_ref:
+                return False
+            for fact in facts:
+                if not isinstance(fact.payload, dict):
+                    continue
+                if fact.payload.get("lane_ref") != lane_ref:
+                    continue
+                direction = (
+                    fact.payload.get("direction")
+                    or fact.payload.get("directionalUse")
+                    or fact.payload.get("directional_use")
+                )
+                if direction is None:
+                    continue
+                direction_text = str(direction).lower()
+                if expected in direction_text:
+                    return True
+                if expected == "ingress" and direction_text in {"10", "11"}:
+                    return True
+                if expected == "egress" and direction_text in {"01", "11"}:
+                    return True
+            return False
+        return True
+
     def _effective_priority(self, rule, source, priority_overrides):
         """Return a numeric rank for a source. Site-level overrides win over the
         rule-file priority label; labels (P1..F) map to ranks via priority_ranks.
@@ -1239,14 +1516,7 @@ class MatchingEngine:
 
     def _finalise_mandatory(self, rec, rule):
         """If a c_roads_mandatory field has no value, escalate to manual_review.
-        ASN.1-mandatory fields are left to the encoder (informational only).
-
-        [STANDARD: C-Roads MAPEM/SPATEM 3.2.0 message profile]
-        The C-Roads profile makes a subset of ASN.1-optional fields MANDATORY.
-        A missing C-Roads-mandatory field is escalated to manual_review here so
-        the gap is explicit. Plain ASN.1-mandatory presence is enforced later by
-        the encoder, not here.
-        """
+        ASN.1-mandatory fields are left to the encoder (informational only)."""
         empty = rec.value is None or rec.value == [] or rec.value == ""
         if empty and rule.get("c_roads_mandatory") and rec.status == "ok":
             rec.status = "manual_review"
@@ -1262,11 +1532,6 @@ class MatchingEngine:
         return int(idxs[-1]) if idxs else None
 
     def _collect_forbidden(self):
-        # [STANDARD: C-Roads 3.2.0 section 3.3.3 — Maneuvers]
-        # The C-Roads profile FORBIDS certain elements (e.g. lane-level
-        # genericLane.maneuvers, which "shall not be used"; the per-connection
-        # connectsTo.connectingLane.maneuver is used instead). Forbidden targets
-        # are collected here and reported so they are never emitted.
         out = []
         for fb in self.rules.get("forbidden", []) or []:
             out.append({"target": fb.get("target"),

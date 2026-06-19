@@ -6,10 +6,13 @@ from typing import Any
 from mapemgen.ingestion.fact_records import make_fact
 
 
-PHASE_MOVEMENT_FACT = "phase_movement_mapping_from_controller_config"
-SCOOT_LINK_MOVEMENT_FACT = "scoot_link_movement_from_utc_form"
-PHASE_SCOOT_LINK_FACT = "phase_scoot_link_mapping_from_utc_form"
-SCOOT_LINK_STAGE_FACT = "scoot_link_stage_mapping_from_utc_form"
+PHASE_MOVEMENT_FACT = "movement_phase_mapping_from_controller_config"
+PHASE_LABEL_FACT = "phase_label_from_controller_config"
+SCOOT_LINK_MOVEMENT_FACT = "movement_direction_candidate_from_utc_form"
+PHASE_SCOOT_LINK_FACT = "movement_phase_mapping_from_utc_form"
+SCOOT_LINK_STAGE_FACT = "stage_phase_relationship_from_utc_form"
+
+PHASE_TYPES = {"T", "P", "F", "I", "S", "D", "L"}
 
 
 def extract_controller_config_movement_facts(cells: list[str], location: str) -> list[dict[str, Any]]:
@@ -23,6 +26,113 @@ def extract_controller_config_movement_facts(cells: list[str], location: str) ->
         payload = _movement_payload(movement_text)
         payload.update({"phase_ref": _phase_ref(phase_label), "phase_label": phase_label})
         facts.append(make_fact(PHASE_MOVEMENT_FACT, _ordered_phase_payload(payload), location, 0.86))
+    return facts
+
+
+def extract_controller_config_text_facts(lines: list[str], location_prefix: str) -> list[dict[str, Any]]:
+    facts: list[dict[str, Any]] = []
+    for index, raw_line in enumerate(lines, start=1):
+        line = _clean_spaces(raw_line)
+        if not line:
+            continue
+        location = f"{location_prefix} {index}"
+        phase_match = re.fullmatch(r"Phase\s+([A-Z](?:\d+)?)", line, flags=re.IGNORECASE)
+        if phase_match:
+            label = phase_match.group(1).upper()
+            facts.append(make_fact(
+                PHASE_LABEL_FACT,
+                {"phase_ref": _phase_ref(label), "phase_label": label},
+                location,
+                0.75,
+            ))
+            continue
+        stage_match = re.fullmatch(r"Stage\s+(\d+)(?:\s+.*)?", line, flags=re.IGNORECASE)
+        if stage_match:
+            stage_number = int(stage_match.group(1))
+            facts.append(make_fact(
+                "stage_phase_relationship_from_controller_config",
+                {"stage_ref": f"stage_{stage_number}", "stage_number": stage_number},
+                location,
+                0.65,
+            ))
+    return facts
+
+
+def extract_controller_config_table_facts(table: list[list[str | None]], location: str) -> list[dict[str, Any]]:
+    facts: list[dict[str, Any]] = []
+    facts.extend(extract_use_of_phases_facts(table, location))
+    facts.extend(extract_use_of_stages_facts(table, location))
+    return facts
+
+
+def extract_use_of_phases_facts(table: list[list[str | None]], location: str) -> list[dict[str, Any]]:
+    rows = [_clean_row(row) for row in table or []]
+    if not rows or "use of phases" not in _table_text(rows).lower():
+        return []
+
+    facts: list[dict[str, Any]] = []
+    for row_index, row in enumerate(rows, start=1):
+        if not row:
+            continue
+        phase_label = row[0].upper()
+        if not re.fullmatch(r"[A-Z](?:\d+)?", phase_label):
+            continue
+        phase_type_index = _phase_type_index(row)
+        if phase_type_index is None:
+            continue
+        phase_type = row[phase_type_index].upper()
+        movement_text = _clean_movement_description(row[1:phase_type_index])
+        if not movement_text:
+            continue
+        payload = {
+            "phase_ref": _phase_ref(phase_label),
+            "phase_label": phase_label,
+            "phase_type": phase_type,
+            "movement_text": _display_movement_text(movement_text),
+        }
+        facts.append(make_fact(PHASE_LABEL_FACT, payload, f"{location} row {row_index}", 0.9))
+        if phase_type == "D":
+            continue
+        movement_payload = _movement_payload(movement_text)
+        movement_payload.update({
+            "phase_ref": _phase_ref(phase_label),
+            "phase_label": phase_label,
+            "phase_type": phase_type,
+        })
+        facts.append(make_fact(PHASE_MOVEMENT_FACT, _ordered_phase_payload(movement_payload), f"{location} row {row_index}", 0.9))
+    return facts
+
+
+def extract_use_of_stages_facts(table: list[list[str | None]], location: str) -> list[dict[str, Any]]:
+    rows = [_clean_row(row) for row in table or []]
+    if len(rows) < 3 or "use of stages" not in _table_text(rows[:2]).lower():
+        return []
+    header = rows[1]
+    if not header or header[0].lower() != "stage":
+        return []
+    phase_columns = [(index, value.upper()) for index, value in enumerate(header[1:], start=1)
+                     if re.fullmatch(r"[A-Z](?:\d+)?", value.upper())]
+    facts: list[dict[str, Any]] = []
+    for row_index, row in enumerate(rows[2:], start=3):
+        if not row or not re.fullmatch(r"\d+", row[0]):
+            continue
+        stage_number = int(row[0])
+        if stage_number == 0:
+            continue
+        phase_labels = [
+            phase_label
+            for index, phase_label in phase_columns
+            if index < len(row) and _stage_cell_is_active(row[index])
+        ]
+        if not phase_labels:
+            continue
+        payload = {
+            "stage_ref": f"stage_{stage_number}",
+            "stage_number": stage_number,
+            "phase_refs": [_phase_ref(label) for label in phase_labels],
+            "phase_labels": phase_labels,
+        }
+        facts.append(make_fact("stage_phase_relationship_from_controller_config", payload, f"{location} row {row_index}", 0.88))
     return facts
 
 
@@ -253,3 +363,33 @@ def _slug(value: str) -> str:
 def _int_or_text(value: str) -> int | str:
     text = value.strip()
     return int(text) if re.fullmatch(r"[+-]?\d+", text) else text
+
+
+def _clean_row(row: list[str | None]) -> list[str]:
+    return [_clean_spaces(cell or "") for cell in row]
+
+
+def _table_text(rows: list[list[str]]) -> str:
+    return " ".join(cell for row in rows for cell in row if cell)
+
+
+def _phase_type_index(row: list[str]) -> int | None:
+    for index, cell in enumerate(row[1:], start=1):
+        if cell.upper() in PHASE_TYPES:
+            return index
+    return None
+
+
+def _clean_movement_description(cells: list[str]) -> str:
+    parts = []
+    for cell in cells:
+        text = _clean_spaces(cell)
+        if not text or re.fullmatch(r"\d+", text):
+            continue
+        parts.append(text)
+    return _clean_spaces(" ".join(parts))
+
+
+def _stage_cell_is_active(value: str) -> bool:
+    text = _clean_spaces(value).upper()
+    return bool(text) and text not in {"0", "-", "X"}

@@ -31,7 +31,14 @@ site:
 # 1. REQUIRED project-level config
 # =============================================================================
 station_id: 100
-region_code: 50000
+region_code: 50050
+intersection:
+  name: "397L Hyde Park Road Toucan near Brudenell Road"
+dataParameters:
+  processMethod: "Manual transcription from 397L DXF and UTMC specification PDF"
+  processAgency: "Imperial GDP Group 9"
+  lastCheckedDate: "2026-06-17"
+  geoidUsed: "EPSG:27700 source drawing transformed to WGS84"
 default_lane_width_m: 3.5
 crs_source: EPSG:27700
 
@@ -50,6 +57,64 @@ conflict_area:
 # 3. OPTIONAL manual overrides
 # =============================================================================
 manual:
+  refpoint:
+    lat: 538124601
+    long: -15637669
+  lane_names:
+    - lane_ref: lane_1
+      name: "A Hyde Park Road northbound ingress"
+    - lane_ref: lane_2
+      name: "A Hyde Park Road northbound egress"
+    - lane_ref: lane_3
+      name: "B Hyde Park Road southbound ingress"
+    - lane_ref: lane_4
+      name: "B Hyde Park Road southbound egress"
+    - lane_ref: lane_5
+      name: "C Toucan crossing west-side ingress"
+    - lane_ref: lane_6
+      name: "C Toucan crossing east-side egress"
+    - lane_ref: lane_7
+      name: "C Toucan crossing east-side ingress"
+    - lane_ref: lane_8
+      name: "C Toucan crossing west-side egress"
+  connection_signal_groups:
+    - lane_ref: lane_1
+      target_lane_ref: lane_2
+      signalGroup: 1
+    - lane_ref: lane_3
+      target_lane_ref: lane_4
+      signalGroup: 2
+    - lane_ref: lane_5
+      target_lane_ref: lane_6
+      signalGroup: 3
+    - lane_ref: lane_7
+      target_lane_ref: lane_8
+      signalGroup: 3
+  signal_head_locations:
+    - intersection_ref: intersection_1
+      signal_head_ref: signal_head_1
+      nodeXY:
+        x: -5.0
+        y: -0.8
+      signalGroupID: 1
+    - intersection_ref: intersection_1
+      signal_head_ref: signal_head_2
+      nodeXY:
+        x: 4.9
+        y: 0.8
+      signalGroupID: 2
+    - intersection_ref: intersection_1
+      signal_head_ref: signal_head_3
+      nodeXY:
+        x: -5.0
+        y: -0.8
+      signalGroupID: 3
+    - intersection_ref: intersection_1
+      signal_head_ref: signal_head_4
+      nodeXY:
+        x: 4.9
+        y: 0.8
+      signalGroupID: 3
   # refpoint:
   #   lat: null
   #   long: null

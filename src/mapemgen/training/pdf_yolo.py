@@ -22,12 +22,6 @@ FACT_CLASS = {
     "road_marking_candidate_from_pdf_cv": "road_marking",
     "lane_line_candidate_from_pdf_vector": "lane_line",
     "lane_line_candidate_from_pdf_cv": "lane_line",
-    "stop_line_candidate_from_pdf_vector": "stop_line",
-    "stop_line_candidate_from_pdf_cv": "stop_line",
-    "crossing_candidate_from_pdf_vector": "crossing",
-    "crossing_candidate_from_pdf_cv": "crossing",
-    "arrow_candidate_from_pdf_vector": "arrow",
-    "arrow_candidate_from_pdf_cv": "arrow",
     "signal_head_symbol_candidate_from_pdf_vector": "signal_head",
     "signal_head_symbol_candidate_from_pdf_cv": "signal_head",
 }

@@ -347,7 +347,10 @@ def _approach_assignment_payloads(assignments, source_facts=None):
             "approach_ref": approach_ref,
             "value": approach_ref,
         }
-        if lane_ref in stop_line_lanes:
+        if lane.get("direction") in {"ingress", "egress", "both"}:
+            payload["direction"] = lane["direction"]
+            payload["direction_basis"] = lane.get("lane_semantic_basis", "assignment_lane_direction")
+        elif lane_ref in stop_line_lanes:
             payload["direction"] = "ingress"
             payload["direction_basis"] = "cad_stop_line"
         else:
@@ -388,12 +391,106 @@ def build_approach_assignment_facts(assignments, source_facts=None):
     return facts
 
 
-def build_connection_candidate_facts(assignments, source_facts=None, max_distance_m=120.0):
-    """Create conservative lane connection candidates from confirmed directions.
+def build_lane_prototype_facts(assignments):
+    facts = []
+    for lane in (assignments or {}).get("lanes", []) or []:
+        lane_ref = lane.get("lane_ref")
+        geometry = lane.get("geometry")
+        if not lane_ref or not geometry:
+            continue
+        base_payload = {
+            "intersection_ref": lane.get("intersection_ref", "intersection_1"),
+            "lane_ref": lane_ref,
+            "geometry": geometry,
+            "direction": lane.get("direction"),
+            "lane_type": lane.get("lane_type", "vehicle"),
+            "label": lane.get("lane_type", "vehicle"),
+            "value": geometry,
+            "connection_basis": lane.get("lane_semantic_basis"),
+        }
+        if lane.get("approach_ref"):
+            base_payload["approach_ref"] = lane["approach_ref"]
+        facts.append({
+            "fact_id": f"lane_prototype_geometry_{lane_ref}",
+            "fact_name": "lane_geometry_candidate_from_cad",
+            "payload": base_payload,
+            "confidence": "high",
+            "source_file": lane.get("source_file", "geometry_assignment"),
+        })
+        for node_index, point in enumerate(geometry, start=1):
+            facts.append({
+                "fact_id": f"lane_prototype_node_{lane_ref}_{node_index}",
+                "fact_name": "lane_node_candidate_from_assignment",
+                "payload": {
+                    "intersection_ref": lane.get("intersection_ref", "intersection_1"),
+                    "lane_ref": lane_ref,
+                    "node_ref": f"{lane_ref}_node_{node_index}",
+                    "x": point[0],
+                    "y": point[1],
+                    "value": {"x": point[0], "y": point[1]},
+                },
+                "confidence": "high",
+                "source_file": lane.get("source_file", "geometry_assignment"),
+            })
+        facts.append({
+            "fact_id": f"lane_prototype_use_{lane_ref}",
+            "fact_name": "lane_use_label_from_cad",
+            "payload": {
+                "intersection_ref": lane.get("intersection_ref", "intersection_1"),
+                "lane_ref": lane_ref,
+                "lane_type": lane.get("lane_type", "vehicle"),
+                "label": _lane_use_label(lane),
+                "value": _lane_use_label(lane),
+            },
+            "confidence": "high",
+            "source_file": lane.get("source_file", "geometry_assignment"),
+        })
+    return facts
 
-    This fills the connection scope needed by connectsTo[] only when assignment
-    has already classified lanes as ingress/egress. It does not invent signal
-    groups; signalGroup remains unresolved unless a signal/phase fact exists.
+
+def _lane_use_label(lane):
+    if lane.get("use_label"):
+        return lane["use_label"]
+    lane_type = str(lane.get("lane_type", "vehicle")).lower()
+    if lane_type in {"crosswalk", "crosswalklane"}:
+        return "toucan pedestrian cycle crossing"
+    return lane.get("lane_type", "vehicle")
+
+
+def build_movement_direction_facts(assignments):
+    facts = []
+    for index, mapping in enumerate((assignments or {}).get("movement_lane_mappings", []) or [], start=1):
+        maneuver = mapping.get("maneuver")
+        lane_ref = mapping.get("lane_ref")
+        target_lane_ref = mapping.get("target_lane_ref")
+        if not maneuver or not lane_ref or not target_lane_ref:
+            continue
+        connection_ref = f"connection_{lane_ref}_to_{target_lane_ref}"
+        facts.append({
+            "fact_id": f"movement_direction_{index}_{lane_ref}_to_{target_lane_ref}",
+            "fact_name": "movement_direction_candidate_from_cad",
+            "payload": {
+                "intersection_ref": mapping.get("intersection_ref", "intersection_1"),
+                "lane_ref": lane_ref,
+                "connection_ref": connection_ref,
+                "target_lane_ref": target_lane_ref,
+                "movement_ref": mapping.get("movement_ref"),
+                "movement": maneuver,
+                "maneuver": maneuver,
+                "value": maneuver,
+            },
+            "confidence": confidence_to_level(mapping.get("confidence", "medium")),
+            "source_file": mapping.get("source_file", "geometry_assignment"),
+        })
+    return facts
+
+
+def build_connection_candidate_facts(assignments, source_facts=None, max_distance_m=120.0):
+    """Create conservative movement-to-lane connection candidates.
+
+    Prefer movement_lane_mappings because MAPEM connectsTo represents a movement
+    from an ingress lane to an egress lane. Fall back to one geometry-only nearest
+    egress connection per ingress lane when no usable movement evidence exists.
     """
     payloads = _approach_assignment_payloads(assignments, source_facts)
     lane_items = {
@@ -403,27 +500,30 @@ def build_connection_candidate_facts(assignments, source_facts=None, max_distanc
     }
     ingress = [p for p in payloads if p.get("direction") == "ingress"]
     egress = [p for p in payloads if p.get("direction") == "egress"]
-    if not ingress or not egress:
+    if not ingress:
+        return []
+
+    source_by_movement = _movement_source_payloads(source_facts or [])
+    movement_facts = _movement_connection_candidate_facts(
+        assignments or {},
+        ingress,
+        egress,
+        lane_items,
+        source_by_movement,
+        max_distance_m,
+    )
+    if movement_facts:
+        return movement_facts
+    if not egress:
         return []
 
     facts = []
     for src in ingress:
         src_lane = lane_items.get(src["lane_ref"], {})
-        src_centroid = _centroid_xy(src_lane)
-        if src_centroid is None:
-            continue
-        best = None
-        for dst in egress:
-            dst_lane = lane_items.get(dst["lane_ref"], {})
-            dst_centroid = _centroid_xy(dst_lane)
-            if dst_centroid is None:
-                continue
-            distance = _distance(src_centroid, dst_centroid)
-            if best is None or distance < best[0]:
-                best = (distance, dst, dst_lane)
+        best = _nearest_egress(src_lane, egress, lane_items)
         if best is None or best[0] > max_distance_m:
             continue
-        distance, dst, _dst_lane = best
+        distance, dst = best
         connection_ref = f"connection_{src['lane_ref']}_to_{dst['lane_ref']}"
         facts.append({
             "fact_id": f"lane_connection_{src['lane_ref']}_to_{dst['lane_ref']}",
@@ -445,7 +545,158 @@ def build_connection_candidate_facts(assignments, source_facts=None, max_distanc
     return facts
 
 
-def build_movement_to_lane(assignments, movement_map=None):
+def _movement_source_payloads(source_facts):
+    by_ref = {}
+    for fact in source_facts or []:
+        payload = _unwrap_payload(fact)
+        if not isinstance(payload, dict):
+            continue
+        movement_ref = payload.get("movement_ref")
+        if not movement_ref:
+            continue
+        by_ref.setdefault(str(movement_ref), []).append(payload)
+    return by_ref
+
+
+def _movement_connection_candidate_facts(
+    assignments,
+    ingress,
+    egress,
+    lane_items,
+    source_by_movement,
+    max_distance_m,
+):
+    ingress_refs = {item["lane_ref"] for item in ingress}
+    egress_refs = {item["lane_ref"] for item in egress}
+    facts = []
+    seen_connection_refs = set()
+    for mapping in assignments.get("movement_lane_mappings", []) or []:
+        movement_ref = mapping.get("movement_ref")
+        lane_ref = mapping.get("lane_ref")
+        if not movement_ref or not lane_ref or lane_ref not in ingress_refs:
+            continue
+        src_lane = lane_items.get(lane_ref, {})
+        target_lane_ref = (
+            mapping.get("target_lane_ref")
+            or mapping.get("egress_lane_ref")
+            or mapping.get("connecting_lane_ref")
+        )
+        distance = None
+        if target_lane_ref:
+            if target_lane_ref not in lane_items:
+                continue
+            src_centroid = _centroid_xy(src_lane)
+            dst_centroid = _centroid_xy(lane_items.get(target_lane_ref, {}))
+            if src_centroid is not None and dst_centroid is not None:
+                distance = _distance(src_centroid, dst_centroid)
+        else:
+            if not egress_refs:
+                continue
+            best = _nearest_egress(src_lane, egress, lane_items)
+            if best is None or best[0] > max_distance_m:
+                continue
+            distance, dst = best
+            target_lane_ref = dst["lane_ref"]
+
+        base_ref = f"connection_{lane_ref}_to_{target_lane_ref}"
+        connection_ref = base_ref
+        if connection_ref in seen_connection_refs:
+            connection_ref = f"{base_ref}_{_safe_ref_suffix(movement_ref)}"
+        seen_connection_refs.add(connection_ref)
+
+        source_payloads = source_by_movement.get(str(movement_ref), [])
+        phase_refs = _mapping_phase_refs(mapping, source_payloads)
+        payload = {
+            "intersection_ref": mapping.get("intersection_ref") or _lane_intersection_ref(src_lane),
+            "lane_ref": lane_ref,
+            "connection_ref": connection_ref,
+            "target_lane_ref": target_lane_ref,
+            "movement_ref": movement_ref,
+            "phase_refs": phase_refs,
+            "value": target_lane_ref,
+            "connection_basis": mapping.get("assignment_method", "movement_lane_mapping"),
+            "requires_context_match": bool(mapping.get("requires_context_match")),
+        }
+        target_approach_ref = _lane_approach_ref(lane_items.get(target_lane_ref, {}))
+        if target_approach_ref:
+            payload["target_approach_ref"] = target_approach_ref
+        if distance is not None:
+            payload["distance_m"] = distance
+        maneuver = _movement_maneuver(mapping, source_payloads)
+        if maneuver:
+            payload["maneuver"] = maneuver
+        signal_group = mapping.get("signal_group") or mapping.get("signalGroup")
+        if signal_group is not None:
+            payload["signalGroup"] = signal_group
+        movement_text = mapping.get("movement_text") or _first_value(source_payloads, "movement_text")
+        if movement_text:
+            payload["movement_text"] = movement_text
+        facts.append({
+            "fact_id": f"lane_connection_{lane_ref}_to_{target_lane_ref}_{_safe_ref_suffix(movement_ref)}",
+            "fact_name": "lane_connection_candidate_from_cad",
+            "payload": payload,
+            "confidence": confidence_to_level(mapping.get("confidence", "medium")),
+            "source_file": mapping.get("source_file") or "geometry_assignment",
+        })
+    return facts
+
+
+def _nearest_egress(src_lane, egress, lane_items):
+    src_centroid = _centroid_xy(src_lane)
+    if src_centroid is None:
+        return None
+    best = None
+    for dst in egress:
+        dst_lane = lane_items.get(dst["lane_ref"], {})
+        dst_centroid = _centroid_xy(dst_lane)
+        if dst_centroid is None:
+            continue
+        distance = _distance(src_centroid, dst_centroid)
+        if best is None or distance < best[0]:
+            best = (distance, dst)
+    return best
+
+
+def _mapping_phase_refs(mapping, source_payloads):
+    refs = [str(ref) for ref in mapping.get("phase_refs", []) or [] if ref]
+    for payload in source_payloads:
+        phase_ref = payload.get("phase_ref")
+        if phase_ref:
+            refs.append(str(phase_ref))
+    return sorted(set(refs))
+
+
+def _movement_maneuver(mapping, source_payloads):
+    return (
+        mapping.get("maneuver")
+        or _first_value(source_payloads, "maneuver")
+        or _first_value(source_payloads, "arrow_direction_candidate")
+        or _first_value(source_payloads, "movement")
+    )
+
+
+def _first_value(payloads, key):
+    for payload in payloads:
+        value = payload.get(key)
+        if value:
+            return value
+    return None
+
+
+def _lane_intersection_ref(lane):
+    return lane.get("intersection_ref") or "intersection_1"
+
+
+def _lane_approach_ref(lane):
+    return lane.get("approach_ref")
+
+
+def _safe_ref_suffix(value):
+    text = "".join(ch if ch.isalnum() else "_" for ch in str(value).lower()).strip("_")
+    return text or "movement"
+
+
+def build_movement_to_lane(assignments, movement_map=None, source_facts=None):
     """ref -> {intersection_ref, lane_ref, requires_context_match}, where ref is a
     movement_ref OR a phase_ref.
 
@@ -461,23 +712,63 @@ def build_movement_to_lane(assignments, movement_map=None):
     Returns {} if nothing available — phase facts then degrade gracefully.
     """
     table = {}
+    connected_lane_refs = _connected_source_lane_refs(source_facts or [])
+    movement_connections = _movement_connection_index(source_facts or [])
 
     if assignments:
         # 1. primary: movement_lane_mappings
-        for m in assignments.get("movement_lane_mappings", []):
+        movement_mappings = assignments.get("movement_lane_mappings", [])
+        resolved_lane_refs = {}
+        occupied_lane_refs = set()
+        for index, m in enumerate(movement_mappings):
             lane_ref = m.get("lane_ref")
+            if not lane_ref:
+                connected_candidates = [
+                    str(ref)
+                    for ref in (m.get("candidate_lane_refs") or [])
+                    if ref is not None and str(ref) in connected_lane_refs
+                ]
+                if len(set(connected_candidates)) == 1:
+                    lane_ref = connected_candidates[0]
+            if lane_ref:
+                lane_ref = str(lane_ref)
+                resolved_lane_refs[index] = lane_ref
+                occupied_lane_refs.add(lane_ref)
+
+        for index, m in enumerate(movement_mappings):
+            if index in resolved_lane_refs:
+                continue
+            connected_candidates = [
+                str(ref)
+                for ref in (m.get("candidate_lane_refs") or [])
+                if ref is not None and str(ref) in connected_lane_refs
+            ]
+            remaining = sorted(set(connected_candidates) - occupied_lane_refs)
+            if len(remaining) == 1:
+                resolved_lane_refs[index] = remaining[0]
+                occupied_lane_refs.add(remaining[0])
+
+        for index, m in enumerate(movement_mappings):
+            lane_ref = resolved_lane_refs.get(index)
             if not lane_ref:
                 continue
             target = {
                 "intersection_ref": m.get("intersection_ref"),
                 "lane_ref": lane_ref,
-                "requires_context_match": bool(m.get("requires_context_match")),
+                "requires_context_match": bool(m.get("requires_context_match") or m.get("candidate_lane_refs")),
             }
+            connection_ref = movement_connections.get(str(m.get("movement_ref")))
+            if connection_ref:
+                target["connection_ref"] = connection_ref
             mv = m.get("movement_ref")
             if mv is not None:
                 table[str(mv)] = target
             for ph in m.get("phase_refs", []) or []:
-                table.setdefault(str(ph), target)
+                phase_target = dict(target)
+                phase_connection_ref = movement_connections.get(str(ph))
+                if phase_connection_ref:
+                    phase_target["connection_ref"] = phase_connection_ref
+                table.setdefault(str(ph), phase_target)
 
         # 2. legacy: movement_id carried on assigned lanes
         for lane in assignments.get("lanes", []):
@@ -504,6 +795,39 @@ def build_movement_to_lane(assignments, movement_map=None):
                 table[str(ref)] = entry
 
     return table
+
+
+def _connected_source_lane_refs(source_facts):
+    lane_refs = set()
+    for fact in source_facts or []:
+        if _fact_name(fact) != "lane_connection_candidate_from_cad":
+            continue
+        payload = _unwrap_payload(fact)
+        if not isinstance(payload, dict):
+            continue
+        lane_ref = payload.get("lane_ref")
+        if lane_ref:
+            lane_refs.add(str(lane_ref))
+    return lane_refs
+
+
+def _movement_connection_index(source_facts):
+    index = {}
+    for fact in source_facts or []:
+        if _fact_name(fact) != "lane_connection_candidate_from_cad":
+            continue
+        payload = _unwrap_payload(fact)
+        if not isinstance(payload, dict):
+            continue
+        connection_ref = payload.get("connection_ref")
+        if not connection_ref:
+            continue
+        movement_ref = payload.get("movement_ref")
+        if movement_ref:
+            index[str(movement_ref)] = connection_ref
+        for phase_ref in payload.get("phase_refs", []) or []:
+            index.setdefault(str(phase_ref), connection_ref)
+    return index
 
 
 def _route_refs(fact, payload):
@@ -536,6 +860,8 @@ def _inject_nongeometry_scope(fact, payload, movement_to_lane):
         target = movement_to_lane.get(ref)
         if target and target.get("lane_ref"):
             payload["lane_ref"] = target["lane_ref"]
+            if target.get("connection_ref"):
+                payload["connection_ref"] = target["connection_ref"]
             if target.get("intersection_ref") and "intersection_ref" not in payload:
                 payload["intersection_ref"] = target["intersection_ref"]
             if target.get("requires_context_match"):
@@ -548,14 +874,16 @@ def _inject_nongeometry_scope(fact, payload, movement_to_lane):
 
 def adapt(extracted, assignments=None, movement_map=None,
           high=0.8, medium=0.5):
-    facts = flatten_facts(extracted)
+    facts = build_lane_prototype_facts(assignments)
+    facts.extend(build_movement_direction_facts(assignments))
+    facts.extend(flatten_facts(extracted))
     site_fact = _site_id_fact(extracted)
     if site_fact and not any(_fact_name(f) == "official_intersection_id_from_cad" for f in facts):
         facts.insert(0, site_fact)
     facts.extend(build_approach_assignment_facts(assignments, facts))
     facts.extend(build_connection_candidate_facts(assignments, facts))
     scope_map = build_scope_map(assignments)
-    movement_to_lane = build_movement_to_lane(assignments, movement_map)
+    movement_to_lane = build_movement_to_lane(assignments, movement_map, facts)
     out = []
     for i, fact in enumerate(facts):
         name = _fact_name(fact)

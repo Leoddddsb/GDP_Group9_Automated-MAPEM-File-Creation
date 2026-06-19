@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 
 from mapemgen.models import SiteModel
 
+STANDARD_DIRECTIONAL_USES = {"ingress", "egress", "both", "10", "01", "11"}
+
 
 @dataclass(frozen=True)
 class ValidationReport:
@@ -60,7 +62,7 @@ def validate_site_model(site: SiteModel) -> ValidationReport:
                 f"Lane {lane.lane_id} has neither ingressApproach nor egressApproach"
             )
 
-        if lane.lane_attributes.directional_use not in {"ingress", "egress", "both"}:
+        if lane.lane_attributes.directional_use not in STANDARD_DIRECTIONAL_USES:
             warnings.append(
                 f"Lane {lane.lane_id} has non-standard directionalUse "
                 f"'{lane.lane_attributes.directional_use}'"
@@ -82,9 +84,12 @@ def validate_site_model(site: SiteModel) -> ValidationReport:
                 )
 
         if (
-            lane.lane_attributes.directional_use == "ingress"
+            lane.lane_attributes.directional_use in {"ingress", "10"}
             and lane.connects_to
             and not lane.maneuvers
+            and not any(
+                connection.connecting_lane.maneuver for connection in lane.connects_to
+            )
         ):
             warnings.append(f"Ingress lane {lane.lane_id} has no maneuvers")
 
