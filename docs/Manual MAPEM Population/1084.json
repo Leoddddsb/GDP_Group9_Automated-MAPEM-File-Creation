@@ -1,0 +1,247 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "intersections": [
+      {
+        "name": "1084 Lower Bristol Road / Oak Street Puffin",
+        "id": {
+          "region": 50050,
+          "id": 1084
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 513784505,
+          "long": -23655704
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "laneID": 1,
+            "name": "A Lower Bristol Road direction 1 ingress",
+            "ingressApproach": 1,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": -20.6,
+                  "y": 7.8
+                },
+                {
+                  "x": -3.8,
+                  "y": 4.1
+                }
+              ]
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 2,
+                  "maneuver": "100000000000"
+                },
+                "signalGroup": 1,
+                "connectionID": 1
+              }
+            ]
+          },
+          {
+            "laneID": 2,
+            "name": "A Lower Bristol Road direction 1 egress",
+            "egressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": 4.9,
+                  "y": 1.8
+                },
+                {
+                  "x": 22.1,
+                  "y": -1.7
+                }
+              ]
+            },
+            "connectsTo": []
+          },
+          {
+            "laneID": 3,
+            "name": "A Lower Bristol Road direction 2 ingress",
+            "ingressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": 21.0,
+                  "y": -7.4
+                },
+                {
+                  "x": 3.9,
+                  "y": -4.0
+                }
+              ]
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 4,
+                  "maneuver": "100000000000"
+                },
+                "signalGroup": 1,
+                "connectionID": 2
+              }
+            ]
+          },
+          {
+            "laneID": 4,
+            "name": "A Lower Bristol Road direction 2 egress",
+            "egressApproach": 1,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": -5.2,
+                  "y": -2.0
+                },
+                {
+                  "x": -22.0,
+                  "y": 1.6
+                }
+              ]
+            },
+            "connectsTo": []
+          },
+          {
+            "laneID": 5,
+            "name": "B Puffin crossing pedestrian ingress",
+            "ingressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "crosswalk",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": -1.2,
+                  "y": -5.5
+                },
+                {
+                  "x": 1.0,
+                  "y": 5.0
+                }
+              ]
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 6,
+                  "maneuver": "100000000000"
+                },
+                "signalGroup": 2,
+                "connectionID": 3
+              }
+            ]
+          },
+          {
+            "laneID": 6,
+            "name": "B Puffin crossing pedestrian egress",
+            "egressApproach": 1,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "crosswalk",
+                "attributes": "0000000000000000"
+              }
+            },
+            "nodeList": {
+              "nodes": [
+                {
+                  "x": 1.0,
+                  "y": 5.0
+                },
+                {
+                  "x": -1.2,
+                  "y": -5.5
+                }
+              ]
+            },
+            "connectsTo": []
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": {
+              "x": -4.5,
+              "y": -5.4
+            },
+            "signalGroupID": 1
+          },
+          {
+            "nodeXY": {
+              "x": -1.2,
+              "y": 3.4
+            },
+            "signalGroupID": 2
+          },
+          {
+            "nodeXY": {
+              "x": 4.4,
+              "y": 4.9
+            },
+            "signalGroupID": 1
+          },
+          {
+            "nodeXY": {
+              "x": 1.9,
+              "y": -6.8
+            },
+            "signalGroupID": 2
+          }
+        ]
+      }
+    ],
+    "dataParameters": {
+      "processMethod": "Manual transcription from 1084 DWG and controller configuration PDF",
+      "processAgency": "Imperial GDP Group 9",
+      "lastCheckedDate": "2026-06-18",
+      "geoidUsed": "EPSG:27700 source drawing transformed to WGS84",
+      "notes": "Six GenericLane MVP model: two vehicle directions split into ingress/egress segments, and one puffin pedestrian crossing split into ingress/egress segments. Phase A is mapped to signalGroup 1, Phase B to signalGroup 2, and Phase C Dummy All Red is not mapped as a normal signalGroup."
+    }
+  }
+}
