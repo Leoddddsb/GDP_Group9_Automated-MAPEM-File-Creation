@@ -1,0 +1,754 @@
+{
+  "version": "3.0",
+  "schema_for": "MAPEM 3.2.0 (C-Roads profile)",
+  "selection_policy": "option_a_final_score",
+  "scoring": {
+    "policy": "weighted_final_score",
+    "weights": {
+      "extract_confidence": 0.15,
+      "conflict_agreement": 0.35,
+      "source_priority": 0.5
+    },
+    "confidence_levels": {
+      "low": 0.3,
+      "medium": 0.6,
+      "high": 0.9
+    },
+    "source_priority_scores": {
+      "P1": 1.0,
+      "P2": 0.75,
+      "P3": 0.5,
+      "F": 0.25
+    },
+    "source_priority_ranks": {
+      "P1": 1,
+      "P2": 2,
+      "P3": 3,
+      "F": 9
+    },
+    "tie_breakers": [
+      "highest_source_priority_score",
+      "highest_extract_confidence_score",
+      "first_source_order"
+    ],
+    "selected_statuses": {
+      "matched": "selected candidate has usable value and no material conflict",
+      "matched_with_conflict": "selected candidate has usable value but conflicts exist",
+      "manual_review_required": "field needs human confirmation",
+      "unresolved": "no candidate produced a usable value",
+      "pending_transform": "candidate exists but required transform is not implemented"
+    }
+  },
+  "conflict_detection": {
+    "documentation": "Conflict is calculated per target_path + object_scope. For each candidate, compare its transformed value against other transformed candidate values. agreement_count includes the candidate itself. The score used by Option A is agreement_count / candidate_count.\n",
+    "tolerances": {
+      "coordinate": {
+        "method": "ground_distance_m",
+        "tolerance": 2.0,
+        "unit": "m",
+        "note": "Used for refPoint latitude/longitude after WGS84 transform."
+      },
+      "node_delta": {
+        "method": "ground_distance_m",
+        "tolerance": 1.0,
+        "unit": "m",
+        "note": "Used for lane node offsets from refPoint."
+      },
+      "integer_id": {
+        "method": "exact",
+        "tolerance": 0,
+        "note": "Used for signalGroup, LaneID, region, and intersection id."
+      },
+      "enum": {
+        "method": "exact",
+        "note": "Used for laneType, directionalUse, sharedWith, and maneuvers."
+      },
+      "angle": {
+        "method": "angular_deg",
+        "tolerance": 15.0,
+        "unit": "deg",
+        "note": "Used for approach bearing and movement direction comparisons."
+      },
+      "geometry": {
+        "method": "hausdorff_or_average_distance_m",
+        "tolerance": 2.0,
+        "unit": "m",
+        "note": "Used for line/polygon geometry candidates when implemented."
+      },
+      "text": {
+        "method": "casefold_exact",
+        "note": "Used for identifiers or labels where exact text agreement matters."
+      },
+      "default": {
+        "method": "exact"
+      }
+    },
+    "field_type_map": {
+      "*.refPoint.lat": "coordinate",
+      "*.refPoint.long": "coordinate",
+      "*.nodeList.nodes[].delta": "node_delta",
+      "*.laneID": "integer_id",
+      "*.LaneID": "integer_id",
+      "*.id.region": "integer_id",
+      "*.id.id": "integer_id",
+      "*.signalGroup": "integer_id",
+      "*.laneType": "enum",
+      "*.directionalUse": "enum",
+      "*.sharedWith": "enum",
+      "*.connectingLane.maneuver": "enum",
+      "*.ingressApproach": "angle",
+      "*.egressApproach": "angle"
+    }
+  },
+  "object_scope": {
+    "documentation": "Instance resolver should expand collection targets using refs in fact payloads. If refs are unavailable, the matcher may create unresolved/manual review records for object-scoped fields rather than mixing candidates globally.\n",
+    "levels": {
+      "intersections": {
+        "ref_key": "intersection_ref",
+        "default": "intersection_0"
+      },
+      "laneSet": {
+        "ref_key": "lane_ref"
+      },
+      "connectsTo": {
+        "ref_key": "connection_ref"
+      },
+      "nodes": {
+        "ref_key": "node_ref"
+      }
+    }
+  },
+  "group_logic": {
+    "documentation": "Some fields require complementary evidence groups. Within a group, candidates compete by final_score. Across required groups, each group must be satisfied or the field should be marked manual_review_required.\n",
+    "alternative_sets": {
+      "geometry": [
+        "lane_geometry",
+        "road_layout_geometry",
+        "drawing_geometry",
+        "gis_geometry"
+      ],
+      "signal_semantics": [
+        "signal_control_semantics",
+        "movement_phase_mapping"
+      ],
+      "connection_semantics": [
+        "connection_topology",
+        "movement_semantics"
+      ]
+    },
+    "required_group_sets": {
+      "refpoint": [
+        "geometry",
+        "coordinate_reference"
+      ],
+      "lane_nodes": [
+        "geometry",
+        "coordinate_reference"
+      ],
+      "connection_signal_group": [
+        "signal_semantics",
+        "connection_semantics"
+      ]
+    }
+  },
+  "config": {
+    "protocol_version": 2,
+    "message_id_mapem": 5,
+    "default_station_id": 100,
+    "default_msg_issue_revision": 1,
+    "default_intersection_revision": 1,
+    "default_region_code": 50050,
+    "default_lane_width_cm": 350,
+    "crs_source": "EPSG:27700",
+    "crs_target": "EPSG:4326",
+    "bng_to_wgs84": "OSTN15"
+  },
+  "forbidden": [
+    {
+      "target": "mapData.intersections[].laneSet[].maneuvers",
+      "reason": "C-Roads prohibits lane-level maneuvers; use connectsTo[].connectingLane.maneuver."
+    },
+    {
+      "target": "mapData.intersections[].laneSet[].laneAttributes.sharedWith.bit_1",
+      "name": "multipleLanesTreatedAsOneLane",
+      "reason": "C-Roads requires individual lane modelling."
+    },
+    {
+      "target": "mapData.intersections[].laneSet[].laneAttributes.sharedWith.bit_9",
+      "name": "pedestrianTraffic",
+      "reason": "C-Roads uses pedestriansTraffic bit instead."
+    },
+    {
+      "target": "mapData.intersections[].regional",
+      "conditional": "when roadSegments is present",
+      "reason": "C-Roads profile restriction."
+    }
+  ],
+  "transforms_doc": {
+    "documentation": "The transform names are logical operations. The matching engine may implement them directly or dispatch them through a transform registry.\n",
+    "bng_to_wgs84_OSTN15": {
+      "input": "Point(easting, northing)",
+      "output": "Point(lat, long)"
+    },
+    "wgs84_to_int_1e7": {
+      "input": "float degrees",
+      "output": "integer 1/10^7 degrees"
+    },
+    "take_lat": {
+      "input": "Point(lat, long)",
+      "output": "lat"
+    },
+    "take_long": {
+      "input": "Point(lat, long)",
+      "output": "long"
+    },
+    "polygon_centroid": {
+      "input": "polygon geometry",
+      "output": "Point"
+    },
+    "polyline_centroid": {
+      "input": "polyline geometry",
+      "output": "Point"
+    },
+    "geometry_bounds_centre": {
+      "input": "coordinate_bounds",
+      "output": "Point"
+    },
+    "sample_polyline_at_intervals": {
+      "input": "polyline",
+      "output": "node list",
+      "params": {
+        "min_nodes": 2,
+        "max_nodes": 12,
+        "spacing_m": 5.0
+      }
+    },
+    "relative_to_refpoint": {
+      "input": "Point, refPoint",
+      "output": "delta metres"
+    },
+    "delta_to_cm": {
+      "input": "delta metres",
+      "output": "delta centimetres"
+    },
+    "choose_node_xy_precision": {
+      "input": "delta centimetres",
+      "output": "NodeOffsetPointXY choice"
+    },
+    "infer_lane_direction": {
+      "input": "lane geometry + refPoint + stop lines",
+      "output": "ingress|egress|both"
+    },
+    "cluster_by_direction": {
+      "input": "lane geometry + refPoint",
+      "output": "approach id"
+    },
+    "pair_ingress_egress_by_geometry": {
+      "input": "ingress lane + egress lanes",
+      "output": "target lane id",
+      "params": {
+        "max_match_dist_m": 8.0
+      }
+    },
+    "maneuver_from_angle_change": {
+      "input": "ingress bearing + egress bearing",
+      "output": "straight|leftTurn|rightTurn|uTurn"
+    },
+    "phase_label_to_signal_group": {
+      "input": "phase label",
+      "output": "SignalGroupID"
+    },
+    "phase_type_to_lane_type": {
+      "input": "phase type or controlled facility text",
+      "output": "vehicle|crosswalkLane|bikeLane|sideWalk|medianLane|trackedVehicle"
+    },
+    "layer_or_marking_to_lane_type": {
+      "input": "CAD/PDF layer, label, marking, or facility candidate",
+      "output": "lane type enum"
+    },
+    "extract_int_from_identifier": {
+      "input": "site/scn/intersection identifier",
+      "output": "integer id"
+    }
+  },
+  "expected_output_schema": {
+    "type": "object",
+    "top_level_keys": [
+      "mapped_evidence",
+      "manual_review_items",
+      "validation_report",
+      "summary"
+    ],
+    "mapped_evidence_record": {
+      "target_path": "Concrete MAPEM path with indexes resolved.",
+      "object_scope": "intersection_ref/lane_ref/connection_ref/node_ref used for grouping.",
+      "selected_value": "Final transformed MAPEM value.",
+      "selected_fact_id": "fact_id of the winning candidate.",
+      "source_facts": "All fact_ids contributing to the selected value.",
+      "candidate_scores": {
+        "extract_confidence_score": "0.0..1.0",
+        "conflict_agreement_score": "0.0..1.0",
+        "source_priority_score": "0.0..1.0",
+        "final_score": "weighted score used for selection"
+      },
+      "conflict": {
+        "candidate_count": "number of candidates in same target_path + object_scope",
+        "agreement_count": "number of candidates agreeing with selected value",
+        "disagreement_count": "number of candidates disagreeing with selected value",
+        "field_type": "coordinate|node_delta|integer_id|enum|angle|geometry|text|default",
+        "tolerance_applied": "tolerance value from conflict_detection",
+        "max_divergence": "largest measured divergence where applicable"
+      },
+      "decision": {
+        "status": "matched|matched_with_conflict|manual_review_required|unresolved|pending_transform",
+        "reason": "short machine-readable reason"
+      },
+      "provenance": {
+        "source_file": "file path",
+        "evidence_location": "location inside source",
+        "fact_name": "extracted fact name",
+        "transform": "transform chain used"
+      },
+      "corroborating": "candidate facts agreeing with the selected value",
+      "rejected": "candidate facts not selected, with score and reason"
+    }
+  },
+  "transform_map": {
+    "mapData.intersections[].id.id||scn": [
+      "extract_int_from_identifier"
+    ],
+    "mapData.intersections[].id.id||site_description": [
+      "extract_int_from_identifier"
+    ],
+    "mapData.intersections[].id.id||archive_member": [
+      "extract_int_from_identifier"
+    ],
+    "mapData.intersections[].refPoint.lat||junction_centre_from_ordnance_survey": [
+      "take_lat",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.lat||junction_centre_from_open_street_map": [
+      "take_lat",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.lat||coordinate_bounds": [
+      "geometry_bounds_centre",
+      "bng_to_wgs84_OSTN15",
+      "take_lat",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.lat||lane_geometry_candidate_from_cad": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.lat||lane_line_candidate_from_pdf_vector": [
+      "polyline_centroid",
+      "take_lat",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.long||junction_centre_from_ordnance_survey": [
+      "take_long",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.long||junction_centre_from_open_street_map": [
+      "take_long",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.long||coordinate_bounds": [
+      "geometry_bounds_centre",
+      "bng_to_wgs84_OSTN15",
+      "take_long",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].refPoint.long||lane_geometry_candidate_from_cad": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.long||lane_line_candidate_from_pdf_vector": [
+      "polyline_centroid",
+      "take_long",
+      "wgs84_to_int_1e7"
+    ],
+    "mapData.intersections[].laneSet[].ingressApproach||lane_geometry_candidate_from_cad": [
+      "approach_id_ingress"
+    ],
+    "mapData.intersections[].laneSet[].ingressApproach||approach_assignment_candidate_from_cad": [
+      "approach_id_ingress"
+    ],
+    "mapData.intersections[].laneSet[].ingressApproach||lane_line_candidate_from_pdf_vector": [
+      "approach_id_ingress"
+    ],
+    "mapData.intersections[].laneSet[].egressApproach||lane_geometry_candidate_from_cad": [
+      "approach_id_egress"
+    ],
+    "mapData.intersections[].laneSet[].egressApproach||approach_assignment_candidate_from_cad": [
+      "approach_id_egress"
+    ],
+    "mapData.intersections[].laneSet[].egressApproach||lane_line_candidate_from_pdf_vector": [
+      "approach_id_egress"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_cad": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_cad": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_annotated_drawing": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_annotated_drawing": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_ordnance_survey": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_ordnance_survey": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_connection_candidate_from_open_street_map": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||target_lane_candidate_from_open_street_map": [
+      "connecting_lane_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_cad": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_annotated_drawing": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_controller_config": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_utc_form": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||movement_direction_candidate_from_ram_8tx": [
+      "arrow_to_maneuver"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.directionalUse||lane_geometry_candidate_from_cad": [
+      "infer_lane_direction"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.directionalUse||lane_line_candidate_from_pdf_vector": [
+      "infer_lane_direction"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.directionalUse||road_direction_from_open_street_map": [
+      "infer_lane_direction"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||road_marking_candidate_from_pdf_vector": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||road_marking_candidate_from_pdf_cv": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||lane_geometry_candidate_from_cad": [
+      "layer_or_marking_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||lane_facility_geometry_candidate_from_cad": [
+      "layer_or_marking_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||lane_line_candidate_from_pdf_vector": [
+      "layer_or_marking_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||road_marking_candidate_from_pdf_vector": [
+      "layer_or_marking_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||lane_line_candidate_from_pdf_cv": [
+      "layer_or_marking_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.laneType||phase_label_from_controller_config": [
+      "phase_type_to_lane_type"
+    ],
+    "mapData.intersections[].laneSet[].nodeList.nodes[].delta||lane_geometry_candidate_from_cad": [
+      "sample_polyline_at_intervals",
+      "bng_to_wgs84_OSTN15",
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].laneSet[].nodeList.nodes[].delta||lane_line_candidate_from_pdf_vector": [
+      "sample_polyline_at_intervals",
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].laneSet[].nodeList.nodes[].delta||lane_geometry_candidate_from_ordnance_survey": [
+      "sample_polyline_at_intervals",
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_geometry_candidate_from_cad": [
+      "pair_ingress_egress_by_geometry"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||lane_line_candidate_from_pdf_vector": [
+      "pair_ingress_egress_by_geometry"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane||stage_phase_relationship_from_controller_config": [
+      "pair_ingress_egress_by_geometry"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||lane_geometry_candidate_from_cad": [
+      "maneuver_from_angle_change"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||lane_line_candidate_from_pdf_vector": [
+      "maneuver_from_angle_change"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver||stage_phase_relationship_from_controller_config": [
+      "maneuver_from_angle_change"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||manual_connection_signal_group": [
+      "signal_group_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||auto_connection_signal_group_from_connection": [
+      "signal_group_id"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||phase_label_from_controller_config": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||stage_phase_relationship_from_controller_config": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||movement_phase_mapping_from_controller_config": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||phase_label_from_utc_form": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||stage_phase_relationship_from_utc_form": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||movement_phase_mapping_from_utc_form": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||phase_label_from_ram_8tx": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||stage_phase_relationship_from_ram_8tx": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||movement_phase_mapping_from_ram_8tx": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup||phase_candidate_from_pdf_ocr": [
+      "phase_label_to_signal_group"
+    ],
+    "mapData.intersections[].signalHeadLocations[].nodeXY||signal_head_symbol_candidate_from_pdf_vector": [
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].signalHeadLocations[].nodeXY||signal_head_symbol_candidate_from_pdf_cv": [
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].signalHeadLocations[].nodeXY||cad_block_reference": [
+      "relative_to_refpoint",
+      "delta_to_cm",
+      "choose_node_xy_precision"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||lane_use_label_from_cad": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||road_marking_or_sign_note_from_cad": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||lane_use_label_from_annotated_drawing": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||road_marking_or_sign_note_from_annotated_drawing": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||controlled_facility_candidate_from_controller_config": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||lane_use_label_from_open_street_map": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith||lane_use_label_from_ordnance_survey": [
+      "marking_to_shared_with"
+    ],
+    "mapData.intersections[].refPoint.lat||lane_centreline_geometry_from_cad": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||lane_centreline_geometry_from_cad": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.lat||stop_line_from_cad": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||stop_line_from_cad": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.lat||approach_arm_geometry_from_cad": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||approach_arm_geometry_from_cad": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.lat||lane_centreline_geometry_from_annotated_drawing": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||lane_centreline_geometry_from_annotated_drawing": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.lat||stop_line_from_annotated_drawing": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||stop_line_from_annotated_drawing": [
+      "junction_centre_long"
+    ],
+    "mapData.intersections[].refPoint.lat||approach_arm_geometry_from_annotated_drawing": [
+      "junction_centre_lat"
+    ],
+    "mapData.intersections[].refPoint.long||approach_arm_geometry_from_annotated_drawing": [
+      "junction_centre_long"
+    ]
+  },
+  "field_extras": {
+    "header.protocolVersion": {
+      "value": 2,
+      "confidence": "high"
+    },
+    "header.messageID": {
+      "value": 5,
+      "confidence": "high"
+    },
+    "header.stationID": {
+      "config_key": "station_id",
+      "fallback_config_key": "default_station_id",
+      "c_roads_mandatory": true
+    },
+    "mapData.msgIssueRevision": {
+      "initial": 1
+    },
+    "mapData.intersections": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].id.region": {
+      "config_key": "region_code",
+      "fallback_config_key": "default_region_code",
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].id.id": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].revision": {
+      "initial": 1
+    },
+    "mapData.intersections[].refPoint.lat": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].refPoint.long": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneWidth": {
+      "default_value": 350,
+      "optional": true
+    },
+    "mapData.intersections[].laneSet[].laneID": {
+      "auto_start": 1,
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneSet[].ingressApproach": {
+      "c_roads_mandatory": true,
+      "applies_when": "lane.directionalUse contains ingress"
+    },
+    "mapData.intersections[].laneSet[].egressApproach": {
+      "c_roads_mandatory": true,
+      "applies_when": "lane.directionalUse contains egress"
+    },
+    "mapData.intersections[].laneSet[].laneAttributes.directionalUse": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneSet[].laneAttributes.sharedWith": {
+      "default_value": [],
+      "c_roads_mandatory": true,
+      "overrides": [
+        {
+          "fact_name": "lane_use_label_from_cad",
+          "priority": "P1",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "road_marking_or_sign_note_from_cad",
+          "priority": "P1",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "road_marking_candidate_from_pdf_vector",
+          "priority": "P2",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "lane_use_label_from_annotated_drawing",
+          "priority": "P2",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "road_marking_or_sign_note_from_annotated_drawing",
+          "priority": "P2",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "road_marking_candidate_from_pdf_cv",
+          "priority": "P3",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "controlled_facility_candidate_from_controller_config",
+          "priority": "P3",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "lane_use_label_from_open_street_map",
+          "priority": "F",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        },
+        {
+          "fact_name": "lane_use_label_from_ordnance_survey",
+          "priority": "F",
+          "transform": [
+            "marking_to_shared_with"
+          ]
+        }
+      ]
+    },
+    "mapData.intersections[].laneSet[].laneAttributes.laneType": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneSet[].nodeList.nodes[].delta": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneSet[].connectsTo": {
+      "c_roads_mandatory": true,
+      "applies_when": "lane.directionalUse contains ingress"
+    },
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.lane": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].laneSet[].connectsTo[].connectingLane.maneuver": {
+      "optional": true
+    },
+    "mapData.intersections[].laneSet[].connectsTo[].signalGroup": {
+      "c_roads_mandatory": true
+    },
+    "mapData.intersections[].signalHeadLocations[].nodeXY": {
+      "optional": true
+    }
+  }
+}
