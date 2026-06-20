@@ -239,7 +239,7 @@
     "dataParameters": {
       "processMethod": "Manual transcription from 1084 DWG and controller configuration PDF",
       "processAgency": "Imperial GDP Group 9",
-      "lastCheckedDate": "2026-06-18",
+      "lastCheckedDate": "2026-06-20",
       "geoidUsed": "EPSG:27700 source drawing transformed to WGS84",
       "notes": "Six GenericLane MVP model: two vehicle directions split into ingress/egress segments, and one puffin pedestrian crossing split into ingress/egress segments. Phase A is mapped to signalGroup 1, Phase B to signalGroup 2, and Phase C Dummy All Red is not mapped as a normal signalGroup."
     }
