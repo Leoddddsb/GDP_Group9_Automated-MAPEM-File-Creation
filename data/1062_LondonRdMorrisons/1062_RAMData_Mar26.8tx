@@ -1,0 +1,31 @@
+                             IC4 View Differences Report
+
+
+IC4 Handset Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+461   KLT 16   1                  0                  Lamp Load Type
+461   KLT 17   1                  0                  Lamp Load Type
+418   IGN B I  11                 14                 Phase Intergreen Time
+418   IGN C I  11                 14                 Phase Intergreen Time
+353   IPS 64   0                  1                  Inverted I/O Line
+353   IPS 65   0                  1                  Inverted I/O Line
+353   IPS 66   0                  1                  Inverted I/O Line
+
+IC4 Junction Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+
+
+Other Data
+
+Item  Mnemonic IC4 Data          Controller Data     Description
+
+434   IOA 8    255                8                  Logical to physical I/O allocation map
+434   IOA 13   13                 8                  Logical to physical I/O allocation map
+258   BSA      0                  13                 BST Advance (Week Number)
+259   BSR      0                  43                 BST Retard (Week Number)
+323   CKA      00-XXX-00          22-MAR-20          BST Advance Date
+324   CKR      00-XXX-00          25-OCT-20          BST Retard Date
