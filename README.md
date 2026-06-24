@@ -32,7 +32,6 @@ The current repository is organised as follows:
 ├── tests/                                  # Tests and checking scripts
 ├── .gitattributes                          # Git LFS and repository attribute settings
 ├── .gitignore                              # Files and folders excluded from version control
-├── MAPEM_Completeness_Scoring_Mechanism... # Completeness scoring document
 ├── README.md                               # Project README
 ├── pyproject.toml                          # Python project and package configuration
 ├── run_pipeline.py                         # Main pipeline runner
