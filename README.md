@@ -27,7 +27,6 @@ The current repository is organised as follows:
 ├── configs/                                # Site and pipeline configuration files
 ├── data/                                   # Site data used by the project
 ├── docs/                                   # Project notes, user guidance and supporting materials
-├── notes/                                  # Development notes and intermediate project notes
 ├── src/mapemgen/                           # Main MAPEM generation source code
 ├── tests/                                  # Tests and checking scripts
 ├── .gitattributes                          # Git LFS and repository attribute settings
