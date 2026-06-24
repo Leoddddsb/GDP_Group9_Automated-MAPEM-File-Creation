@@ -127,3 +127,4 @@ Key limitations include:
 ## Acknowledgement
 
 This repository was developed as part of the Imperial College London Group Design Project by Group 9. The project was supported by Pleydell Technology Consulting Ltd. and supervised by staff from the Department of Civil and Environmental Engineering at Imperial College London.
+As some source materials may contain site-specific or sensitive information, all data should be handled responsibly and shared only where appropriate to maintain data security and confidentiality.
