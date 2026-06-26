@@ -1,0 +1,97 @@
+{
+  "site_id": "5062",
+  "site_name": "5062",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062",
+  "inventory_summary": {
+    "total_files": 7,
+    "file_type_counts": {
+      "docx": 3,
+      "mova": 1,
+      "pdf": 2,
+      "zip": 1
+    },
+    "readable_files": 7,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_2500Config_PDF_2020.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 919203,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_3 SilverStreetAndCharlton - Standard.zip",
+      "file_type": "zip",
+      "file_size_bytes": 5104445,
+      "filename_hints": [
+        "possible CAD package"
+      ],
+      "readable_status": "archive_readable",
+      "parser_to_use": "zip_inventory_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_AsBuiltDrawing_Jan26.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 319431,
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_MOVADrawing_Apr21.docx",
+      "file_type": "docx",
+      "file_size_bytes": 32762,
+      "filename_hints": [
+        "possible drawing / layout file",
+        "possible MOVA/control logic data"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_MOVATools_Apr21.mova",
+      "file_type": "mova",
+      "file_size_bytes": 6576,
+      "filename_hints": [
+        "possible MOVA/control logic data"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "mova_availability_recorder",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_RAMData_Nov23.docx",
+      "file_type": "docx",
+      "file_size_bytes": 74130,
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/5062/5062_UTCForm_Jul24.docx",
+      "file_type": "docx",
+      "file_size_bytes": 66124,
+      "filename_hints": [
+        "possible UTC form"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    }
+  ]
+}

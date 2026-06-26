@@ -1,0 +1,217 @@
+{
+  "summary": {
+    "total_leaf_fields": 15,
+    "accepted": 8,
+    "gaps": 7,
+    "provisional_needs_review": 0,
+    "conflicts": 0,
+    "consistency_issues": 2,
+    "consistency_errors": 0
+  },
+  "gaps": [
+    {
+      "target_path": "mapData.dataParameters.processMethod",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.processAgency",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.lastCheckedDate",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.geoidUsed",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].name",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.lat",
+      "status": "manual_review_required",
+      "reason": "required fact_group(s) not satisfied: ['geometry']",
+      "missing_groups": [
+        "geometry"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.long",
+      "status": "manual_review_required",
+      "reason": "required fact_group(s) not satisfied: ['geometry']",
+      "missing_groups": [
+        "geometry"
+      ]
+    }
+  ],
+  "needs_review": [],
+  "conflicts": [],
+  "consistency_issues": [
+    {
+      "rule": "R03_intersection_has_refpoint",
+      "severity": "warning",
+      "where": "intersections[0].refPoint",
+      "issue": "reference point not fully resolved"
+    },
+    {
+      "rule": "R05_intersection_has_lanes",
+      "severity": "warning",
+      "where": "intersections[0].laneSet",
+      "issue": "no lanes"
+    }
+  ],
+  "decisions": [
+    {
+      "target_path": "header.protocolVersion",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "header.messageID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 5,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "header.stationID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 100,
+      "source_facts": [
+        "site_config.station_id"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.msgIssueRevision",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.processMethod",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.processMethod"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.processAgency",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.processAgency"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.lastCheckedDate",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.lastCheckedDate"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.geoidUsed",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.geoidUsed"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.intersection.name"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].id.region",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 50050,
+      "source_facts": [
+        "site_config.region_code"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].id.id",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 5040,
+      "source_facts": [
+        "site_id_official_intersection_id"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].revision",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.lat",
+      "status": "manual_review_required",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "crs_decl_from_site_config"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.long",
+      "status": "manual_review_required",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "crs_decl_from_site_config"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneWidth",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 350,
+      "source_facts": [],
+      "confidence": "low"
+    }
+  ]
+}

@@ -1,0 +1,241 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "intersections": [
+      {
+        "id": {
+          "region": 50050,
+          "id": null
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 538247287,
+          "long": -16687052
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "laneID": 1,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 2,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 3,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 4,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 5,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 6,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 7,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 8,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 9,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 10,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 11,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 12,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 13,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 14,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          },
+          {
+            "laneID": 15,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "11",
+              "sharedWith": "0000000000",
+              "laneType": {
+                "choice": "vehicle",
+                "attributes": "0000000000000000"
+              }
+            },
+            "connectsTo": null
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": null
+          }
+        ]
+      }
+    ]
+  }
+}

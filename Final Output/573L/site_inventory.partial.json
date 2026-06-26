@@ -1,0 +1,45 @@
+{
+  "site_id": "573L",
+  "site_name": "573L",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/573L",
+  "inventory_summary": {
+    "total_files": 3,
+    "file_type_counts": {
+      "dwg": 1,
+      "dxf": 1,
+      "pdf": 1
+    },
+    "readable_files": 3,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/573L/573L v1 P 05_09_07.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 441027,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/573L/573L.dxf",
+      "file_type": "dxf",
+      "file_size_bytes": 26687963,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/573L/UTC-573L Cracked Egg.dwg",
+      "file_type": "dwg",
+      "file_size_bytes": 4448971,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,293 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "dataParameters": {
+      "processMethod": null,
+      "processAgency": null,
+      "lastCheckedDate": null,
+      "geoidUsed": null
+    },
+    "intersections": [
+      {
+        "name": null,
+        "id": {
+          "region": 50050,
+          "id": 337
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 538247067,
+          "long": -16672652
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "name": null,
+            "laneID": 1,
+            "ingressApproach": null,
+            "egressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 2,
+            "ingressApproach": 7,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "crosswalk"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 10,
+                  "maneuver": "unknown"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 3,
+            "ingressApproach": 3,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": "rightTurn"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 4,
+            "ingressApproach": 4,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 5,
+            "ingressApproach": 5,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "crosswalk"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": "leftTurn"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 6,
+            "ingressApproach": 5,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 7,
+            "ingressApproach": 6,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 1,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 8,
+            "ingressApproach": null,
+            "egressApproach": 1,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 9,
+            "ingressApproach": 6,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "crosswalk"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 10,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 10,
+            "ingressApproach": null,
+            "egressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 11,
+            "ingressApproach": 4,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 12,
+            "ingressApproach": 5,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": "leftTurn"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 13,
+            "ingressApproach": 6,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 1,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 14,
+            "ingressApproach": 4,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "crosswalk"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 15,
+            "ingressApproach": 4,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 8,
+                  "maneuver": null
+                },
+                "signalGroup": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

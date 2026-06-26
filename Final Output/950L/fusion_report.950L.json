@@ -1,0 +1,1933 @@
+{
+  "summary": {
+    "total_leaf_fields": 119,
+    "accepted": 75,
+    "skipped": 20,
+    "gaps": 24,
+    "provisional_needs_review": 0,
+    "conflicts": 6,
+    "consistency_issues": 4,
+    "consistency_errors": 0
+  },
+  "gaps": [
+    {
+      "target_path": "mapData.dataParameters.processMethod",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.processAgency",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.lastCheckedDate",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.dataParameters.geoidUsed",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].name",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].name",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "lane_identity"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "connection_semantics"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "connection_semantics"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "reason": "no source present for any required group",
+      "missing_groups": [
+        "connection_semantics"
+      ]
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "reason": "",
+      "missing_groups": []
+    }
+  ],
+  "needs_review": [],
+  "conflicts": [
+    {
+      "target_path": "mapData.intersections[0].refPoint.lat",
+      "value": 538735389,
+      "source_facts": [
+        "crs_decl_from_site_config",
+        "fact_4211e6250b81"
+      ],
+      "corroborating": [
+        "fact_ec41c250d26c",
+        "fact_578f010513cd",
+        "fact_ddebad3daddd",
+        "fact_f73b938a4c9e",
+        "fact_bb5bf8d4414b",
+        "fact_d5f7a737c5f1",
+        "fact_bcfec46a5ff6",
+        "fact_0551f6ff12d5",
+        "fact_62cb1605c1af",
+        "fact_c2ab96cc5c70",
+        "fact_a0190d9dddbf",
+        "fact_b0256ed83cfb",
+        "fact_38e6c7b31c30",
+        "fact_6b9d5e0b5dae",
+        "fact_fa435881adb9",
+        "fact_db91f0afb823",
+        "fact_f9cd678259c3",
+        "fact_4a322667340e",
+        "fact_3104dff61155",
+        "fact_c691e986e8a2"
+      ],
+      "conflict": {
+        "candidate_count": 21,
+        "agreement_count": 13,
+        "disagreement_count": 8,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": 10034.289,
+        "divergence_unit": "m",
+        "tolerance_applied": 2.0,
+        "field_type": "coordinate",
+        "pending": false,
+        "groups": {
+          "coordinate_reference": {
+            "candidate_count": 1,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "coordinate",
+            "tolerance_applied": 2.0,
+            "pending": false,
+            "agreement_count": 0,
+            "disagreement_count": 1,
+            "max_divergence": 0.0,
+            "divergence_unit": "m",
+            "satisfied": true
+          },
+          "geometry": {
+            "candidate_count": 21,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "coordinate",
+            "tolerance_applied": 2.0,
+            "pending": false,
+            "agreement_count": 13,
+            "disagreement_count": 8,
+            "max_divergence": 10034.289,
+            "divergence_unit": "m",
+            "satisfied": true
+          }
+        },
+        "primary_group": "geometry",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 22
+      }
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.long",
+      "value": 14830072,
+      "source_facts": [
+        "crs_decl_from_site_config",
+        "fact_4211e6250b81"
+      ],
+      "corroborating": [
+        "fact_ec41c250d26c",
+        "fact_578f010513cd",
+        "fact_ddebad3daddd",
+        "fact_f73b938a4c9e",
+        "fact_bb5bf8d4414b",
+        "fact_d5f7a737c5f1",
+        "fact_bcfec46a5ff6",
+        "fact_0551f6ff12d5",
+        "fact_62cb1605c1af",
+        "fact_c2ab96cc5c70",
+        "fact_a0190d9dddbf",
+        "fact_b0256ed83cfb",
+        "fact_38e6c7b31c30",
+        "fact_6b9d5e0b5dae",
+        "fact_fa435881adb9",
+        "fact_db91f0afb823",
+        "fact_f9cd678259c3",
+        "fact_4a322667340e",
+        "fact_3104dff61155",
+        "fact_c691e986e8a2"
+      ],
+      "conflict": {
+        "candidate_count": 21,
+        "agreement_count": 13,
+        "disagreement_count": 8,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": 317667.093,
+        "divergence_unit": "m",
+        "tolerance_applied": 2.0,
+        "field_type": "coordinate",
+        "pending": false,
+        "groups": {
+          "coordinate_reference": {
+            "candidate_count": 1,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "coordinate",
+            "tolerance_applied": 2.0,
+            "pending": false,
+            "agreement_count": 0,
+            "disagreement_count": 1,
+            "max_divergence": 0.0,
+            "divergence_unit": "m",
+            "satisfied": true
+          },
+          "geometry": {
+            "candidate_count": 21,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "coordinate",
+            "tolerance_applied": 2.0,
+            "pending": false,
+            "agreement_count": 13,
+            "disagreement_count": 8,
+            "max_divergence": 317667.093,
+            "divergence_unit": "m",
+            "satisfied": true
+          }
+        },
+        "primary_group": "geometry",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 22
+      }
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].laneAttributes.sharedWith",
+      "value": [],
+      "source_facts": [
+        "fact_f7a661eba946"
+      ],
+      "corroborating": [
+        "fact_bc80ad4bf515",
+        "fact_55ce429f17c3",
+        "fact_0dde20c899dd",
+        "fact_4612b39a3459",
+        "fact_788e078d6866",
+        "fact_86de6b4c6cc2",
+        "fact_810a7b756a31",
+        "fact_6dd5de0da12b",
+        "fact_dd11d5c650f5",
+        "fact_fc49ee7476c2",
+        "fact_0cf380ddfe76",
+        "fact_6759ddd8ae29",
+        "fact_6c97823b2b14",
+        "fact_d5402b17a72e",
+        "fact_a8f71e0b054e",
+        "fact_1fedef6c674c",
+        "fact_cd19402d019f",
+        "fact_bbb8a0770232",
+        "fact_b7e812c08696",
+        "fact_c56ca2d842af",
+        "fact_f960be397e36",
+        "fact_0313bc5baaa0",
+        "fact_2840911feb96",
+        "fact_ef95793b9b55",
+        "fact_ad166dcb76a6",
+        "fact_3782237f8efe",
+        "fact_f7712e4a7557",
+        "fact_ca4c797235f2",
+        "fact_12735de65baa",
+        "fact_a4d1b3d6cedc",
+        "fact_40161efedffd",
+        "fact_474accbc9397",
+        "fact_d616b44d5c63",
+        "fact_4fcb0fff4564",
+        "fact_bec9ddda62db",
+        "fact_301182da6b93",
+        "fact_6727a1fa7ef8",
+        "fact_da8760b4e83f",
+        "fact_93bedb6b6192",
+        "fact_b7b625afc9f0",
+        "fact_9c15eeda261b",
+        "fact_6e46be6a4001",
+        "fact_c6cd765e382c",
+        "fact_43eccf2c6a55",
+        "fact_333581406765",
+        "fact_894cb64ca722",
+        "fact_8969ffbe73c2",
+        "fact_323e9c58e5ea",
+        "fact_4c65d3e208d9",
+        "fact_3b27dfb529d1",
+        "fact_02576ac59b30",
+        "fact_644fcbfe5da0",
+        "fact_bd9401f98670",
+        "fact_8e88ee4ba654",
+        "fact_f0c21a8c4b19",
+        "fact_56e95536a121",
+        "fact_ab65021a0eda",
+        "fact_04ade4c4cda0",
+        "fact_d90ec6f1f122",
+        "fact_0e5aff6d4a22",
+        "fact_7d5e52a2b817",
+        "fact_f67079ae2ba4",
+        "fact_7888329a7fae",
+        "fact_bc7bae509273",
+        "fact_360d0b1ec6ef",
+        "fact_69daa65de00e",
+        "fact_c73fb98c68a2",
+        "fact_f67e6dffdc7d",
+        "fact_dae3aba08f02",
+        "fact_01782972e452",
+        "fact_457ecbc9a597",
+        "fact_c29b9cea5404",
+        "fact_4c7e3243e5e4",
+        "fact_dc2ffc90025f",
+        "fact_8204b37e6a99",
+        "fact_7bf1f564fa61",
+        "fact_c8ab68794cbb",
+        "fact_fbae09b3e154",
+        "fact_4226cb4b8ffc",
+        "fact_bcbfb2223c0f",
+        "fact_24bde1705545",
+        "fact_92b973a2a6d0",
+        "fact_47f23c16d34c",
+        "fact_b08eb4d529c3",
+        "fact_3d3ff00734f7",
+        "fact_85176f8ff50f",
+        "fact_df9995139e3f",
+        "fact_d32a57ec5477",
+        "fact_bb71ca2d66fc",
+        "fact_844fc5b2129e",
+        "fact_340e071569ff",
+        "fact_db7aa7a6e070",
+        "fact_c60311a8aa2c",
+        "fact_27a066cffb01",
+        "fact_9b74aa2fda46",
+        "fact_c0aa9713bcbc",
+        "fact_9b5ea4047ee4",
+        "fact_ac7dd8d20965",
+        "fact_bf9c489c1151",
+        "fact_72b52e23f89f",
+        "fact_87a11af93b74",
+        "fact_734a716bbdfd",
+        "fact_e0e159232c03",
+        "fact_a98728d6d5e9",
+        "fact_44802fba4843",
+        "fact_2765e478a639",
+        "fact_7f697c2de7e7",
+        "fact_565557c689be",
+        "fact_6a114c1fe888",
+        "fact_bbecd0c71e38",
+        "fact_3720c78ced58",
+        "fact_5c750808e7f3",
+        "fact_717a83db73c0",
+        "fact_35d902ddeb48",
+        "fact_6c18cab04cb2",
+        "fact_b951ff726af3",
+        "fact_4f3b39abba92",
+        "fact_2f4556cd5c8d",
+        "fact_b72f3392ed76",
+        "fact_ad6c958d2bb0",
+        "fact_27bd337f6abf",
+        "fact_09d207ead2f3",
+        "fact_414be16ec773",
+        "fact_cbd798d91300",
+        "fact_3ab34c9c9ea6",
+        "fact_ad7fb9e1308c",
+        "fact_ed598b619bc7",
+        "fact_d5dc18c022a4",
+        "fact_e1df941049aa",
+        "fact_34adae83baf8",
+        "fact_07941a075bfa",
+        "fact_0ee2e62ec6d9",
+        "fact_ef3dce0d3cae",
+        "fact_2fd23215a818",
+        "fact_c0cf22f79e7d",
+        "fact_ca867954a3a9",
+        "fact_d0dbe2b77754",
+        "fact_0f7a12443428",
+        "fact_33c99b450fbb",
+        "fact_648182003652",
+        "fact_bb75ccd01118",
+        "fact_9ba4eb431066",
+        "fact_20edf383b199",
+        "fact_75c4bfdf9be3",
+        "fact_20ddfc417701",
+        "fact_5030de846749",
+        "fact_d852a4daf0bc",
+        "fact_39ac9c47c05d",
+        "fact_0d40ad7f6213",
+        "fact_6b12f6f3529d"
+      ],
+      "conflict": {
+        "candidate_count": 151,
+        "agreement_count": 148,
+        "disagreement_count": 3,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": null,
+        "divergence_unit": null,
+        "tolerance_applied": null,
+        "field_type": "enum",
+        "pending": false,
+        "groups": {
+          "": {
+            "candidate_count": 151,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "enum",
+            "tolerance_applied": null,
+            "pending": false,
+            "agreement_count": 148,
+            "disagreement_count": 3,
+            "max_divergence": null,
+            "divergence_unit": null,
+            "satisfied": true
+          }
+        },
+        "primary_group": "",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 151
+      }
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].laneAttributes.sharedWith",
+      "value": [],
+      "source_facts": [
+        "fact_6d6d3be62d0b"
+      ],
+      "corroborating": [
+        "fact_e72c3e9bc090",
+        "fact_d46f04f6082c"
+      ],
+      "conflict": {
+        "candidate_count": 3,
+        "agreement_count": 2,
+        "disagreement_count": 1,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": null,
+        "divergence_unit": null,
+        "tolerance_applied": null,
+        "field_type": "enum",
+        "pending": false,
+        "groups": {
+          "": {
+            "candidate_count": 3,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "enum",
+            "tolerance_applied": null,
+            "pending": false,
+            "agreement_count": 2,
+            "disagreement_count": 1,
+            "max_divergence": null,
+            "divergence_unit": null,
+            "satisfied": true
+          }
+        },
+        "primary_group": "",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 3
+      }
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].laneAttributes.laneType",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_b0256ed83cfb"
+      ],
+      "corroborating": [
+        "fact_5cf61c61311a",
+        "fact_3cfa0a98558d",
+        "fact_1ad037360960",
+        "fact_58e14ca8ed01",
+        "fact_44c2419aa99b",
+        "fact_107b43945b7d",
+        "fact_82f714c6b0f0",
+        "fact_4fc21858ee18",
+        "fact_12ca75747026",
+        "fact_e0704aee0ea9",
+        "fact_7be4d14fbd6d",
+        "fact_be5d0e348678",
+        "fact_1d52f7fa2351",
+        "fact_a26a68c1653b",
+        "fact_06a07766dd81",
+        "fact_5b7150bdbdd8",
+        "fact_331d06f6e824",
+        "fact_89f163ecbbd4",
+        "fact_c3b944354859",
+        "fact_d8e37386a02e",
+        "fact_b9a85571f293",
+        "fact_4acf0e9e2c7c",
+        "fact_34add827b6a4",
+        "fact_4857ebe04555",
+        "fact_9640d87567a1",
+        "fact_145c32431977",
+        "fact_48537bacb367",
+        "fact_512463a322ee",
+        "fact_c2e7ccf1bd6f",
+        "fact_03799b9aea74",
+        "fact_827546ce3a29",
+        "fact_0763c384ff5d",
+        "fact_d0a2d9c5dccf",
+        "fact_9296f4b83234",
+        "fact_cc46cd8e94ea",
+        "fact_cf481324ab17",
+        "fact_db68a887169d",
+        "fact_3afc7cab161b",
+        "fact_a5fe6ab1a15d",
+        "fact_c4c95eddcb04",
+        "fact_820752aa456b",
+        "fact_50f9c801f3ac",
+        "fact_5db40c965187",
+        "fact_c086a4f0deef",
+        "fact_42771199a51d",
+        "fact_913036b4b107",
+        "fact_ce31560a11eb",
+        "fact_cefb9f2993fd",
+        "fact_c6e6ae8fd283",
+        "fact_3615687c3f0a",
+        "fact_d22d57cbfb98",
+        "fact_d2dec015efa9",
+        "fact_e7995ba43d58",
+        "fact_a349f482844f",
+        "fact_767a4346c2e3",
+        "fact_55d1ce8a0526",
+        "fact_58ce247975b9",
+        "fact_62af7923d7b4",
+        "fact_2759437c37ed",
+        "fact_11ec00d6370c",
+        "fact_b0314faba6d3",
+        "fact_bfde7060ae10",
+        "fact_705690bf1f12",
+        "fact_af0c086caec6",
+        "fact_a65bab149a57",
+        "fact_e46d1270cb0e",
+        "fact_00b6e9a6f362",
+        "fact_4c0b5d2b3af6",
+        "fact_e6dc75e77992",
+        "fact_62635d725a27",
+        "fact_2a41010bb4fb",
+        "fact_3b0c22dc6fd6",
+        "fact_1638be673c1b",
+        "fact_cf19a37346f4",
+        "fact_6d30fa3c2c35",
+        "fact_73f5c9d6eb51",
+        "fact_e530d0268f6c",
+        "fact_f2621f608ca8",
+        "fact_6007bd8e36b3",
+        "fact_a4b04f1bcb2f",
+        "fact_69594ce7e1e7",
+        "fact_771c2f279262",
+        "fact_cdfc92c142db",
+        "fact_8c4d6f846574",
+        "fact_5f72a1007bec",
+        "fact_6b8a3a81cb12",
+        "fact_3dd417d928e9",
+        "fact_e4617d72b2ba",
+        "fact_9e7173ee22f5",
+        "fact_1dd9a37f77f7",
+        "fact_9b9cb6549a07",
+        "fact_8fc14c0d0975",
+        "fact_3211aaaf8825",
+        "fact_53da362ac362",
+        "fact_f98b7c972860",
+        "fact_50c535b4611d",
+        "fact_8e66c418f519",
+        "fact_04c005c330c5",
+        "fact_488a44a6bf28",
+        "fact_d5e509ea557d",
+        "fact_13e0218e3eb1",
+        "fact_0e8c4bc4daa4",
+        "fact_861759be0d4a",
+        "fact_0433fd325c1c",
+        "fact_3aa9b2a651ca",
+        "fact_6f091f949366",
+        "fact_36d849e01ec5",
+        "fact_876d28beaf5d",
+        "fact_f459d35c1a6e",
+        "fact_4865d5710848",
+        "fact_a16de634c655",
+        "fact_57df6175e5a4",
+        "fact_a62c146245bf",
+        "fact_659ca2b2b06d",
+        "fact_c8f5e1770a15",
+        "fact_d5c149afc5de",
+        "fact_cd6ffbcf9829",
+        "fact_38b50d6dc9dd",
+        "fact_3450ffb26948",
+        "fact_dfec50e0c5b2",
+        "fact_f7a674264a00",
+        "fact_01850546583f",
+        "fact_e22425c8d735",
+        "fact_a9b11782198f",
+        "fact_5ce7d4bc77d1",
+        "fact_79cbf0833563",
+        "fact_f4e4f064aa24",
+        "fact_d90383f03dad",
+        "fact_803be7b5f517",
+        "fact_9a8b6d80fb0a",
+        "fact_ad4c470f6438",
+        "fact_90a4443a9bb0",
+        "fact_ba0e2b6c185f"
+      ],
+      "conflict": {
+        "candidate_count": 134,
+        "agreement_count": 125,
+        "disagreement_count": 9,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": null,
+        "divergence_unit": null,
+        "tolerance_applied": null,
+        "field_type": "enum",
+        "pending": false,
+        "groups": {
+          "lane_attribute_classification": {
+            "candidate_count": 134,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "enum",
+            "tolerance_applied": null,
+            "pending": false,
+            "agreement_count": 125,
+            "disagreement_count": 9,
+            "max_divergence": null,
+            "divergence_unit": null,
+            "satisfied": true
+          }
+        },
+        "primary_group": "lane_attribute_classification",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 134
+      }
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].connectsTo[0].connectingLane.maneuver",
+      "value": "leftTurn",
+      "source_facts": [
+        "fact_32d73fee5884"
+      ],
+      "corroborating": [
+        "fact_4be26c961504"
+      ],
+      "conflict": {
+        "candidate_count": 2,
+        "agreement_count": 1,
+        "disagreement_count": 1,
+        "priority_used": "P1",
+        "priority_spread": [
+          "P1"
+        ],
+        "max_divergence": null,
+        "divergence_unit": null,
+        "tolerance_applied": null,
+        "field_type": "enum",
+        "pending": false,
+        "groups": {
+          "connection_semantics": {
+            "candidate_count": 2,
+            "priority_used": "P1",
+            "priority_spread": [
+              "P1"
+            ],
+            "field_type": "enum",
+            "tolerance_applied": null,
+            "pending": false,
+            "agreement_count": 1,
+            "disagreement_count": 1,
+            "max_divergence": null,
+            "divergence_unit": null,
+            "satisfied": true
+          }
+        },
+        "primary_group": "connection_semantics",
+        "all_required_groups_satisfied": true,
+        "missing_groups": [],
+        "total_candidate_count": 2
+      }
+    }
+  ],
+  "consistency_issues": [
+    {
+      "rule": "R10_connection_has_signalGroup",
+      "severity": "warning",
+      "where": "intersections[0].laneSet[4].connectsTo[0]",
+      "issue": "connection has no signalGroup"
+    },
+    {
+      "rule": "R10_connection_has_signalGroup",
+      "severity": "warning",
+      "where": "intersections[0].laneSet[8].connectsTo[0]",
+      "issue": "connection has no signalGroup"
+    },
+    {
+      "rule": "R10_connection_has_signalGroup",
+      "severity": "warning",
+      "where": "intersections[0].laneSet[9].connectsTo[0]",
+      "issue": "connection has no signalGroup"
+    },
+    {
+      "rule": "R10_connection_has_signalGroup",
+      "severity": "warning",
+      "where": "intersections[0].laneSet[10].connectsTo[0]",
+      "issue": "connection has no signalGroup"
+    }
+  ],
+  "decisions": [
+    {
+      "target_path": "header.protocolVersion",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "header.messageID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 5,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "header.stationID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 100,
+      "source_facts": [
+        "site_config.station_id"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.msgIssueRevision",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.processMethod",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.processMethod"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.processAgency",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.processAgency"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.lastCheckedDate",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.lastCheckedDate"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.dataParameters.geoidUsed",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.dataParameters.geoidUsed"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "site_config.intersection.name"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].id.region",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 50050,
+      "source_facts": [
+        "site_config.region_code"
+      ],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].id.id",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 950,
+      "source_facts": [
+        "site_id_official_intersection_id"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].revision",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.lat",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": 538735389,
+      "source_facts": [
+        "crs_decl_from_site_config",
+        "fact_4211e6250b81"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].refPoint.long",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": 14830072,
+      "source_facts": [
+        "crs_decl_from_site_config",
+        "fact_4211e6250b81"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneWidth",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 350,
+      "source_facts": [],
+      "confidence": "low"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].name",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 3,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 4,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 5,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 6,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 7,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 8,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 9,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 10,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 11,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].laneID",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 12,
+      "source_facts": [],
+      "confidence": "high"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].ingressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_3"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].ingressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_10"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].ingressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_1"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].ingressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_12"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].ingressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_11"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_5"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [
+        "approach_assignment_lane_7"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [
+        "approach_assignment_lane_8"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].egressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [
+        "approach_assignment_lane_9"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 2,
+      "source_facts": [
+        "approach_assignment_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_6"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].egressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].egressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].egressApproach",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].egressApproach",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 1,
+      "source_facts": [
+        "approach_assignment_lane_4"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_11"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_5"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_7"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_8"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "10",
+      "source_facts": [
+        "approach_assignment_lane_3"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_9"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_6"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "10",
+      "source_facts": [
+        "approach_assignment_lane_10"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "10",
+      "source_facts": [
+        "approach_assignment_lane_1"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "10",
+      "source_facts": [
+        "approach_assignment_lane_12"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].laneAttributes.directionalUse",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "01",
+      "source_facts": [
+        "approach_assignment_lane_4"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].laneAttributes.sharedWith",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_f7a661eba946"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_253c943d5e57"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_c10207dd990b"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_1c595976734c"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_27144c8f18a7"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_4961c116b416"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_96ea9da42af6"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_70204a8b5cd7"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_b97727643018"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].laneAttributes.sharedWith",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_6d6d3be62d0b"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_ad7931c4377e"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].laneAttributes.sharedWith",
+      "status": "matched",
+      "decision": "accepted",
+      "value": [],
+      "source_facts": [
+        "fact_ccbe476782a3"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_a0190d9dddbf"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_bb5bf8d4414b"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_bcfec46a5ff6"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_0551f6ff12d5"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_578f010513cd"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_62cb1605c1af"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_ec41c250d26c"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_d5f7a737c5f1"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_c2ab96cc5c70"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_4211e6250b81"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].laneAttributes.laneType",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_b0256ed83cfb"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].laneAttributes.laneType",
+      "status": "matched",
+      "decision": "accepted",
+      "value": "vehicle",
+      "source_facts": [
+        "fact_f73b938a4c9e"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[0].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[1].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[2].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[3].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[5].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[6].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[7].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[11].connectsTo",
+      "status": "not_applicable",
+      "decision": "skipped",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].connectsTo[0].connectingLane.lane",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 7,
+      "source_facts": [
+        "lane_connection_lane_3_to_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].connectsTo[0].connectingLane.lane",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 6,
+      "source_facts": [
+        "lane_connection_lane_10_to_lane_9"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].connectsTo[0].connectingLane.lane",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 7,
+      "source_facts": [
+        "lane_connection_lane_1_to_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].connectsTo[0].connectingLane.lane",
+      "status": "matched",
+      "decision": "accepted",
+      "value": 7,
+      "source_facts": [
+        "lane_connection_lane_12_to_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].connectsTo[0].connectingLane.maneuver",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].connectsTo[0].connectingLane.maneuver",
+      "status": "matched_with_conflict",
+      "decision": "accepted",
+      "value": "leftTurn",
+      "source_facts": [
+        "fact_32d73fee5884"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[4].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "lane_connection_lane_3_to_lane_2",
+        "lane_connection_lane_3_to_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[8].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "lane_connection_lane_10_to_lane_9",
+        "lane_connection_lane_10_to_lane_9"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[9].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "lane_connection_lane_1_to_lane_2",
+        "lane_connection_lane_1_to_lane_2"
+      ],
+      "confidence": "n/a"
+    },
+    {
+      "target_path": "mapData.intersections[0].laneSet[10].connectsTo[0].signalGroup",
+      "status": "unresolved",
+      "decision": "gap",
+      "value": null,
+      "source_facts": [
+        "lane_connection_lane_12_to_lane_2",
+        "lane_connection_lane_12_to_lane_2"
+      ],
+      "confidence": "n/a"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "site_id": "950L",
+  "site_name": "950L",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/950L",
+  "inventory_summary": {
+    "total_files": 3,
+    "file_type_counts": {
+      "dwg": 1,
+      "pdf": 1,
+      "unknown": 1
+    },
+    "readable_files": 3,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/950L/950L/.DS_Store",
+      "file_type": "unknown",
+      "file_size_bytes": 6148,
+      "filename_hints": [],
+      "readable_status": "available_unknown_format",
+      "parser_to_use": "manual_review",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/950L/950L/950L CH 16-05-24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 572398,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/950L/950L/UTC-950L A63 Selby Rd Ninelands La EDIT.dwg",
+      "file_type": "dwg",
+      "file_size_bytes": 3561656,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": ""
+    }
+  ]
+}

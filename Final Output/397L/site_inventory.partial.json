@@ -1,0 +1,37 @@
+{
+  "site_id": "397L",
+  "site_name": "397L",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "/Users/mac/PycharmProjects/MAPEM3135/data/397L",
+  "inventory_summary": {
+    "total_files": 2,
+    "file_type_counts": {
+      "dwg": 1,
+      "pdf": 1
+    },
+    "readable_files": 2,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "/Users/mac/PycharmProjects/MAPEM3135/data/397L/UTMC_300097_397L_04.dwg",
+      "file_type": "dwg",
+      "file_size_bytes": 965983,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/mac/PycharmProjects/MAPEM3135/data/397L/UTMC_397L_SPEC_02a.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 307147,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    }
+  ]
+}

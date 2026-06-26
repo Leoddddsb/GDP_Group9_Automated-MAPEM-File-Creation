@@ -1,0 +1,94 @@
+ItsPduHeader ::= {
+  protocolVersion 2,
+  messageID 5,
+  stationID 100
+}
+
+MapData ::= {
+  msgIssueRevision 1,
+  dataParameters {
+    processMethod NULL -- unresolved,
+    processAgency NULL -- unresolved,
+    lastCheckedDate NULL -- unresolved,
+    geoidUsed NULL -- unresolved
+  },
+  intersections {
+    {
+      name NULL -- unresolved,
+      id {
+        region 50050,
+        id 1013
+      },
+      revision 1,
+      refPoint {
+        lat 513828526,
+        long -23585010
+      },
+      laneWidth 350,
+      laneSet {
+        {
+          name NULL -- unresolved,
+          laneID 1,
+          ingressApproach 2,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '0000000000000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 3,
+                maneuver '010000000000'B
+              },
+              signalGroup NULL -- unresolved,
+              connectionID 1
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 2,
+          egressApproach 1,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '0000000000000000'B
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 3,
+          egressApproach 4,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '0000000000000000'B
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 4,
+          egressApproach 3,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '0000000000000000'B
+            }
+          }
+        }
+      }
+    }
+  }
+}

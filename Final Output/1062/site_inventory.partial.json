@@ -1,0 +1,85 @@
+{
+  "site_id": "1062",
+  "site_name": "1062",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062",
+  "inventory_summary": {
+    "total_files": 6,
+    "file_type_counts": {
+      "8tx": 1,
+      "docx": 1,
+      "pdf": 3,
+      "zip": 1
+    },
+    "readable_files": 6,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/1062_2500Config_Mar24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 497515,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/1062_Drawing_Sep24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 1644104,
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/1062_RAMData_Mar26.8tx",
+      "file_type": "8tx",
+      "file_size_bytes": 1319,
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/1062_SCOOTDets_Sep24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 613066,
+      "filename_hints": [
+        "possible SCOOT detector data"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/1062_UTCForm_Jan24.docx",
+      "file_type": "docx",
+      "file_size_bytes": 464793,
+      "filename_hints": [
+        "possible UTC form"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1062/T1062 Safeway Store - Standard.zip",
+      "file_type": "zip",
+      "file_size_bytes": 23169574,
+      "filename_hints": [
+        "possible CAD package"
+      ],
+      "readable_status": "archive_readable",
+      "parser_to_use": "zip_inventory_parser",
+      "notes": ""
+    }
+  ]
+}

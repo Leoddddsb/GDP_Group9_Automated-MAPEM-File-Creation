@@ -1,0 +1,150 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "dataParameters": {
+      "processMethod": null,
+      "processAgency": null,
+      "lastCheckedDate": null,
+      "geoidUsed": null
+    },
+    "intersections": [
+      {
+        "name": null,
+        "id": {
+          "region": 50050,
+          "id": 982
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 538351527,
+          "long": -14346605
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "name": null,
+            "laneID": 1,
+            "ingressApproach": 2,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": null,
+            "laneID": 2,
+            "ingressApproach": 1,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 4,
+                  "maneuver": "unknown"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 3,
+            "ingressApproach": 3,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 4,
+                  "maneuver": "unknown"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 4,
+            "egressApproach": 4,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            }
+          },
+          {
+            "name": null,
+            "laneID": 5,
+            "egressApproach": 5,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            }
+          },
+          {
+            "name": null,
+            "laneID": 6,
+            "egressApproach": 6,
+            "laneAttributes": {
+              "directionalUse": "01",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            }
+          },
+          {
+            "name": null,
+            "laneID": 7,
+            "ingressApproach": 8,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 6,
+                  "maneuver": "unknown"
+                },
+                "signalGroup": null
+              }
+            ]
+          },
+          {
+            "name": null,
+            "laneID": 8,
+            "ingressApproach": 7,
+            "laneAttributes": {
+              "directionalUse": "10",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": 6,
+                  "maneuver": "unknown"
+                },
+                "signalGroup": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

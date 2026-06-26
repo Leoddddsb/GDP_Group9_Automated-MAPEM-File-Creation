@@ -1,0 +1,31 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "dataParameters": {
+      "processMethod": null,
+      "processAgency": null,
+      "lastCheckedDate": null,
+      "geoidUsed": null
+    },
+    "intersections": [
+      {
+        "name": null,
+        "id": {
+          "region": 50050,
+          "id": 5040
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": null,
+          "long": null
+        },
+        "laneWidth": 350
+      }
+    ]
+  }
+}

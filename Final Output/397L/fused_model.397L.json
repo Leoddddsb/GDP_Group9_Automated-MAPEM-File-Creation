@@ -1,0 +1,191 @@
+{
+  "header": {
+    "protocolVersion": 2,
+    "messageID": 5,
+    "stationID": 100
+  },
+  "mapData": {
+    "msgIssueRevision": 1,
+    "dataParameters": {
+      "processMethod": "Manual transcription from 397L DXF and UTMC specification PDF",
+      "processAgency": "Imperial GDP Group 9",
+      "lastCheckedDate": "2026-06-17",
+      "geoidUsed": "EPSG:27700 source drawing transformed to WGS84"
+    },
+    "intersections": [
+      {
+        "name": "397L Hyde Park Road Toucan near Brudenell Road",
+        "id": {
+          "region": 50050,
+          "id": 397
+        },
+        "revision": 1,
+        "refPoint": {
+          "lat": 538124601.0,
+          "long": -15637669.0
+        },
+        "laneWidth": 350,
+        "laneSet": [
+          {
+            "name": "A Hyde Park Road northbound ingress",
+            "laneID": 1,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": "00",
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 1
+              }
+            ]
+          },
+          {
+            "name": "B Hyde Park Road southbound ingress",
+            "laneID": 2,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 2
+              }
+            ]
+          },
+          {
+            "name": "C Toucan crossing west-side ingress",
+            "laneID": 3,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 3
+              }
+            ]
+          },
+          {
+            "name": "C Toucan crossing east-side ingress",
+            "laneID": 4,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": [
+              {
+                "connectingLane": {
+                  "lane": null,
+                  "maneuver": null
+                },
+                "signalGroup": 3
+              }
+            ]
+          },
+          {
+            "name": "A Hyde Park Road northbound egress",
+            "laneID": 5,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": "B Hyde Park Road southbound egress",
+            "laneID": 6,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": "C Toucan crossing east-side egress",
+            "laneID": 7,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          },
+          {
+            "name": "C Toucan crossing west-side egress",
+            "laneID": 8,
+            "ingressApproach": null,
+            "egressApproach": null,
+            "laneAttributes": {
+              "directionalUse": null,
+              "sharedWith": [],
+              "laneType": "vehicle"
+            },
+            "connectsTo": null
+          }
+        ],
+        "signalHeadLocations": [
+          {
+            "nodeXY": {
+              "x": -5.0,
+              "y": -0.8
+            },
+            "signalGroupID": 1
+          },
+          {
+            "nodeXY": {
+              "x": 4.9,
+              "y": 0.8
+            },
+            "signalGroupID": 2
+          },
+          {
+            "nodeXY": {
+              "x": -5.0,
+              "y": -0.8
+            },
+            "signalGroupID": 3
+          },
+          {
+            "nodeXY": {
+              "x": 4.9,
+              "y": 0.8
+            },
+            "signalGroupID": 3
+          }
+        ]
+      }
+    ]
+  }
+}

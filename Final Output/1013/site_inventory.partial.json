@@ -1,0 +1,71 @@
+{
+  "site_id": "1013",
+  "site_name": "1013",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013",
+  "inventory_summary": {
+    "total_files": 5,
+    "file_type_counts": {
+      "docx": 1,
+      "dwg": 1,
+      "pdf": 1,
+      "txt": 1,
+      "unknown": 1
+    },
+    "readable_files": 5,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013/.DS_Store",
+      "file_type": "unknown",
+      "file_size_bytes": 8196,
+      "filename_hints": [],
+      "readable_status": "available_unknown_format",
+      "parser_to_use": "manual_review",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013/1013_2500Config_2014.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 323644,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013/1013_Northgate St_Overlay.dwg",
+      "file_type": "dwg",
+      "file_size_bytes": 1302612,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013/1013_RAMData_Apr26.txt",
+      "file_type": "txt",
+      "file_size_bytes": 5076,
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/1013/1013_UTCForm_Feb24.docx",
+      "file_type": "docx",
+      "file_size_bytes": 341408,
+      "filename_hints": [
+        "possible UTC form"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    }
+  ]
+}

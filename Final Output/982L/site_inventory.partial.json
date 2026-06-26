@@ -1,0 +1,47 @@
+{
+  "site_id": "982L",
+  "site_name": "982L",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/982L",
+  "inventory_summary": {
+    "total_files": 3,
+    "file_type_counts": {
+      "dwg": 1,
+      "pdf": 1,
+      "unknown": 1
+    },
+    "readable_files": 3,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/982L/982L/.DS_Store",
+      "file_type": "unknown",
+      "file_size_bytes": 6148,
+      "filename_hints": [],
+      "readable_status": "available_unknown_format",
+      "parser_to_use": "manual_review",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/982L/982L/982L-Spec-20_10_23.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 1053806,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "/Users/tanxinyan/Documents/GitHub/GDP_Group9_Automated-MAPEM-File-Creation/data/982L/982L/UTMC_716747_982L_01a-MorwickRemoved.dwg",
+      "file_type": "dwg",
+      "file_size_bytes": 5229254,
+      "filename_hints": [],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "cad_parser_after_conversion",
+      "notes": ""
+    }
+  ]
+}

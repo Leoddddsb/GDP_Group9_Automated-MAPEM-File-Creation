@@ -1,0 +1,632 @@
+ItsPduHeader ::= {
+  protocolVersion 2,
+  messageID 5,
+  stationID 100
+}
+
+MapData ::= {
+  msgIssueRevision 1,
+  dataParameters {
+    processMethod NULL -- unresolved,
+    processAgency NULL -- unresolved,
+    lastCheckedDate NULL -- unresolved,
+    geoidUsed NULL -- unresolved
+  },
+  intersections {
+    {
+      name NULL -- unresolved,
+      id {
+        region 50000,
+        id 573
+      },
+      revision 1,
+      refPoint {
+        lat 423356193,
+        long 236962997
+      },
+      laneWidth 350,
+      laneSet {
+        {
+          name NULL -- unresolved,
+          laneID 1,
+          ingressApproach 4,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 32,
+                maneuver '001000000000'B
+              },
+              signalGroup 1,
+              connectionID 1
+            },
+            {
+              connectingLane {
+                lane 32,
+                maneuver '001000000000'B
+              },
+              signalGroup 2,
+              connectionID 2
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 2,
+          ingressApproach 3,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 22,
+                maneuver NULL -- unresolved
+              },
+              signalGroup 5,
+              connectionID 3
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 3,
+          ingressApproach 14,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 23,
+                maneuver NULL -- unresolved
+              },
+              signalGroup 6,
+              connectionID 4
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 4,
+          ingressApproach 3,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 22,
+                maneuver '010000000000'B
+              },
+              signalGroup 7,
+              connectionID 5
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 5,
+          ingressApproach 2,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 22,
+                maneuver '010000000000'B
+              },
+              signalGroup 8,
+              connectionID 6
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 6,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 7,
+          ingressApproach 16,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 22,
+                maneuver '001000000000'B
+              },
+              signalGroup 10,
+              connectionID 7
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 8,
+          ingressApproach 15,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 11,
+              connectionID 8
+            },
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 12,
+              connectionID 9
+            },
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 13,
+              connectionID 10
+            },
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 15,
+              connectionID 11
+            },
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 17,
+              connectionID 12
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 9,
+          ingressApproach 13,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo {
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 14,
+              connectionID 13
+            },
+            {
+              connectingLane {
+                lane 23,
+                maneuver '001000000000'B
+              },
+              signalGroup 16,
+              connectionID 14
+            }
+          }
+        },
+        {
+          name NULL -- unresolved,
+          laneID 10,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 11,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 12,
+          ingressApproach NULL -- unresolved,
+          egressApproach 2,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 13,
+          ingressApproach NULL -- unresolved,
+          egressApproach 1,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 14,
+          ingressApproach 4,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 15,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 16,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 17,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 18,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 19,
+          ingressApproach 17,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '10'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 20,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 21,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 22,
+          ingressApproach NULL -- unresolved,
+          egressApproach 4,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 23,
+          ingressApproach NULL -- unresolved,
+          egressApproach 13,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 24,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 25,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 26,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 27,
+          ingressApproach NULL -- unresolved,
+          egressApproach 1,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice crosswalk,
+              attributes '0000000000000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 28,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 29,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 30,
+          ingressApproach NULL -- unresolved,
+          egressApproach 4,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice crosswalk,
+              attributes '0000000000000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 31,
+          ingressApproach NULL -- unresolved,
+          egressApproach NULL -- unresolved,
+          laneAttributes {
+            directionalUse '00'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        },
+        {
+          name NULL -- unresolved,
+          laneID 32,
+          ingressApproach NULL -- unresolved,
+          egressApproach 2,
+          laneAttributes {
+            directionalUse '01'B,
+            sharedWith '0000000000'B,
+            laneType {
+              choice vehicle,
+              attributes '00000000'B
+            }
+          },
+          connectsTo NULL -- unresolved
+        }
+      }
+    }
+  }
+}

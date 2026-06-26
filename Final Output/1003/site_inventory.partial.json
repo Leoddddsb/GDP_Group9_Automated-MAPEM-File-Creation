@@ -1,0 +1,85 @@
+{
+  "site_id": "1003",
+  "site_name": "1003",
+  "local_authority_or_dataset": "",
+  "input_folder_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003",
+  "inventory_summary": {
+    "total_files": 6,
+    "file_type_counts": {
+      "8tx": 1,
+      "docx": 1,
+      "pdf": 3,
+      "zip": 1
+    },
+    "readable_files": 6,
+    "unreadable_files": 0
+  },
+  "source_files": [
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/1003_2500Config_Mar24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 393473,
+      "filename_hints": [
+        "possible configuration file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/1003_Drawing_Sep24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 1060994,
+      "filename_hints": [
+        "possible drawing / layout file"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/1003_RAMData_Jan26.8tx",
+      "file_type": "8tx",
+      "file_size_bytes": 470,
+      "filename_hints": [
+        "possible RAM / override data"
+      ],
+      "readable_status": "text_readable",
+      "parser_to_use": "ram_text_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/1003_SCOOTDets_Sep24.pdf",
+      "file_type": "pdf",
+      "file_size_bytes": 588761,
+      "filename_hints": [
+        "possible SCOOT detector data"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "pdf_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/1003_UTCForm_May24.docx",
+      "file_type": "docx",
+      "file_size_bytes": 500575,
+      "filename_hints": [
+        "possible UTC form"
+      ],
+      "readable_status": "available_not_directly_readable",
+      "parser_to_use": "docx_parser",
+      "notes": ""
+    },
+    {
+      "file_path": "C:/Users/Administrator/Desktop/GDP_Group9_Automated-MAPEM-File-Creation/data/1003/T1003 Cleveland Place - Standard.zip",
+      "file_type": "zip",
+      "file_size_bytes": 14349461,
+      "filename_hints": [
+        "possible CAD package"
+      ],
+      "readable_status": "archive_readable",
+      "parser_to_use": "zip_inventory_parser",
+      "notes": ""
+    }
+  ]
+}
